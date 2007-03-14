@@ -170,12 +170,12 @@ namespace LibCC
     std::wstring strW;
     if(lpValueName)
     {
-      StringCopy(valueName, lpValueName);
+      ToUnicode(lpValueName, valueName);
     }
     LONG r;
     if(ERROR_SUCCESS == (r = RegQueryValueExStringX(hKey, lpValueName ? valueName.c_str() : 0, Reserved, REG_SZ, strW)))
     {
-      StringCopy(strX, strW);
+      FromUnicode(strW, strX);
     }
     return r;
   }
@@ -191,7 +191,7 @@ namespace LibCC
     if(szValueName)
     {
       std::wstring strW;
-      StringCopy(valueName, szValueName);
+      ToUnicode(lpValueName, valueName);
     }
     return RegQueryValueExX(hKey, szValueName ? valueName.c_str() : 0, type, data, cbData);
   }
@@ -287,7 +287,7 @@ namespace LibCC
       if(path.length() >= 3)
       {
           std::basic_string<Char> sSearch = path.substr(1, 2);
-          if(StringEquals(sSearch, ":/") || StringEquals(sSearch, ":\\"))
+          if(XStringEquals(sSearch, ":/") || XStringEquals(sSearch, ":\\"))
           {
               r = true;
           }
@@ -299,7 +299,7 @@ namespace LibCC
   std::basic_string<Char> PathRemoveFilename(const std::basic_string<Char>& path)
   {
       std::basic_string<Char>::size_type nLastSlash = 0;
-      nLastSlash = StringFindLastOf(path, "\\/");
+      nLastSlash = XStringFindLastOf(path, "\\/");
       if(nLastSlash == std::string::npos) return path;
 
       return path.substr(0, nLastSlash);

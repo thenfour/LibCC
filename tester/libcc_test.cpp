@@ -71,13 +71,13 @@ int _tmain(int argc, _TCHAR* argv[])
   g_TestCount = 0;
   g_TestFailures = 0;
 
-	//RunTest(BlobTest);
+	RunTest(BlobTest);
 	//RunTest(DebugLogTest);
-	//RunTest(FormatTest);
- // RunTest(FormatBenchmark);
+	RunTest(FormatTest);
+  RunTest(FormatBenchmark);
  // //RunTest(RegistryTest); // careful with this of course.
- // RunTest(StatusTest);
- // RunTest(PathMatchSpecTest);
+  RunTest(StatusTest);
+  RunTest(PathMatchSpecTest);
   RunTest(StringTest);
 
 	return 0;

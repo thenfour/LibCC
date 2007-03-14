@@ -136,12 +136,12 @@ namespace LibCC
     void Assign(HRESULT hr, const Char* text)
     {
       m_hr = hr;
-      StringCopy(m_String, text);
+      m_String.assign(text);
     }
     void Assign(HRESULT hr, const String& text)
     {
       m_hr = hr;
-      StringCopy(m_String, text);
+      m_String.assign(text);
     }
     This& operator =(const This& r)
     {

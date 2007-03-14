@@ -23,7 +23,7 @@ bool RegistryTest()
   w.clear();
 
   TestAssert(x.GetValue(L"x", w));
-  TestAssert(StringEquals(w, "aoeu"));
+  TestAssert(StringEquals(w, L"aoeu"));
 
   // set default value
   int i;

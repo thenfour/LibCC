@@ -38,7 +38,9 @@ bool StringTest()
   std::wstring w;
 
   a = "omgomg";
-  a = StringReplace(a.c_str(), "omg", L"wtf");
+  a = StringReplace(a, "omg", "wtfu?");
+
+//	TestAssert(StringStartsWith("omgomg", "omg"));
 
   a = Format().d<2>(1.1).Str();
 
@@ -48,38 +50,38 @@ bool StringTest()
   TestCStringT<wchar_t> cw(L"hi");
 
   // String equals = true
-  StringEquals("hi", "hi");
-  StringEquals("hi", L"hi");
-  StringEquals(L"hi", L"hi");
+  //StringEquals("hi", "hi");
+  //StringEquals("hi", L"hi");
+  //StringEquals(L"hi", L"hi");
 
-  StringEquals(a, a);
-  StringEquals(a, L"hi");
+  //StringEquals(a, a);
+  //StringEquals(a, L"hi");
 
-  StringEquals("hi", w);
-  StringEquals(w, w);
+  //StringEquals("hi", w);
+  //StringEquals(w, w);
 
-  StringEquals(a, w);
-  StringEquals(w, a);
+  //StringEquals(a, w);
+  //StringEquals(w, a);
 
-  StringEquals(a, static_cast<const char*>(ca));
-  StringEquals(static_cast<const std::wstring&>(cw), a);
+  //StringEquals(a, static_cast<const char*>(ca));
+  //StringEquals(static_cast<const std::wstring&>(cw), a);
 
-  // StringI equals = true
-  StringEqualsI("hi", "hi");
-  StringEqualsI("hi", L"hi");
-  StringEqualsI(L"hi", L"hi");
+  //// StringI equals = true
+  //StringEqualsI("hi", "hi");
+  //StringEqualsI("hi", L"hi");
+  //StringEqualsI(L"hi", L"hi");
 
-  StringEqualsI(a, a);
-  StringEqualsI(a, L"hi");
+  //StringEqualsI(a, a);
+  //StringEqualsI(a, L"hi");
 
-  StringEqualsI("hi", w);
-  StringEqualsI(w, w);
+  //StringEqualsI("hi", w);
+  //StringEqualsI(w, w);
 
-  StringEqualsI(a, w);
-  StringEqualsI(w, a);
+  //StringEqualsI(a, w);
+  //StringEqualsI(w, a);
 
-  StringEqualsI(a, static_cast<const char*>(ca));
-  StringEqualsI(static_cast<const std::wstring&>(cw), a);
+  //StringEqualsI(a, static_cast<const char*>(ca));
+  //StringEqualsI(static_cast<const std::wstring&>(cw), a);
 
 	// convert encodings
 	Blob<BYTE> b;

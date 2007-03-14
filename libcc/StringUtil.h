@@ -273,100 +273,115 @@ namespace LibCC
 
 namespace LibCC
 {
-  char DigitToChar(unsigned char d);
+  inline char DigitToChar(unsigned char d);
 
-  template<typename Char>
-    inline size_t StringLength(const Char* in);
-
-  // Copy. These string copies are important for routines that have templated char types. So for copying from similar-typed chars it's really fast, and for differently-typed-chars, it does conversions.
-  template<typename LChar, typename Char>
-    inline void StringCopy(std::basic_string<LChar>& out, const Char* in);
-  template<typename DestString, typename SourceChar>
-    inline void StringCopy(DestString& out, const std::basic_string<SourceChar>& in);
-  template<typename DestChar, typename SourceChar>
-    inline std::basic_string<DestChar> StringCopy(const std::basic_string<SourceChar>& s);
-
-  // Split
   template<typename Char, typename OutIt>
     inline void StringSplit(const std::basic_string<Char>& s, const std::basic_string<Char>& sep, OutIt dest);
-  template<typename Char, typename OutIt>
-    inline void StringSplit(const std::basic_string<Char>& s, const Char* sep, OutIt dest);
-  template<typename Char, typename OutIt>
-    inline void StringSplit(const std::basic_string<Char>& s, Char sep, OutIt dest);
 
-  // Join
-  template<typename InIt, typename Char>
-    inline std::basic_string<Char> StringJoin(InIt start, InIt end, const Char* sep);
   template<typename InIt, typename Char>
     inline std::basic_string<Char> StringJoin(InIt start, InIt end, const std::basic_string<Char>& sep);
 
-  template<typename LChar, typename RChar>
-    inline void StringAppend(std::basic_string<LChar>& sep, const RChar* rhs);
-
-  // Trim
   template<typename Char>
     inline std::basic_string<Char> StringTrim(const std::basic_string<Char>& s, const std::basic_string<Char>& chars);
+
   template<typename Char>
-    inline std::basic_string<Char> StringTrim(const std::basic_string<Char>& s, const Char* chars);
+    inline std::basic_string<Char> StringReplace(const std::basic_string<Char>& src, const std::basic_string<Char>& searchString, const std::basic_string<Char>& replaceString);
+  template<typename Char>// these overloads help compile with constant strings
+    inline std::basic_string<Char> StringReplace(const std::basic_string<Char>& src, const std::basic_string<Char>& searchString, const Char* replaceString) { return StringReplace(src, searchString, std::basic_string<Char>(replaceString)); }
   template<typename Char>
-    inline std::basic_string<Char> StringTrim(const Char* s, const Char* chars);
+    inline std::basic_string<Char> StringReplace(const std::basic_string<Char>& src, const Char* searchString, const Char* replaceString) { return StringReplace(src, std::basic_string<Char>(searchString), std::basic_string<Char>(replaceString)); }
+  template<typename Char>
+    inline std::basic_string<Char> StringReplace(const Char* src, const Char* searchString, const Char* replaceString) { return StringReplace(std::basic_string<Char>(src), std::basic_string<Char>(searchString), std::basic_string<Char>(replaceString)); }
 
-  // Compare
-  template<typename LChar, typename RChar>
-    inline bool StringEquals(const std::basic_string<LChar>& lhs, const std::basic_string<RChar>& rhs);
-  template<typename LChar, typename RChar>
-    inline bool StringEquals(const std::basic_string<LChar>& lhs, const RChar* rhs);
-  template<typename LChar, typename RChar>
-    inline bool StringEquals(const LChar* lhs, const std::basic_string<RChar>& rhs);
-  template<typename LChar, typename RChar>
-    inline bool StringEquals(const LChar* lhs, const RChar* rhs);
-
-  template<typename LChar, typename RChar>
-    inline bool StringEqualsI(const std::basic_string<LChar>& lhs, const std::basic_string<RChar>& rhs);
-  template<typename LChar, typename RChar>
-    inline bool StringEqualsI(const std::basic_string<LChar>& lhs, const RChar* rhs);
-  template<typename LChar, typename RChar>
-    inline bool StringEqualsI(const LChar* lhs, const std::basic_string<RChar>& rhs);
-  template<typename LChar, typename RChar>
-    inline bool StringEqualsI(const LChar* lhs, const RChar* rhs);
-
-  // Replace
-  template<typename Char, typename SearchChar, typename ReplaceChar>
-    inline std::basic_string<Char> StringReplace(const Char* src, const SearchChar* search, const ReplaceChar* replace);
-
-  // Search
-  template<typename Char, typename SearchChar>
-    inline std::string::size_type StringFindFirstOf(const std::basic_string<Char>& s, const std::basic_string<SearchChar>& chars);
-  template<typename Char, typename SearchChar>
-    inline std::string::size_type StringFindFirstOf(const std::basic_string<Char>& s, const SearchChar* chars);
-
-  template<typename Char, typename SearchChar>
-    inline std::string::size_type StringFindI(const std::basic_string<Char>& s, const std::basic_string<SearchChar>& chars);
-  template<typename Char, typename SearchChar>
-    inline std::string::size_type StringFindI(const std::basic_string<Char>& s, const SearchChar* chars);
-  template<typename Char, typename SearchChar>
-    inline std::string::size_type StringFindI(const Char* s, const SearchChar* chars);
-
-  template<typename Char, typename SearchChar>
-    inline std::string::size_type StringFindLastOf(const std::basic_string<Char>& s, const std::basic_string<SearchChar>& chars);
-  template<typename Char, typename SearchChar>
-    inline std::string::size_type StringFindLastOf(const std::basic_string<Char>& s, const SearchChar* chars);
-
-  template<typename Char, typename CharSearch>
-    inline bool StringContains(const Char* s, CharSearch x);
-  template<typename Char, typename CharSearch>
-    inline bool StringContainsI(const std::basic_string<Char>& s, const CharSearch* x);
-
-  template<typename Char, typename CharSearch>
-    inline bool StringStartsWith(const Char* s, const CharSearch* search);
-  template<typename Char, typename CharSearch>
-    inline bool StringStartsWithI(const Char* s, const CharSearch* search);
-
-  // transform
   template<typename Char>
     inline std::basic_string<Char> StringToUpper(const std::basic_string<Char> &s);
+
   template<typename Char>
     inline std::basic_string<Char> StringToLower(const std::basic_string<Char> &s);
+
+  template<typename Char, typename Trhs>
+  inline bool StringEquals(const std::basic_string<Char>& lhs, const Trhs& rhs) { return lhs == rhs; }
+
+	/*
+		Convenience functions for other LibCC code like the registry stuff that has a Char template parameter,
+		but needs to hard-code string constants, and interact between the two. The hard-coded strings will all
+		be "typical" ASCII strings, and so we don't need to worry about problems of MBCS here.
+	*/
+  template<typename Char>
+	inline bool XStringEquals(const std::basic_string<Char>& lhs, const char* rhs)
+	{
+		if(lhs.size() >= strlen(rhs)) return false;
+		for(std::basic_string<Char>::const_iterator it = lhs.begin(); it != lhs.end(); ++ it, ++ rhs)
+		{
+			if(*it != *rhs) return false;
+		}
+		return true;
+	}
+  template<typename Char>
+  inline bool XStringContains(const char* source, Char x)
+  {
+    while(*source)
+    {
+      if(*source == x) return true;
+      source ++;
+    }
+    return false;
+  }
+  template<typename Char>
+  inline std::string::size_type XStringFindFirstOf(const std::basic_string<Char>& s, const char* chars)
+  {
+    const Char* p = s.c_str();
+    while(*p)
+    {
+      if(XStringContains(chars, *p))
+      {
+        return p - s.c_str();
+      }
+      p ++;
+    }
+    return std::string::npos;
+  }
+  template<typename Char>
+  inline std::string::size_type XStringFindLastOf(const std::basic_string<Char>& s, const char* chars)
+  {
+    if(!s.empty())
+    {
+      const Char* p = s.c_str() + s.size() - 1;
+      do
+      {
+        if(XStringContains(chars, *p))
+        {
+          return p - s.c_str();
+        }
+        p --;
+      }
+      while(p != s.c_str());
+    }
+    return std::string::npos;
+  }
+  template<typename InChar, typename OutChar>
+	inline void XLastDitchStringCopy(const std::basic_string<InChar>& in, std::basic_string<OutChar>& out)
+	{
+		// when there's no other way to convert from 1 string type to another, you can try this basic element-by-element copy
+		out.clear();
+		out.reserve(in.size());
+		for(std::wstring::const_iterator it = in.begin; it != in.end(); ++ it)
+		{
+			out.append(*it);
+		}
+	}
+  template<typename InChar, typename OutChar>
+	inline void XLastDitchStringCopy(const InChar* in, std::basic_string<OutChar>& out)
+	{
+		// when there's no other way to convert from 1 string type to another, you can try this basic element-by-element copy
+		out.clear();
+		out.reserve(in.size());
+		for(; *in != 0; ++ in)
+		{
+			out.append(*in);
+		}
+	}
+
 
 #ifdef WIN32
 	inline HRESULT ToMBCS(const std::wstring& widestr, Blob<BYTE>& out, UINT codepage)
@@ -412,21 +427,38 @@ namespace LibCC
 
 		return S_OK;
 	}
-	 
-	HRESULT ToMBCS(const std::wstring& widestr, std::string& out, UINT codepage)
+	inline HRESULT ToMBCS(const std::wstring& widestr, std::string& out, UINT codepage)
 	{
 		Blob<BYTE> b;
-		HRESULT hr = ToMBCS(widestr, out, codepage);
+		HRESULT hr = ToMBCS(widestr, b, codepage);
 		if(FAILED(hr)) return hr;
 		out.assign((const char*)b.GetBuffer(), b.Size());
 		return hr;
 	}
-
-	inline HRESULT ToUTF8(const std::wstring& widestr, std::string& out)
+	inline HRESULT ToMBCS(const std::string& in, std::string& out)
 	{
-		return ToMBCS(widestr, out, CP_UTF8);
+		out = in;
+		return S_OK;
+	}
+	inline HRESULT ToMBCS(const char* in, std::string& out)
+	{
+		out = in;
+		return S_OK;
+	}
+	template<typename Char>
+	inline HRESULT ToMBCS(const std::basic_string<Char>& lhs, std::string& out)
+	{
+		XLastDitchStringCopy(lhs, out);
+		return S_OK;
+	}
+	template<typename Char>
+	inline HRESULT ToMBCS(const Char* lhs, std::string& out)
+	{
+		XLastDitchStringCopy(lhs, out);
+		return S_OK;
 	}
 
+	//////
 	inline HRESULT ToUnicode(const std::string& multistr, std::wstring& widestr, UINT codepage = CP_ACP)
 	{
 		int length = MultiByteToWideChar(codepage, 0, multistr.c_str(), (int)multistr.length(), NULL, 0);
@@ -442,7 +474,127 @@ namespace LibCC
  
 		return S_OK;
 	}
+	inline HRESULT ToUnicode(const char* multistr, std::wstring& widestr, UINT codepage = CP_ACP)
+	{
+		return ToUnicode(std::string(multistr), widestr, codepage);
+	}
+	inline HRESULT ToUnicode(const std::wstring& lhs, std::wstring& widestr)
+	{
+		widestr = lhs;
+		return S_OK;
+	}
+	inline HRESULT ToUnicode(const wchar_t* lhs, std::wstring& widestr)
+	{
+		widestr = lhs;
+		return S_OK;
+	}
+	template<typename Char>
+	inline HRESULT ToUnicode(const std::basic_string<Char>& lhs, std::wstring& widestr)
+	{
+		XLastDitchStringCopy(lhs, widestr);
+		return S_OK;
+	}
+	template<typename Char>
+	inline HRESULT ToUnicode(const Char* lhs, std::wstring& widestr)
+	{
+		XLastDitchStringCopy(lhs, widestr);
+		return S_OK;
+	}
 
+	//////
+	inline HRESULT FromUnicode(const std::wstring& lhs, std::wstring& ret)
+	{
+		ret = lhs;
+		return S_OK;
+	}
+	inline HRESULT FromUnicode(const wchar_t* lhs, std::wstring& ret)
+	{
+		ret = lhs;
+		return S_OK;
+	}
+	inline HRESULT FromUnicode(const std::wstring& lhs, std::string& ret)
+	{
+		return ToMBCS(lhs, ret, CP_ACP);
+	}
+	inline HRESULT FromUnicode(const wchar_t* lhs, std::string& ret)
+	{
+		return ToMBCS(lhs, ret, CP_ACP);
+	}
+	template<typename Char>
+	inline HRESULT FromUnicode(const std::wstring& lhs, std::basic_string<Char>& ret)
+	{
+		XLastDitchStringCopy(lhs, ret);
+		return S_OK;
+	}
+	template<typename Char>
+	inline HRESULT FromUnicode(const wchar_t* lhs, std::basic_string<Char>& ret)
+	{
+		XLastDitchStringCopy(lhs, ret);
+	}
+	
+	//////
+	inline HRESULT ToUTF8(const std::wstring& widestr, std::string& out)
+	{
+		return ToMBCS(widestr, out, CP_UTF8);
+	}
+	inline HRESULT ToUTF8(const wchar_t* widestr, std::string& out)
+	{
+		return ToMBCS(widestr, out, CP_UTF8);
+	}
+	inline HRESULT ToUTF8(const char* in, std::string& out)
+	{
+		std::wstring intermediate;
+		HRESULT hr = ToUnicode(in, intermediate, CP_UTF8);
+		if(FAILED(hr)) return hr;
+		return ToMBCS(intermediate, out, CP_UTF8);
+	}
+	inline HRESULT ToUTF8(const std::string& in, std::string& out)
+	{
+		std::wstring intermediate;
+		HRESULT hr = ToUnicode(in, intermediate, CP_UTF8);
+		if(FAILED(hr)) return hr;
+		return ToMBCS(intermediate, out, CP_UTF8);
+	}
+	
+	
+	// attempts to convert any type of string to any other type.
+	template<typename Char>
+	inline HRESULT ConvertString(const std::wstring& from, std::basic_string<Char>& ret)
+	{
+		return FromUnicode(from, ret);
+	}
+	template<typename Char>
+	inline HRESULT ConvertString(const wchar_t* from, std::basic_string<Char>& ret)
+	{
+		return FromUnicode(from, ret);
+	}
+	template<typename Char>
+	inline HRESULT ConvertString(const std::basic_string<Char>& from, std::wstring& ret)
+	{
+		return ToUnicode(from, ret);
+	}
+	template<typename Char>
+	inline HRESULT ConvertString(const Char*& from, std::wstring& ret)
+	{
+		return ToUnicode(from, ret);
+	}
+	inline HRESULT ConvertString(const char* from, std::string& ret)
+	{
+		ret = from;
+		return S_OK;
+	}
+	template<typename InChar, typename OutChar>
+	inline HRESULT ConvertString(const std::basic_string<InChar>& from, std::basic_string<OutChar>& ret)
+	{
+		XLastDitchStringCopy(from, ret);
+		return S_OK;
+	}
+	template<typename InChar, typename OutChar>
+	inline HRESULT ConvertString(const InChar* from, std::basic_string<OutChar>& ret)
+	{
+		XLastDitchStringCopy(from, ret);
+		return S_OK;
+	}
 #endif
 
 }
@@ -473,44 +625,6 @@ namespace LibCC
     return d < (sizeof(Digits) / sizeof(char)) ? Digits[d] : 0;
   }
 
-  //template<typename Char>
-  //size_t StringLength(const Char* in)
-  //{
-  //  size_t r(0);
-  //  while(*in)
-  //  {
-  //    ++ r;
-  //    ++ in;
-  //  }
-  //  return r;
-  //}
-
-  //template<typename LChar, typename Char>
-  //inline void StringCopy(std::basic_string<LChar>& out, const Char* in)
-  //{
-  //  out.clear();
-  //  out.reserve(StringLength(in));
-  //  while(*in)
-  //  {
-  //    out.push_back(static_cast<LChar>(*in));
-  //    ++ in;
-  //  }
-  //}
-
-  //template<typename DestString, typename SourceChar>
-  //inline void StringCopy(DestString& out, const std::basic_string<SourceChar>& in)
-  //{
-  //  out.clear();
-  //  out.reserve(in.size());
-  //  std::basic_string<SourceChar>::const_iterator it;
-  //  for(it = in.begin(); it != in.end(); ++ it)
-  //  {
-  //    out.push_back(static_cast<typename DestString::value_type>(*it));
-  //  }
-  //}
-
-  // std::vector<std::string> Parts;
-  // StringSplit(s, ".", std::back_inserter(Parts));
   template<typename Char, class OutIt>
   inline void StringSplit(const std::basic_string<Char>& s, const std::basic_string<Char>& sep, OutIt dest)
   {
@@ -524,19 +638,6 @@ namespace LibCC
       right = s.find_first_of(sep, left);
     }
   }
-
-  template<typename Char, typename OutIt>
-    inline void StringSplit(const std::basic_string<Char>& s, const Char* sep, OutIt dest)
-  {
-    StringSplit(s, std::basic_string<Char>(sep), dest);
-  }
-  template<typename Char, typename OutIt>
-    inline void StringSplit(const std::basic_string<Char>& s, Char sep, OutIt dest)
-  {
-    Char temp[2] = { sep };
-    StringSplit(s, std::basic_string<Char>(temp), dest);
-  }
-
 
   template<typename InIt, typename Char>
   inline std::basic_string<Char> StringJoin(InIt start, InIt end, const std::basic_string<Char>& sep)
@@ -554,12 +655,6 @@ namespace LibCC
     return r;
   }
 
-  template<typename InIt, typename Char>
-  inline std::basic_string<Char> StringJoin(InIt start, InIt end, const Char* sep)
-  {
-    return StringJoin<InIt, Char>(start, end, std::basic_string<Char>(sep));
-  }
-
   template<typename Char>
   inline std::basic_string<Char> StringTrim(const std::basic_string<Char>& s, const std::basic_string<Char>& chars)
   {
@@ -570,176 +665,6 @@ namespace LibCC
       return std::basic_string<Char>();
     }
     return std::string(s, left, 1 + right - left);
-  }
-
-  template<typename Char>
-  inline std::basic_string<Char> StringTrim(const std::basic_string<Char>& s, const Char* chars)
-  {
-    return StringTrim(s, std::basic_string<Char>(chars));
-  }
-  template<typename Char>
-    inline std::basic_string<Char> StringTrim(const Char* s, const Char* chars)
-  {
-    return StringTrim(std::basic_string<Char>(s), std::basic_string<Char>(chars));
-  }
-
-  template<typename LChar, typename RChar>
-  inline bool StringEquals(const std::basic_string<LChar>& lhs, const std::basic_string<RChar>& rhs)
-  {
-    return StringEquals(lhs.c_str(), rhs.c_str());
-  }
-
-  template<typename LChar, typename RChar>
-  inline bool StringEquals(const LChar* lhs, const std::basic_string<RChar>& rhs)
-  {
-    return StringEquals(lhs, rhs.c_str());
-  }
-
-  template<typename LChar, typename RChar>
-  inline bool StringEquals(const std::basic_string<LChar>& lhs, const RChar* rhs)
-  {
-    return StringEquals(lhs.c_str(), rhs);
-  }
-
-  template<typename LChar, typename RChar>
-  inline bool StringEquals(const LChar* lhs, const RChar* rhs)
-  {
-    while(*lhs == *rhs)
-    {
-      if(*lhs == 0)
-      {
-        // they are the same all the way to the null term.
-        return true;
-      }
-      lhs ++;
-      rhs ++;
-    }
-    return false;
-  }
-
-  template<typename LChar, typename RChar>
-  inline bool StringEqualsI(const std::basic_string<LChar>& lhs, const std::basic_string<RChar>& rhs)
-  {
-    return StringEqualsI(lhs.c_str(), rhs.c_str());
-  }
-
-  template<typename LChar, typename RChar>
-  inline bool StringEqualsI(const LChar* lhs, const std::basic_string<RChar>& rhs)
-  {
-    return StringEqualsI(lhs, rhs.c_str());
-  }
-
-  template<typename LChar, typename RChar>
-  inline bool StringEqualsI(const std::basic_string<LChar>& lhs, const RChar* rhs)
-  {
-    return StringEqualsI(lhs.c_str(), rhs);
-  }
-
-  template<typename LChar, typename RChar>
-  inline bool StringEqualsI(const LChar* lhs, const RChar* rhs)
-  {
-    while(tolower(*lhs) == tolower(*rhs))
-    {
-      if(*lhs == 0)
-      {
-        // they are the same all the way to the null term.
-        return true;
-      }
-      lhs ++;
-      rhs ++;
-    }
-    return false;
-  }
-
-  template<typename Char, typename CharSearch>
-  inline bool StringContains(const Char* s, CharSearch x)
-  {
-    while(*s)
-    {
-      if(*s == x) return true;
-      s ++;
-    }
-    return false;
-  }
-
-  template<typename Char, typename SearchChar>
-  inline std::string::size_type StringFindFirstOf(const std::basic_string<Char>& s, const SearchChar* chars)
-  {
-    const Char* p = s.c_str();
-    while(*p)
-    {
-      if(StringContains(chars, *p))
-      {
-        return p - s.c_str();
-      }
-      p ++;
-    }
-    return std::string::npos;
-  }
-
-  template<typename Char, typename SearchChar>
-  inline std::string::size_type StringFindFirstOf(const std::basic_string<Char>& s, const std::basic_string<SearchChar>& chars)
-  {
-    return StringFindFirstOf(s, chars.c_str());
-  }
-
-  template<typename Char, typename SearchChar>
-  inline std::string::size_type StringFindLastOf(const std::basic_string<Char>& s, const SearchChar* chars)
-  {
-    if(!s.empty())
-    {
-      const Char* p = s.c_str() + s.size() - 1;
-      do
-      {
-        if(StringContains(chars, *p))
-        {
-          return p - s.c_str();
-        }
-        p --;
-      }
-      while(p != s.c_str());
-    }
-    return std::string::npos;
-  }
-
-  template<typename Char, typename SearchChar>
-  inline std::string::size_type StringFindLastOf(const std::basic_string<Char>& s, const std::basic_string<SearchChar>& chars)
-  {
-    return StringFindLastOf(s, chars.c_str());
-  }
-
-
-  template<typename Char, typename SearchChar>
-  inline std::string::size_type StringFindI(const std::basic_string<Char>& s, const std::basic_string<SearchChar>& rhs)
-  {
-    return StringFindI(s, rhs.c_str());
-  }
-
-  template<typename Char, typename SearchChar>
-  inline std::string::size_type StringFindI(const Char* s, const SearchChar* chars)
-  {
-    const Char* i = s;
-    while(*i)
-    {
-      if(StringStartsWithI(i, chars))
-      {
-        return i - s;
-      }
-      i ++;
-    }
-    return std::string::npos;
-  }
-
-  template<typename Char, typename SearchChar>
-  inline std::string::size_type StringFindI(const std::basic_string<Char>& s, const SearchChar* rhs)
-  {
-    return StringFindI(s.c_str(), rhs);
-  }
-
-  template<typename Char, typename CharSearch>
-  inline bool StringContainsI(const std::basic_string<Char>& s, const CharSearch* x)
-  {
-    return StringFindI(s.c_str(), x) != std::string::npos;
   }
 
   template<typename Char>
@@ -768,76 +693,40 @@ namespace LibCC
     return r;
   }
 
-  template<typename Char, typename CharSearch>
-  inline bool StringStartsWith(const Char* s, const CharSearch* search)
-  {
-    while(*search)
-    {
-      if(*s != *search) return false;
-      search ++;
-      s ++;
-    }
-    return true;
-  }
-
-  template<typename Char, typename CharSearch>
-  inline bool StringStartsWithI(const Char* s, const CharSearch* search)
-  {
-    while(*search)
-    {
-      if(tolower(*s) != tolower(*search)) return false;
-      search ++;
-      s ++;
-    }
-    return true;
-  }
-
-  template<typename LChar, typename RChar>
-  inline void StringAppend(std::basic_string<LChar>& str, const RChar* rhs)
-  {
-		while(*rhs)
-		{
-			str.push_back((LChar)*rhs);
-			++ rhs;
-		}
-    return;
-  }
-
-  template<typename Char, typename SearchChar, typename ReplaceChar>
-  inline std::basic_string<Char> StringReplace(const Char* src, const SearchChar* search, const ReplaceChar* replace)
+  template<typename Char>
+  inline std::basic_string<Char> StringReplace(const std::basic_string<Char>& src, const std::basic_string<Char>& searchString, const std::basic_string<Char>& replaceString)
   {
     typedef std::basic_string<Char> _String;
     _String r;
-    const Char* p = src;
-    size_t searchLen = StringLength(search);
-    size_t replaceLen = StringLength(replace);
+    size_t pos = 0;
+		while(1)
+		{
+			size_t found = src.find(searchString, pos);
+			if(found == _String::npos) return r;
+			r.append(src, pos, found - pos);// append chunk from src.
+			r.append(replaceString);// append replacement
+			pos = found + src.length();// advance
+		}
+    //typedef std::basic_string<Char> _String;
+    //_String r;
+    //_String::const_iterator p = src.begin();
+    //size_t searchLen = searchString.length();
+    //size_t replaceLen = replaceString.length();
 
-    r.reserve(StringLength(src));
-    while(*p)
-    {
-      if(StringStartsWith(p, search))
-      {
-        StringAppend(r, replace);
-        p += searchLen;
-      }
-      else
-      {
-        p ++;
-      }
-    }
-    return r;
-  }
-
-  template<typename DestChar, typename SourceChar>
-  inline std::basic_string<DestChar> StringCopy(const std::basic_string<SourceChar>& s)
-  {
-    std::basic_string<DestChar> ret;
-    ret.reserve(s.length());
-    for(std::basic_string<SourceChar>::const_iterator it = s.begin(); it != s.end(); ++ it)
-    {
-      ret.push_back(static_cast<DestChar>(*it));
-    }
-    return ret;
+    //r.reserve(src.length());
+    //while(p != src.end())
+    //{
+    //  if(StringStartsWith(p._Myptr, searchString))
+    //  {
+    //    r.append(replaceString);
+    //    p += searchLen;
+    //  }
+    //  else
+    //  {
+    //    p ++;
+    //  }
+    //}
+    //return r;
   }
 }
 
@@ -1184,7 +1073,7 @@ namespace LibCC
 		{
 			std::wstring s;
 			FormatMessageGLE(s, code);
-			StringCopy(out, s);
+			FromUnicode(s, out);
 			return;
 		}
 
@@ -1332,7 +1221,7 @@ namespace LibCC
     m_pos(0)
   {
     if(!s) return;
-    StringCopy(m_Format, s);
+    ConvertString(s, m_Format);
     BuildCompositeChunk();
   }
 
@@ -1398,7 +1287,7 @@ namespace LibCC
     }
 
     m_pos = 0;
-    StringCopy(m_Format, s);
+    ConvertString(s, m_Format);
     m_Composite.reserve(m_Format.size());
     BuildCompositeChunk();
   }

@@ -124,7 +124,7 @@ bool PathMatchSpecTest()
 
   x.SetCriteria("c:\\...\\log");
   TestAssert(x.Match("C:\\x\\x\\log"));
-  TestAssert(x.Match("C:\\log"));
+  TestAssert(!x.Match("C:\\log"));// should not match.
   TestAssert(!x.Match("C:\\xlog"));// 1 or more directories
 
   // need more tests here.

@@ -49,13 +49,13 @@ namespace LibCC
 
       returns 0 for failure (unrecognized key name)
   */
-  template<typename Char, typename Traits, typename Alloc>
-  HKEY InterpretRegHiveName(const std::basic_string<Char, Traits, Alloc>& s, std::basic_string<Char, Traits, Alloc>& therest)
+  template<typename Char>
+  HKEY InterpretRegHiveName(const std::basic_string<Char>& s, std::basic_string<Char>& therest)
   {
-    typedef std::basic_string<Char, Traits, Alloc> String;
+    typedef std::basic_string<Char> String;
     HKEY r = 0;
     String sKey;
-    String::size_type nSep = StringFindFirstOf(s, "\\/");
+    String::size_type nSep = XStringFindFirstOf(s, "\\/");
     if(nSep == String::npos)
     {
         // no separator... maybe the whole thing is the hive name
@@ -70,19 +70,19 @@ namespace LibCC
 
     sKey = StringToLower(sKey);
 
-    if(StringEquals(sKey, "hklm") || StringEquals(sKey, "hkey_local_machine"))
+    if(XStringEquals(sKey, "hklm") || XStringEquals(sKey, "hkey_local_machine"))
     {
         r = HKEY_LOCAL_MACHINE;
     }
-    else if(StringEquals(sKey, "hkcu") || StringEquals(sKey, "hkey_current_user"))
+    else if(XStringEquals(sKey, "hkcu") || XStringEquals(sKey, "hkey_current_user"))
     {
         r = HKEY_CURRENT_USER;
     }
-    else if(StringEquals(sKey, "hkcr") || StringEquals(sKey, "hkey_classes_root"))
+    else if(XStringEquals(sKey, "hkcr") || XStringEquals(sKey, "hkey_classes_root"))
     {
         r = HKEY_CLASSES_ROOT;
     }
-    else if(StringEquals(sKey, "hku") || StringEquals(sKey, "hkey_users"))
+    else if(XStringEquals(sKey, "hku") || XStringEquals(sKey, "hkey_users"))
     {
         r = HKEY_CLASSES_ROOT;
     }
@@ -157,15 +157,13 @@ namespace LibCC
     };
 
   */
-  template<typename Char, typename Traits, typename Allocator>
+  template<typename Char>
   class RegistryKeyX
   {
   public:
     typedef Char _Char;
-    typedef Traits _Traits;
-    typedef Allocator _Allocator;
-    typedef std::basic_string<_Char, _Traits, _Allocator> _String;
-    typedef RegistryKeyX<_Char, _Traits, _Allocator> _RegistryKey;
+    typedef std::basic_string<_Char> _String;
+    typedef RegistryKeyX<_Char> _RegistryKey;
 
     // x = RegistryKey(HKEY_LOCAL_MACHINE, "software\\crap")
     RegistryKeyX(HKEY key, const _String& subkey, bool bWriteAccess = false) :
@@ -507,9 +505,9 @@ namespace LibCC
 
     std::vector<_RegistryKey> m_subKeys;
   };
-  typedef RegistryKeyX<wchar_t, std::char_traits<wchar_t>, std::allocator<wchar_t> > RegistryKeyW;
-  typedef RegistryKeyX<char, std::char_traits<char>, std::allocator<char> > RegistryKeyA;
-  typedef RegistryKeyX<TCHAR, std::char_traits<TCHAR>, std::allocator<TCHAR> > RegistryKey;
+  typedef RegistryKeyX<wchar_t> RegistryKeyW;
+  typedef RegistryKeyX<char> RegistryKeyA;
+  typedef RegistryKeyX<TCHAR> RegistryKey;
 }
 
 

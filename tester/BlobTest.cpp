@@ -25,7 +25,7 @@ bool BlobTest()
 
 	TestAssert(a.Alloc(40000000));// 40 megs
 	TestAssert(!a.CurrentlyUsingStaticBuffer());
-	TestAssert(a.Size() == 4000000);
+	TestAssert(a.Size() == 40000000);
 	a.Fill(7);
 	a[40000000-1] = 254;
 	a.GetBuffer()[40000000-2] = 255;
