@@ -170,12 +170,12 @@ namespace LibCC
     std::wstring strW;
     if(lpValueName)
     {
-      ToUnicode(lpValueName, valueName);
+      ConvertString(lpValueName, valueName);
     }
     LONG r;
     if(ERROR_SUCCESS == (r = RegQueryValueExStringX(hKey, lpValueName ? valueName.c_str() : 0, Reserved, REG_SZ, strW)))
     {
-      FromUnicode(strW, strX);
+      ConvertString(strW, strX);
     }
     return r;
   }
@@ -191,7 +191,7 @@ namespace LibCC
     if(szValueName)
     {
       std::wstring strW;
-      ToUnicode(lpValueName, valueName);
+      ConvertString(lpValueName, valueName);
     }
     return RegQueryValueExX(hKey, szValueName ? valueName.c_str() : 0, type, data, cbData);
   }

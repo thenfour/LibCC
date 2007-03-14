@@ -4,11 +4,18 @@
 #include <windows.h>
 #include <iostream>
 #include <tchar.h>
+#include <list>
 
 //using namespace LibCC;
 
-extern int g_AssertCount;
-extern int g_AssertPass;
+struct TestState
+{
+	int assertCount;
+	int assertPass;
+};
+
+extern int g_indent;
+extern std::list<TestState> g_runningTests;
 
 
 // stolen from varargs.h
@@ -27,18 +34,27 @@ void DoNotOptimize(const T& arg)
 
 inline bool TestAssert__(bool b, const char* sz)
 {
-  g_AssertCount ++;
+	for(std::list<TestState>::iterator it = g_runningTests.begin(); it != g_runningTests.end(); ++ it)
+	{
+		it->assertCount ++;
+	}
+  std::string indent("  ", g_indent ++);
   if(!b)
   {
-    std::cout << "    FAILED: " << sz << std::endl;
+    std::cout << indent.c_str() << "    FAILED: " << sz << std::endl;
+    OutputDebugString(indent.c_str());
     OutputDebugString("    FAILED: ");
     OutputDebugString(sz);
     OutputDebugString("\r\n");
   }
   else
   {
-    g_AssertPass ++;
-    std::cout << "    PASS: " << sz << std::endl;
+		for(std::list<TestState>::iterator it = g_runningTests.begin(); it != g_runningTests.end(); ++ it)
+		{
+			it->assertPass ++;
+		}
+    std::cout << indent.c_str() << "    PASS: " << sz << std::endl;
+    OutputDebugString(indent.c_str());
     OutputDebugString("    PASS: ");
     OutputDebugString(sz);
     OutputDebugString("\r\n");

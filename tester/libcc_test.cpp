@@ -2,7 +2,6 @@
 
 #include "test.h"
 
-
 extern bool RegistryTest();
 extern bool StatusTest();
 extern bool StreamTest();
@@ -13,64 +12,8 @@ extern bool FormatBenchmark();
 extern bool DebugLogTest();
 extern bool BlobTest();
 
-long g_TestCount;
-long g_TestFailures;
-
-int g_AssertCount;
-int g_AssertPass;
-
-/*
- - Positive Exponent
- - Negative Exponent
- - Zero
- - Powers of 2 (from negative exp to positive)
-*/
-LONG WINAPI CCUnhandledExceptionFilter(_EXCEPTION_POINTERS* ExceptionInfo)
+void TestCollection()
 {
-  return EXCEPTION_EXECUTE_HANDLER;
-}
-
-template<typename Fn>
-bool RunTest__(Fn f, const char* sz)
-{
-  bool r = false;
-
-  g_AssertCount = 0;
-  g_AssertPass = 0;
-
-  g_TestCount ++;
-  std::cout << "Running: " << sz << std::endl;
-  OutputDebugString("Running: ");
-  OutputDebugString(sz);
-  OutputDebugString("\r\n");
-
-  f();
-
-  if(g_AssertCount == g_AssertPass)
-  {
-    std::cout << "  Total: PASS (100%)" << std::endl;
-    OutputDebugString("    Total: PASS");
-    OutputDebugString("\r\n");
-  }
-  else
-  {
-    g_TestFailures ++;
-    std::cout << "  Total: FAIL (" << g_AssertPass << " of " << g_AssertCount << " passed)" << std::endl;
-    OutputDebugString("    Total: FAIL: ");
-    OutputDebugString("\r\n");
-  }
-  return r;
-}
-
-#define RunTest(x) RunTest__(x, #x)
-
-int _tmain(int argc, _TCHAR* argv[])
-{
-  SetUnhandledExceptionFilter(CCUnhandledExceptionFilter);
-
-  g_TestCount = 0;
-  g_TestFailures = 0;
-
 	RunTest(BlobTest);
 	//RunTest(DebugLogTest);
 	RunTest(FormatTest);
@@ -79,7 +22,63 @@ int _tmain(int argc, _TCHAR* argv[])
   RunTest(StatusTest);
   RunTest(PathMatchSpecTest);
   RunTest(StringTest);
+}
 
+
+
+
+LONG WINAPI CCUnhandledExceptionFilter(_EXCEPTION_POINTERS* ExceptionInfo)
+{
+  return EXCEPTION_EXECUTE_HANDLER;
+}
+
+int g_indent = 0;
+std::list<TestState> g_runningTests;
+
+template<typename Fn>
+bool RunTest__(Fn f, const char* sz)
+{
+  bool r = false;
+  std::string indent("  ", g_indent ++);
+  g_runningTests.push_back(TestState());
+  TestState& state = g_runningTests.back();
+
+  state.assertCount = 0;
+  state.assertPass = 0;
+
+  std::cout << indent.c_str() << "Running: " << sz << std::endl;
+  OutputDebugString(indent.c_str());
+  OutputDebugString("Running: ");
+  OutputDebugString(sz);
+  OutputDebugString("\r\n");
+
+  f();
+
+  if(state.assertCount == state.assertPass)
+  {
+    std::cout << indent.c_str() << "  Total: PASS (100%)" << std::endl;
+		OutputDebugString(indent.c_str());
+    OutputDebugString("    Total: PASS");
+    OutputDebugString("\r\n");
+  }
+  else
+  {
+    std::cout << indent.c_str() << "  Total: FAIL (" << state.assertPass << " of " << state.assertCount << " passed)" << std::endl;
+		OutputDebugString(indent.c_str());
+    OutputDebugString("    Total: FAIL: ");
+    OutputDebugString("\r\n");
+  }
+  g_runningTests.pop_back();
+  -- g_indent;
+  return r;
+}
+
+#define RunTest(x) RunTest__(x, #x)
+
+int _tmain(int argc, _TCHAR* argv[])
+{
+  SetUnhandledExceptionFilter(CCUnhandledExceptionFilter);
+	RunTest(TestCollection);
 	return 0;
 }
 

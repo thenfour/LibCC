@@ -11,7 +11,7 @@ bool FormatBenchmark()
 {
   LibCC::Timer t;
   char crap[100];
-  const int MaxNum = 100;
+  const int MaxNum = 1000;
 
   t.Tick();
   for(int n = 0; n < MaxNum; n ++)

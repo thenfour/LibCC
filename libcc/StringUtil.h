@@ -54,6 +54,30 @@
 #endif
 
 
+
+
+
+
+
+
+
+
+
+
+// FLOAT stuff
+
+
+
+
+
+
+
+
+
+
+
+
+
 namespace LibCC
 {
   // this simple class just "attaches" to a float and provides a window into it's inner workings.
@@ -271,21 +295,128 @@ namespace LibCC
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// string utility functions
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 namespace LibCC
 {
-  inline char DigitToChar(unsigned char d);
+  inline char DigitToChar(unsigned char d)
+  {
+    static const char Digits [] = "0123456789abcdefghijklmnopqrstuvwxyz";
+    return d < (sizeof(Digits) / sizeof(char)) ? Digits[d] : 0;
+  }
 
-  template<typename Char, typename OutIt>
-    inline void StringSplit(const std::basic_string<Char>& s, const std::basic_string<Char>& sep, OutIt dest);
+  template<typename Char, class OutIt>
+  inline void StringSplit(const std::basic_string<Char>& s, const std::basic_string<Char>& sep, OutIt dest)
+  {
+    std::basic_string<Char>::size_type left = s.find_first_not_of(sep);
+    std::basic_string<Char>::size_type right = s.find_first_of(sep, left);
+    while( left < right )
+    {
+      *dest = s.substr(left, right - left);
+      ++dest;
+      left = s.find_first_not_of(sep, right);
+      right = s.find_first_of(sep, left);
+    }
+  }
 
   template<typename InIt, typename Char>
-    inline std::basic_string<Char> StringJoin(InIt start, InIt end, const std::basic_string<Char>& sep);
+  inline std::basic_string<Char> StringJoin(InIt start, InIt end, const std::basic_string<Char>& sep)
+  {
+    std::basic_string<Char> r;
+    while(start != end)
+    {
+      r.append(*start);
+      ++ start;
+      if(start != end)
+      {
+        r.append(sep);
+      }
+    }
+    return r;
+  }
+  
+  template<typename Char>
+  inline std::basic_string<Char> StringTrim(const std::basic_string<Char>& s, const std::basic_string<Char>& chars)
+  {
+    std::basic_string<Char>::size_type left = s.find_first_not_of(chars);
+    std::basic_string<Char>::size_type right = s.find_last_not_of(chars);
+    if((right == std::basic_string<Char>::npos) || (left == std::basic_string<Char>::npos))
+    {
+      return std::basic_string<Char>();
+    }
+    return std::string(s, left, 1 + right - left);
+  }
 
   template<typename Char>
-    inline std::basic_string<Char> StringTrim(const std::basic_string<Char>& s, const std::basic_string<Char>& chars);
-
-  template<typename Char>
-    inline std::basic_string<Char> StringReplace(const std::basic_string<Char>& src, const std::basic_string<Char>& searchString, const std::basic_string<Char>& replaceString);
+  inline std::basic_string<Char> StringReplace(const std::basic_string<Char>& src, const std::basic_string<Char>& searchString, const std::basic_string<Char>& replaceString)
+  {
+		if(searchString.empty()) return src;// you can't have a 0 length search string.
+    typedef std::basic_string<Char> _String;
+    _String r;
+    size_t pos = 0;
+		while(1)
+		{
+			size_t found = src.find(searchString, pos);
+			if(found == _String::npos)
+			{
+				// append the remainder of src.
+				r.append(src, pos, src.length() - pos);
+				return r;
+			}
+			r.append(src, pos, found - pos);// append chunk from src.
+			r.append(replaceString);// append replacement
+			pos = found + searchString.length();// advance
+		}
+  }
   template<typename Char>// these overloads help compile with constant strings
     inline std::basic_string<Char> StringReplace(const std::basic_string<Char>& src, const std::basic_string<Char>& searchString, const Char* replaceString) { return StringReplace(src, searchString, std::basic_string<Char>(replaceString)); }
   template<typename Char>
@@ -294,13 +425,36 @@ namespace LibCC
     inline std::basic_string<Char> StringReplace(const Char* src, const Char* searchString, const Char* replaceString) { return StringReplace(std::basic_string<Char>(src), std::basic_string<Char>(searchString), std::basic_string<Char>(replaceString)); }
 
   template<typename Char>
-    inline std::basic_string<Char> StringToUpper(const std::basic_string<Char> &s);
+  inline std::basic_string<Char> StringToUpper(const std::basic_string<Char> &s)
+  {
+    std::basic_string<Char> r;
+    r.reserve(s.size());
+    std::basic_string<Char>::const_iterator it;
+    for(it = s.begin(); it != s.end(); ++ it)
+    {
+      r.push_back(toupper(*it));
+    }
+    return r;
+  }
 
   template<typename Char>
-    inline std::basic_string<Char> StringToLower(const std::basic_string<Char> &s);
+  inline std::basic_string<Char> StringToLower(const std::basic_string<Char> &s)
+  {
+    std::basic_string<Char> r;
+    r.reserve(s.size());
+    std::basic_string<Char>::const_iterator it;
+    for(it = s.begin(); it != s.end(); ++ it)
+    {
+      r.push_back(tolower(*it));
+    }
+    return r;
+  }
 
   template<typename Char, typename Trhs>
-  inline bool StringEquals(const std::basic_string<Char>& lhs, const Trhs& rhs) { return lhs == rhs; }
+  inline bool StringEquals(const std::basic_string<Char>& lhs, const Trhs& rhs)
+  {
+		return lhs == rhs;
+  }
 
 	/*
 		Convenience functions for other LibCC code like the registry stuff that has a Char template parameter,
@@ -365,9 +519,9 @@ namespace LibCC
 		// when there's no other way to convert from 1 string type to another, you can try this basic element-by-element copy
 		out.clear();
 		out.reserve(in.size());
-		for(std::wstring::const_iterator it = in.begin; it != in.end(); ++ it)
+		for(std::wstring::const_iterator it = in.begin(); it != in.end(); ++ it)
 		{
-			out.append(*it);
+			out.push_back(static_cast<OutChar>(*it));
 		}
 	}
   template<typename InChar, typename OutChar>
@@ -384,7 +538,7 @@ namespace LibCC
 
 
 #ifdef WIN32
-	inline HRESULT ToMBCS(const std::wstring& widestr, Blob<BYTE>& out, UINT codepage)
+	inline HRESULT ConvertString(const std::wstring& widestr, Blob<BYTE>& out, UINT codepage)
 	{
 		DWORD flags;
 		CPINFO cpinfo;
@@ -427,39 +581,37 @@ namespace LibCC
 
 		return S_OK;
 	}
-	inline HRESULT ToMBCS(const std::wstring& widestr, std::string& out, UINT codepage)
+	inline HRESULT ConvertString(const std::wstring& widestr, std::string& out, UINT codepage)
 	{
 		Blob<BYTE> b;
-		HRESULT hr = ToMBCS(widestr, b, codepage);
+		HRESULT hr = ConvertString(widestr, b, codepage);
 		if(FAILED(hr)) return hr;
 		out.assign((const char*)b.GetBuffer(), b.Size());
 		return hr;
 	}
-	inline HRESULT ToMBCS(const std::string& in, std::string& out)
+	inline HRESULT ConvertString(const std::string& in, std::string& out)
 	{
 		out = in;
 		return S_OK;
 	}
-	inline HRESULT ToMBCS(const char* in, std::string& out)
+	inline HRESULT ConvertString(const char* in, std::string& out)
 	{
 		out = in;
 		return S_OK;
 	}
 	template<typename Char>
-	inline HRESULT ToMBCS(const std::basic_string<Char>& lhs, std::string& out)
+	inline HRESULT ConvertString(const std::basic_string<Char>& lhs, std::string& out)
 	{
 		XLastDitchStringCopy(lhs, out);
 		return S_OK;
 	}
 	template<typename Char>
-	inline HRESULT ToMBCS(const Char* lhs, std::string& out)
+	inline HRESULT ConvertString(const Char* lhs, std::string& out)
 	{
 		XLastDitchStringCopy(lhs, out);
 		return S_OK;
 	}
-
-	//////
-	inline HRESULT ToUnicode(const std::string& multistr, std::wstring& widestr, UINT codepage = CP_ACP)
+	inline HRESULT ConvertString(const std::string& multistr, std::wstring& widestr, UINT codepage = CP_ACP)
 	{
 		int length = MultiByteToWideChar(codepage, 0, multistr.c_str(), (int)multistr.length(), NULL, 0);
 		if (length == 0)
@@ -474,127 +626,57 @@ namespace LibCC
  
 		return S_OK;
 	}
-	inline HRESULT ToUnicode(const char* multistr, std::wstring& widestr, UINT codepage = CP_ACP)
+	inline HRESULT ConvertString(const char* multistr, std::wstring& widestr, UINT codepage = CP_ACP)
 	{
-		return ToUnicode(std::string(multistr), widestr, codepage);
+		return ConvertString(std::string(multistr), widestr, codepage);
 	}
-	inline HRESULT ToUnicode(const std::wstring& lhs, std::wstring& widestr)
+	inline HRESULT ConvertString(const std::wstring& lhs, std::wstring& widestr)
 	{
 		widestr = lhs;
 		return S_OK;
 	}
-	inline HRESULT ToUnicode(const wchar_t* lhs, std::wstring& widestr)
+	inline HRESULT ConvertString(const wchar_t* lhs, std::wstring& widestr)
 	{
 		widestr = lhs;
 		return S_OK;
 	}
 	template<typename Char>
-	inline HRESULT ToUnicode(const std::basic_string<Char>& lhs, std::wstring& widestr)
+	inline HRESULT ConvertString(const std::basic_string<Char>& lhs, std::wstring& widestr)
 	{
 		XLastDitchStringCopy(lhs, widestr);
 		return S_OK;
 	}
 	template<typename Char>
-	inline HRESULT ToUnicode(const Char* lhs, std::wstring& widestr)
+	inline HRESULT ConvertString(const Char* lhs, std::wstring& widestr)
 	{
 		XLastDitchStringCopy(lhs, widestr);
 		return S_OK;
-	}
-
-	//////
-	inline HRESULT FromUnicode(const std::wstring& lhs, std::wstring& ret)
-	{
-		ret = lhs;
-		return S_OK;
-	}
-	inline HRESULT FromUnicode(const wchar_t* lhs, std::wstring& ret)
-	{
-		ret = lhs;
-		return S_OK;
-	}
-	inline HRESULT FromUnicode(const std::wstring& lhs, std::string& ret)
-	{
-		return ToMBCS(lhs, ret, CP_ACP);
-	}
-	inline HRESULT FromUnicode(const wchar_t* lhs, std::string& ret)
-	{
-		return ToMBCS(lhs, ret, CP_ACP);
-	}
-	template<typename Char>
-	inline HRESULT FromUnicode(const std::wstring& lhs, std::basic_string<Char>& ret)
-	{
-		XLastDitchStringCopy(lhs, ret);
-		return S_OK;
-	}
-	template<typename Char>
-	inline HRESULT FromUnicode(const wchar_t* lhs, std::basic_string<Char>& ret)
-	{
-		XLastDitchStringCopy(lhs, ret);
 	}
 	
 	//////
 	inline HRESULT ToUTF8(const std::wstring& widestr, std::string& out)
 	{
-		return ToMBCS(widestr, out, CP_UTF8);
+		return ConvertString(widestr, out, CP_UTF8);
 	}
 	inline HRESULT ToUTF8(const wchar_t* widestr, std::string& out)
 	{
-		return ToMBCS(widestr, out, CP_UTF8);
+		return ConvertString(widestr, out, CP_UTF8);
 	}
 	inline HRESULT ToUTF8(const char* in, std::string& out)
 	{
 		std::wstring intermediate;
-		HRESULT hr = ToUnicode(in, intermediate, CP_UTF8);
+		HRESULT hr = ConvertString(in, intermediate, CP_UTF8);
 		if(FAILED(hr)) return hr;
-		return ToMBCS(intermediate, out, CP_UTF8);
+		return ConvertString(intermediate, out, CP_UTF8);
 	}
 	inline HRESULT ToUTF8(const std::string& in, std::string& out)
 	{
 		std::wstring intermediate;
-		HRESULT hr = ToUnicode(in, intermediate, CP_UTF8);
+		HRESULT hr = ConvertString(in, intermediate, CP_UTF8);
 		if(FAILED(hr)) return hr;
-		return ToMBCS(intermediate, out, CP_UTF8);
+		return ConvertString(intermediate, out, CP_UTF8);
 	}
 	
-	
-	// attempts to convert any type of string to any other type.
-	template<typename Char>
-	inline HRESULT ConvertString(const std::wstring& from, std::basic_string<Char>& ret)
-	{
-		return FromUnicode(from, ret);
-	}
-	template<typename Char>
-	inline HRESULT ConvertString(const wchar_t* from, std::basic_string<Char>& ret)
-	{
-		return FromUnicode(from, ret);
-	}
-	template<typename Char>
-	inline HRESULT ConvertString(const std::basic_string<Char>& from, std::wstring& ret)
-	{
-		return ToUnicode(from, ret);
-	}
-	template<typename Char>
-	inline HRESULT ConvertString(const Char*& from, std::wstring& ret)
-	{
-		return ToUnicode(from, ret);
-	}
-	inline HRESULT ConvertString(const char* from, std::string& ret)
-	{
-		ret = from;
-		return S_OK;
-	}
-	template<typename InChar, typename OutChar>
-	inline HRESULT ConvertString(const std::basic_string<InChar>& from, std::basic_string<OutChar>& ret)
-	{
-		XLastDitchStringCopy(from, ret);
-		return S_OK;
-	}
-	template<typename InChar, typename OutChar>
-	inline HRESULT ConvertString(const InChar* from, std::basic_string<OutChar>& ret)
-	{
-		XLastDitchStringCopy(from, ret);
-		return S_OK;
-	}
 #endif
 
 }
@@ -612,123 +694,49 @@ namespace LibCC
 
 
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// IMPLEMENTATION ////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace LibCC
-{
-  // String Conversion / Transformation Implementation -----------------------------------------------------------------------------------
-  inline char DigitToChar(unsigned char d)
-  {
-    static const char Digits [] = "0123456789abcdefghijklmnopqrstuvwxyz";
-    return d < (sizeof(Digits) / sizeof(char)) ? Digits[d] : 0;
-  }
 
-  template<typename Char, class OutIt>
-  inline void StringSplit(const std::basic_string<Char>& s, const std::basic_string<Char>& sep, OutIt dest)
-  {
-    std::basic_string<Char>::size_type left = s.find_first_not_of(sep);
-    std::basic_string<Char>::size_type right = s.find_first_of(sep, left);
-    while( left < right )
-    {
-      *dest = s.substr(left, right - left);
-      ++dest;
-      left = s.find_first_not_of(sep, right);
-      right = s.find_first_of(sep, left);
-    }
-  }
 
-  template<typename InIt, typename Char>
-  inline std::basic_string<Char> StringJoin(InIt start, InIt end, const std::basic_string<Char>& sep)
-  {
-    std::basic_string<Char> r;
-    while(start != end)
-    {
-      r.append(*start);
-      ++ start;
-      if(start != end)
-      {
-        r.append(sep);
-      }
-    }
-    return r;
-  }
 
-  template<typename Char>
-  inline std::basic_string<Char> StringTrim(const std::basic_string<Char>& s, const std::basic_string<Char>& chars)
-  {
-    std::basic_string<Char>::size_type left = s.find_first_not_of(chars);
-    std::basic_string<Char>::size_type right = s.find_last_not_of(chars);
-    if((right == std::basic_string<Char>::npos) || (left == std::basic_string<Char>::npos))
-    {
-      return std::basic_string<Char>();
-    }
-    return std::string(s, left, 1 + right - left);
-  }
 
-  template<typename Char>
-  inline std::basic_string<Char> StringToUpper(const std::basic_string<Char> &s)
-  {
-    std::basic_string<Char> r;
-    r.reserve(s.size());
-    std::basic_string<Char>::const_iterator it;
-    for(it = s.begin(); it != s.end(); ++ it)
-    {
-      r.push_back(toupper(*it));
-    }
-    return r;
-  }
 
-  template<typename Char>
-  inline std::basic_string<Char> StringToLower(const std::basic_string<Char> &s)
-  {
-    std::basic_string<Char> r;
-    r.reserve(s.size());
-    std::basic_string<Char>::const_iterator it;
-    for(it = s.begin(); it != s.end(); ++ it)
-    {
-      r.push_back(tolower(*it));
-    }
-    return r;
-  }
 
-  template<typename Char>
-  inline std::basic_string<Char> StringReplace(const std::basic_string<Char>& src, const std::basic_string<Char>& searchString, const std::basic_string<Char>& replaceString)
-  {
-    typedef std::basic_string<Char> _String;
-    _String r;
-    size_t pos = 0;
-		while(1)
-		{
-			size_t found = src.find(searchString, pos);
-			if(found == _String::npos) return r;
-			r.append(src, pos, found - pos);// append chunk from src.
-			r.append(replaceString);// append replacement
-			pos = found + src.length();// advance
-		}
-    //typedef std::basic_string<Char> _String;
-    //_String r;
-    //_String::const_iterator p = src.begin();
-    //size_t searchLen = searchString.length();
-    //size_t replaceLen = replaceString.length();
 
-    //r.reserve(src.length());
-    //while(p != src.end())
-    //{
-    //  if(StringStartsWith(p._Myptr, searchString))
-    //  {
-    //    r.append(replaceString);
-    //    p += searchLen;
-    //  }
-    //  else
-    //  {
-    //    p ++;
-    //  }
-    //}
-    //return r;
-  }
-}
+
+
+
+
+
+
+
+
+// LibCC::Format coming up...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 namespace LibCC
@@ -1073,7 +1081,7 @@ namespace LibCC
 		{
 			std::wstring s;
 			FormatMessageGLE(s, code);
-			FromUnicode(s, out);
+			ConvertString(s, out);
 			return;
 		}
 

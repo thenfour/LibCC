@@ -39,6 +39,25 @@ bool StringTest()
 
   a = "omgomg";
   a = StringReplace(a, "omg", "wtfu?");
+  TestAssert(a == "wtfu?wtfu?");
+
+  a = "";
+  a = StringReplace(a, "omg", "wtfu?");
+  TestAssert(a == "");
+
+  a = "zango";
+  a = StringReplace(a, "", "");
+  TestAssert(a == "zango");
+
+  w = StringReplace(L"omgomgomg", L"mg", L"8");
+  TestAssert(w == L"o8o8o8");
+
+  w = StringReplace(L"OmGoMG", L"omgomg", L"");
+  TestAssert(w == L"OmGoMG");
+
+  w = StringReplace(L"Michigan State University", L" ", L"");
+  TestAssert(w == L"MichiganStateUniversity");
+  
 
 //	TestAssert(StringStartsWith("omgomg", "omg"));
 
@@ -85,7 +104,7 @@ bool StringTest()
 
 	// convert encodings
 	Blob<BYTE> b;
-	TestAssert(SUCCEEDED(ToMBCS(L"aoeu", b, CP_ACP)));
+	TestAssert(SUCCEEDED(ConvertString(L"aoeu", b, CP_ACP)));
 
 	// TEST UNICODE -> UTF8 -> UNICODE
 	std::string a2;
@@ -104,7 +123,7 @@ bool StringTest()
 
 	// convert back to unicode
 	w = L"12312312";// clean the palette
-	TestAssert(SUCCEEDED(ToUnicode(a2, w, CP_UTF8)));
+	TestAssert(SUCCEEDED(ConvertString(a2, w, CP_UTF8)));
 	TestAssert(w2 == w);
 
 	// TODO: add tests for other MBCS encodings
