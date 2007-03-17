@@ -742,7 +742,7 @@ namespace LibCC
 namespace LibCC
 {
   // FormatX class declaration -----------------------------------------------------------------------------------
-  template<typename Ch, typename Traits, typename Alloc>
+  template<typename Ch = char, typename Traits = std::char_traits<Ch>, typename Alloc = std::allocator<Ch> >
   class FormatX
   {
   public:
@@ -1389,7 +1389,7 @@ namespace LibCC
     if(foreign)
     {
       _String native;
-      StringCopy(native, foreign);
+      ConvertString(foreign, native);
       m_Composite.append(native);
     }
     BuildCompositeChunk();

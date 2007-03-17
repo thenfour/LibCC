@@ -3,13 +3,15 @@ LibCC 1
 TODO:
 x make blob tests.
 x string conversion shit
+x debug log
+	- support disabling efficiently
+	- support unicode log files
 - test EVERY function... i know they don't even all build correctly.
 	- string
 	- blob
 	- format
 	- result
 	- pathmatchspec
-	- 
 
 
 

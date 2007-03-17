@@ -9,23 +9,8 @@ extern bool StringTest();
 extern bool PathMatchSpecTest();
 extern bool FormatTest();
 extern bool FormatBenchmark();
-extern bool DebugLogTest();
+extern void DebugLogTest();
 extern bool BlobTest();
-
-void TestCollection()
-{
-	RunTest(BlobTest);
-	//RunTest(DebugLogTest);
-	RunTest(FormatTest);
-  RunTest(FormatBenchmark);
- // //RunTest(RegistryTest); // careful with this of course.
-  RunTest(StatusTest);
-  RunTest(PathMatchSpecTest);
-  RunTest(StringTest);
-}
-
-
-
 
 LONG WINAPI CCUnhandledExceptionFilter(_EXCEPTION_POINTERS* ExceptionInfo)
 {
@@ -74,6 +59,18 @@ bool RunTest__(Fn f, const char* sz)
 }
 
 #define RunTest(x) RunTest__(x, #x)
+
+void TestCollection()
+{
+	RunTest(BlobTest);
+	RunTest(DebugLogTest);
+	RunTest(FormatTest);
+  //RunTest(FormatBenchmark);
+ // //RunTest(RegistryTest); // careful with this of course.
+  RunTest(StatusTest);
+  RunTest(PathMatchSpecTest);
+  RunTest(StringTest);
+}
 
 int _tmain(int argc, _TCHAR* argv[])
 {
