@@ -4,10 +4,10 @@
 #include "libcc\Log.h"
 using namespace LibCC;
 
-namespace LibCC
-{
-	LibCC::Log* g_pLog = 0;
-}
+//namespace LibCC
+//{
+//	LibCC::Log* g_pLog = 0;
+//}
 
 void LogTest()
 {

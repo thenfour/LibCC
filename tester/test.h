@@ -32,7 +32,7 @@ void DoNotOptimize(const T& arg)
 }
 
 
-inline bool TestAssert__(bool b, const char* sz)
+inline bool TestAssert__(bool b, const char* sz, const char* file, int line)
 {
 	for(std::list<TestState>::iterator it = g_runningTests.begin(); it != g_runningTests.end(); ++ it)
 	{
@@ -41,7 +41,7 @@ inline bool TestAssert__(bool b, const char* sz)
   std::string indent("  ", g_indent ++);
   if(!b)
   {
-    std::cout << indent.c_str() << "    FAILED: " << sz << std::endl;
+    std::cout << indent.c_str() << "    FAILED: " << sz << "(line:" << line << ", " << file << ")" << std::endl;
     OutputDebugString(indent.c_str());
     OutputDebugString("    FAILED: ");
     OutputDebugString(sz);
@@ -63,4 +63,4 @@ inline bool TestAssert__(bool b, const char* sz)
   return b;
 }
 
-#define TestAssert(x) TestAssert__((x), #x)
+#define TestAssert(x) TestAssert__((x), #x, __FILE__, __LINE__)

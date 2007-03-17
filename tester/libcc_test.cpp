@@ -62,13 +62,13 @@ bool RunTest__(Fn f, const char* sz)
 
 void TestCollection()
 {
-	RunTest(BlobTest);
-	RunTest(LogTest);
-	RunTest(FormatTest);
+	//RunTest(BlobTest);
+	//RunTest(LogTest);
+	//RunTest(FormatTest);
   //RunTest(FormatBenchmark);
  // //RunTest(RegistryTest); // careful with this of course.
-  RunTest(StatusTest);
-  RunTest(PathMatchSpecTest);
+  //RunTest(StatusTest);
+  //RunTest(PathMatchSpecTest);
   RunTest(StringTest);
 }
 

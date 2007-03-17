@@ -32,12 +32,25 @@
 #include <tchar.h>
 #include <malloc.h>// for alloca()
 #include <math.h>// for fmod()
+#include <locale>
 
 #include "Blob.h"
 
 #ifdef WIN32
 # include <windows.h>// for GetLastError() / LoadStrin / FormatMessage...
 #endif
+
+
+#pragma warning(push)
+
+/*
+  Disable "conditional expression is constant".  This code has conditions
+  on integral template params, which are by design constant.  This is a lame
+  warning.
+*/
+#pragma warning(disable:4127)
+#pragma warning(disable:4312)// CharUpper() and CharLower() require me to cast some char -> PWSTR, which gives this error.
+#pragma warning(disable:4311)// CharUpper() and CharLower() require me to cast some char -> PWSTR, which gives this error.
 
 
 #define CCSTR_OPTION_AUTOCAST 0// set this to 1 and class Format can auto-cast into std::string
@@ -52,31 +65,6 @@
 #else
 # define LIBCC_INLINE inline
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-// FLOAT stuff
-
-
-
-
-
-
-
-
-
-
-
-
 
 namespace LibCC
 {
@@ -354,18 +342,78 @@ namespace LibCC
     return d < (sizeof(Digits) / sizeof(char)) ? Digits[d] : 0;
   }
 
+	// other things to consider: quotes around tokens, escape characters
   template<typename Char, class OutIt>
   inline void StringSplit(const std::basic_string<Char>& s, const std::basic_string<Char>& sep, OutIt dest)
   {
-    std::basic_string<Char>::size_type left = s.find_first_not_of(sep);
-    std::basic_string<Char>::size_type right = s.find_first_of(sep, left);
-    while( left < right )
-    {
-      *dest = s.substr(left, right - left);
-      ++dest;
-      left = s.find_first_not_of(sep, right);
-      right = s.find_first_of(sep, left);
-    }
+		if(s.empty())
+		{
+			return;
+		}
+		if(sep.empty())
+		{
+			*dest = s;
+			++ dest;
+			return;
+		}
+		typedef std::basic_string<Char> _String;
+		_String token;
+		_String::const_iterator sepIt = sep.begin();
+		
+		for(_String::const_iterator it = s.begin(); it != s.end(); ++ it)
+		{
+			if(*it == *sepIt)
+			{
+				sepIt ++;
+				if(sepIt == sep.end())
+				{
+					// we found the whole separator. push the previous token.
+					*dest = token;
+					++ dest;
+					token.clear();
+					sepIt = sep.begin();
+					// and if we are at the very end of the string, add a blank token (like "a,b,c," will give 4 results = a, b, c, and a blank one)
+					if(it + 1 == s.end())
+					{
+						*dest = token;
+						++ dest;
+						break;
+					}
+				}
+				else
+				{
+					// just another character in the separator.
+				}
+			}
+			else
+			{
+				// just another character in a TOKEN
+				token.push_back(*it);
+				sepIt = sep.begin();
+			}
+		}
+		// if there's a token at the end of the string, append it. blank tokens would have already been added.
+		if(!token.empty())
+		{
+			*dest = token;
+			++ dest;
+		}
+		return;
+  }
+  template<typename Char, class OutIt>
+  inline void StringSplit(const std::basic_string<Char>& s, const Char* sep, OutIt dest)
+  {
+		StringSplit(s, std::basic_string<Char>(sep), dest);
+  }
+  template<typename Char, class OutIt>
+  inline void StringSplit(const Char* s, const std::basic_string<Char>& sep, OutIt dest)
+  {
+		StringSplit(std::basic_string<Char>(s), sep, dest);
+  }
+  template<typename Char, class OutIt>
+  inline void StringSplit(const Char* s, const Char* sep, OutIt dest)
+  {
+		StringSplit(std::basic_string<Char>(s), std::basic_string<Char>(sep), dest);
   }
 
   template<typename InIt, typename Char>
@@ -383,6 +431,11 @@ namespace LibCC
     }
     return r;
   }
+  template<typename InIt, typename Char>
+  inline std::basic_string<Char> StringJoin(InIt start, InIt end, const Char* sep)
+  {
+		return StringJoin(start, end, std::basic_string<Char>(sep));
+  }
   
   template<typename Char>
   inline std::basic_string<Char> StringTrim(const std::basic_string<Char>& s, const std::basic_string<Char>& chars)
@@ -393,7 +446,22 @@ namespace LibCC
     {
       return std::basic_string<Char>();
     }
-    return std::string(s, left, 1 + right - left);
+    return std::basic_string<Char>(s, left, 1 + right - left);
+  }
+  template<typename Char>
+  inline std::basic_string<Char> StringTrim(const std::basic_string<Char>& s, const Char* chars)
+  {
+		return StringTrim(s, std::basic_string<Char>(chars));
+  }
+  template<typename Char>
+  inline std::basic_string<Char> StringTrim(const Char* s, const std::basic_string<Char>& chars)
+  {
+		return StringTrim(std::basic_string<Char>(s), chars);
+  }
+  template<typename Char>
+  inline std::basic_string<Char> StringTrim(const Char* s, const Char* chars)
+  {
+		return StringTrim(std::basic_string<Char>(s), std::basic_string<Char>(chars));
   }
 
   template<typename Char>
@@ -418,42 +486,131 @@ namespace LibCC
 		}
   }
   template<typename Char>// these overloads help compile with constant strings
-    inline std::basic_string<Char> StringReplace(const std::basic_string<Char>& src, const std::basic_string<Char>& searchString, const Char* replaceString) { return StringReplace(src, searchString, std::basic_string<Char>(replaceString)); }
-  template<typename Char>
-    inline std::basic_string<Char> StringReplace(const std::basic_string<Char>& src, const Char* searchString, const Char* replaceString) { return StringReplace(src, std::basic_string<Char>(searchString), std::basic_string<Char>(replaceString)); }
-  template<typename Char>
-    inline std::basic_string<Char> StringReplace(const Char* src, const Char* searchString, const Char* replaceString) { return StringReplace(std::basic_string<Char>(src), std::basic_string<Char>(searchString), std::basic_string<Char>(replaceString)); }
-
-  template<typename Char>
-  inline std::basic_string<Char> StringToUpper(const std::basic_string<Char> &s)
+  inline std::basic_string<Char> StringReplace(const std::basic_string<Char>& src, const std::basic_string<Char>& searchString, const Char* replaceString)
   {
+		return StringReplace(src, searchString, std::basic_string<Char>(replaceString));
+	}
+  template<typename Char>
+  inline std::basic_string<Char> StringReplace(const std::basic_string<Char>& src, const Char* searchString, const std::basic_string<Char>& replaceString)
+  {
+		return StringReplace(src, std::basic_string<Char>(searchString), replaceString);
+	}
+  template<typename Char>
+  inline std::basic_string<Char> StringReplace(const std::basic_string<Char>& src, const Char* searchString, const Char* replaceString)
+  {
+		return StringReplace(src, std::basic_string<Char>(searchString), std::basic_string<Char>(replaceString));
+	}
+  template<typename Char>
+  inline std::basic_string<Char> StringReplace(const Char* src, const std::basic_string<Char>& searchString, const std::basic_string<Char>& replaceString)
+  {
+		return StringReplace(std::basic_string<Char>(src), searchString, replaceString);
+	}
+  template<typename Char>
+  inline std::basic_string<Char> StringReplace(const Char* src, const std::basic_string<Char>& searchString, const Char* replaceString)
+  {
+		return StringReplace(std::basic_string<Char>(src), searchString, std::basic_string<Char>(replaceString));
+	}
+  template<typename Char>
+  inline std::basic_string<Char> StringReplace(const Char* src, const Char* searchString, const std::basic_string<Char>& replaceString)
+  {
+		return StringReplace(std::basic_string<Char>(src), std::basic_string<Char>(searchString), replaceString);
+	}
+  template<typename Char>
+  inline std::basic_string<Char> StringReplace(const Char* src, const Char* searchString, const Char* replaceString)
+  {
+		return StringReplace(std::basic_string<Char>(src), std::basic_string<Char>(searchString), std::basic_string<Char>(replaceString));
+	}
+
+	// NOTE: the stdlib toupper functions do not handle unicode very well, so this will have to do.
+	inline std::wstring StringToUpper(const std::wstring& s)
+	{
+		Blob<wchar_t> buf(s.length() + 1);
+		wcscpy(buf.GetBuffer(), s.c_str());
+		CharUpperBuffW(buf.GetBuffer(), (DWORD)s.length());
+		return std::wstring(buf.GetBuffer());
+	}
+	inline std::string StringToUpper(const std::string& s)
+	{
+		Blob<char> buf(s.length() + 1);
+		strcpy(buf.GetBuffer(), s.c_str());
+		CharUpperBuffA(buf.GetBuffer(), (DWORD)s.length());
+		return std::string(buf.GetBuffer());
+	}
+	template<typename Char>
+	inline std::basic_string<Char> StringToUpper(const std::basic_string<Char>& s)// last-ditch for alternative char types
+	{
     std::basic_string<Char> r;
     r.reserve(s.size());
     std::basic_string<Char>::const_iterator it;
     for(it = s.begin(); it != s.end(); ++ it)
     {
-      r.push_back(toupper(*it));
+			if(*it < 0x8000)
+			{
+				r.push_back((Char)CharUpperW((PWSTR)*it));
+      }
+      else
+      {
+				r.push_back(*it);
+      }
     }
     return r;
+	}
+  template<typename Char>
+  inline std::basic_string<Char> StringToUpper(const Char* s)
+  {
+		return StringToUpper(std::basic_string<Char>(s));
   }
 
-  template<typename Char>
-  inline std::basic_string<Char> StringToLower(const std::basic_string<Char> &s)
-  {
+
+	inline std::wstring StringToLower(const std::wstring& s)
+	{
+		Blob<wchar_t> buf(s.length() + 1);
+		wcscpy(buf.GetBuffer(), s.c_str());
+		CharLowerBuffW(buf.GetBuffer(), (DWORD)s.length());
+		return std::wstring(buf.GetBuffer());
+	}
+	inline std::string StringToLower(const std::string& s)
+	{
+		Blob<char> buf(s.length() + 1);
+		strcpy(buf.GetBuffer(), s.c_str());
+		CharLowerBuffA(buf.GetBuffer(), (DWORD)s.length());
+		return std::string(buf.GetBuffer());
+	}
+	template<typename Char>
+	inline std::basic_string<Char> StringToLower(const std::basic_string<Char>& s)// last-ditch for alternative char types
+	{
     std::basic_string<Char> r;
     r.reserve(s.size());
     std::basic_string<Char>::const_iterator it;
     for(it = s.begin(); it != s.end(); ++ it)
     {
-      r.push_back(tolower(*it));
+			if(*it < 0x8000)
+			{
+				r.push_back((Char)CharLowerW((PWSTR)*it));
+      }
+      else
+      {
+				r.push_back(*it);
+      }
     }
     return r;
+	}
+  template<typename Char>
+  inline std::basic_string<Char> StringToLower(const Char* s)
+  {
+		return StringToLower(std::basic_string<Char>(s));
   }
+
 
   template<typename Char, typename Trhs>
   inline bool StringEquals(const std::basic_string<Char>& lhs, const Trhs& rhs)
   {
 		return lhs == rhs;
+  }
+  template<typename Char, typename Trhs>
+  inline bool StringEquals(const Char* lhs, const Trhs& rhs)
+  {
+		return std::basic_string<Char>(lhs) == rhs;
   }
 
 	/*
@@ -464,13 +621,14 @@ namespace LibCC
   template<typename Char>
 	inline bool XStringEquals(const std::basic_string<Char>& lhs, const char* rhs)
 	{
-		if(lhs.size() >= strlen(rhs)) return false;
+		if(lhs.size() > strlen(rhs)) return false;
 		for(std::basic_string<Char>::const_iterator it = lhs.begin(); it != lhs.end(); ++ it, ++ rhs)
 		{
 			if(*it != *rhs) return false;
 		}
-		return true;
+		return *rhs == 0;
 	}
+	
   template<typename Char>
   inline bool XStringContains(const char* source, Char x)
   {
@@ -481,38 +639,37 @@ namespace LibCC
     }
     return false;
   }
+  
   template<typename Char>
   inline std::string::size_type XStringFindFirstOf(const std::basic_string<Char>& s, const char* chars)
   {
-    const Char* p = s.c_str();
-    while(*p)
+    std::string::size_type ret = 0;
+    for(std::basic_string<Char>::const_iterator it = s.begin(); it != s.end(); ++ it)
     {
-      if(XStringContains(chars, *p))
+      if(XStringContains(chars, *it))
       {
-        return p - s.c_str();
+        return ret;
       }
-      p ++;
+      ret ++;
     }
     return std::string::npos;
   }
+  
   template<typename Char>
   inline std::string::size_type XStringFindLastOf(const std::basic_string<Char>& s, const char* chars)
   {
-    if(!s.empty())
+    std::string::size_type ret = 0;
+    for(std::basic_string<Char>::const_reverse_iterator it = s.rbegin(); it != s.rend(); ++ it)
     {
-      const Char* p = s.c_str() + s.size() - 1;
-      do
+      if(XStringContains(chars, *it))
       {
-        if(XStringContains(chars, *p))
-        {
-          return p - s.c_str();
-        }
-        p --;
+        return s.size() - ret - 1;
       }
-      while(p != s.c_str());
+      ret ++;
     }
     return std::string::npos;
   }
+  
   template<typename InChar, typename OutChar>
 	inline void XLastDitchStringCopy(const std::basic_string<InChar>& in, std::basic_string<OutChar>& out)
 	{
@@ -640,14 +797,14 @@ namespace LibCC
 		widestr = lhs;
 		return S_OK;
 	}
-	template<typename Char>
-	inline HRESULT ConvertString(const std::basic_string<Char>& lhs, std::wstring& widestr)
+	template<typename CharA, typename CharB>
+	inline HRESULT ConvertString(const std::basic_string<CharA>& lhs, std::basic_string<CharB>& widestr)
 	{
 		XLastDitchStringCopy(lhs, widestr);
 		return S_OK;
 	}
-	template<typename Char>
-	inline HRESULT ConvertString(const Char* lhs, std::wstring& widestr)
+	template<typename CharA, typename CharB>
+	inline HRESULT ConvertString(const CharA* lhs, std::basic_string<CharB>& widestr)
 	{
 		XLastDitchStringCopy(lhs, widestr);
 		return S_OK;
@@ -1150,15 +1307,6 @@ namespace LibCC
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// IMPLEMENTATION ////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#pragma warning(push)
-
-/*
-  Disable "conditional expression is constant".  This code has conditions
-  on integral template params, which are by design constant.  This is a lame
-  warning.
-*/
-#pragma warning(disable:4127)
 
 namespace LibCC
 {
