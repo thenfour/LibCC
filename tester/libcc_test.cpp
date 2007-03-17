@@ -9,7 +9,7 @@ extern bool StringTest();
 extern bool PathMatchSpecTest();
 extern bool FormatTest();
 extern bool FormatBenchmark();
-extern void DebugLogTest();
+extern void LogTest();
 extern bool BlobTest();
 
 LONG WINAPI CCUnhandledExceptionFilter(_EXCEPTION_POINTERS* ExceptionInfo)
@@ -63,7 +63,7 @@ bool RunTest__(Fn f, const char* sz)
 void TestCollection()
 {
 	RunTest(BlobTest);
-	RunTest(DebugLogTest);
+	RunTest(LogTest);
 	RunTest(FormatTest);
   //RunTest(FormatBenchmark);
  // //RunTest(RegistryTest); // careful with this of course.

@@ -12,6 +12,7 @@ x debug log
 	- format
 	- result
 	- pathmatchspec
+	- debuglog
 
 
 

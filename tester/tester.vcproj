@@ -159,7 +159,7 @@
 				RelativePath="..\libcc\Blob.h">
 			</File>
 			<File
-				RelativePath="..\libcc\DebugLog.h">
+				RelativePath="..\libcc\Log.h">
 			</File>
 			<File
 				RelativePath="..\libcc\PathMatchSpec.h">

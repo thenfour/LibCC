@@ -1,6 +1,6 @@
 /*
   LibCC Release "March 9, 2007"
-  DebugLog Module
+  Log Module
   (c) 2004-2007 Carl Corcoran, carlco@gmail.com
   Documentation: http://wiki.winprog.org/wiki/LibCC
 
@@ -57,7 +57,7 @@
 
 namespace LibCC
 {
-  class LogWindow
+  class Log
   {
 		bool m_unicodeFileFormat;
 		
@@ -87,7 +87,7 @@ namespace LibCC
   public:
 		typedef std::wstring _String;
 
-		LogWindow() :
+		Log() :
 			m_hMain(0),
 			m_hEdit(0),
 			m_hThread(0),
@@ -96,7 +96,7 @@ namespace LibCC
 		{
 		}
 		template<typename XChar>
-    LogWindow(const std::basic_string<XChar>& fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true) :
+    Log(const std::basic_string<XChar>& fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true) :
 			m_hMain(0),
 			m_hEdit(0),
 			m_hThread(0),
@@ -112,7 +112,7 @@ namespace LibCC
 			}
 		}
 		template<typename XChar>
-    LogWindow(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true) :
+    Log(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true) :
 			m_hMain(0),
 			m_hEdit(0),
 			m_hThread(0),
@@ -128,7 +128,7 @@ namespace LibCC
 			}
 		}
 
-		~LogWindow()
+		~Log()
 		{
 		}
 
@@ -145,7 +145,7 @@ namespace LibCC
 				ConvertString(fileName, m_fileName);
 				m_hInstance = hInstance;
 				m_hInitialized = CreateEvent(0, FALSE, FALSE, 0);
-				m_hThread = (HANDLE)_beginthread(LogWindow::ThreadProc, 0, this);
+				m_hThread = (HANDLE)_beginthread(Log::ThreadProc, 0, this);
 				//SetThreadPriority( m_hThread, THREAD_PRIORITY_NORMAL ); // i don't know what the point of this was.
 				WaitForSingleObject(m_hInitialized, INFINITE);
 
@@ -276,7 +276,7 @@ namespace LibCC
   private:
     static void __cdecl ThreadProc(void* p)
     {
-	    static_cast<LogWindow*>(p)->ThreadProc();
+	    static_cast<Log*>(p)->ThreadProc();
     }
 
     void ThreadProc()
@@ -284,7 +284,7 @@ namespace LibCC
 			// you *cannot* call Message() from this thread.  this thread needs to pump messages 24/7
 			WNDCLASSW wc = {0};
 			wc.style = CS_HREDRAW | CS_VREDRAW;
-			wc.lpfnWndProc = LogWindow::MainProc;
+			wc.lpfnWndProc = Log::MainProc;
 			wc.hInstance = m_hInstance;
 			wc.hCursor = LoadCursor(0, IDC_ARROW);
 			wc.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);
@@ -325,7 +325,7 @@ namespace LibCC
     
     static LRESULT CALLBACK MainProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
-			LogWindow* pThis = static_cast<LogWindow*>(GetPropW(hWnd, L"LibCC Log Window"));
+			Log* pThis = static_cast<Log*>(GetPropW(hWnd, L"LibCC Log Window"));
 			switch(uMsg)
 			{
 			case WM_CLOSE:
@@ -516,7 +516,7 @@ namespace LibCC
 			case WM_CREATE:
 				{
 					CREATESTRUCT* pcs = reinterpret_cast<CREATESTRUCT*>(lParam);
-					pThis = static_cast<LogWindow*>(pcs->lpCreateParams);
+					pThis = static_cast<Log*>(pcs->lpCreateParams);
 					SetPropW(hWnd, L"LibCC Log Window", static_cast<HANDLE>(pThis));
 					pThis->m_hMain = hWnd;
 					if(pThis->WindowEnabled())
@@ -650,14 +650,14 @@ namespace LibCC
   {
   public:
 		template<typename XChar>
-    LogScopeMessage(const XChar* op, LogWindow* pLog) :
+    LogScopeMessage(const XChar* op, Log* pLog) :
       m_pLog(pLog)
     {
       m_pLog->Message(std::wstring(L"{ "), std::basic_string<XChar>(op));
       m_pLog->Indent();
     }
 		template<typename XChar>
-    LogScopeMessage(const std::basic_string<XChar>& op, LogWindow* pLog) :
+    LogScopeMessage(const std::basic_string<XChar>& op, Log* pLog) :
       m_pLog(pLog)
     {
       m_pLog->Message(std::wstring(L"{ "), op);
@@ -673,6 +673,6 @@ namespace LibCC
       }
     }
 
-    LogWindow* m_pLog;
+    Log* m_pLog;
   };
 }

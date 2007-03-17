@@ -1,14 +1,14 @@
 
 
 #include "test.h"
-#include "libcc\DebugLog.h"
+#include "libcc\Log.h"
 using namespace LibCC;
 
 
 
-void DebugLogTest()
+void LogTest()
 {
-	LibCC::LogWindow x;
+	LibCC::Log x;
 	x.Create("test.log", GetModuleHandle(NULL), true, true, true);
 	x.Message("hi");
 	{
