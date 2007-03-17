@@ -44,63 +44,46 @@
 
 // defaults
 #ifndef LIBCC_ENABLE_LOG_FILE
-# define LIBCC_ENABLE_LOG_FILE 1// allow logging to file
+# define LIBCC_ENABLE_LOG_FILE true// allow logging to file
 #endif
 
-#ifndef LIBCC_ENABLE_LOG_ODSF
-# define LIBCC_ENABLE_LOG_ODSF 1// allow OutputDebugString()
+#ifndef LIBCC_ENABLE_LOG_DEBUG
+# define LIBCC_ENABLE_LOG_DEBUG true// allow OutputDebugString()
 #endif
 
 #ifndef LIBCC_ENABLE_LOG_WINDOW
-# define LIBCC_ENABLE_LOG_WINDOW 1
-#endif
-
-// if any logging features are requested, then use the real log class.
-#ifndef LIBCC_ENABLE_LOG_AT_ALL
-#	if (LIBCC_ENABLE_LOG_WINDOW == 1) || (LIBCC_ENABLE_LOG_FILE == 1) || (LIBCC_ENABLE_LOG_ODSF == 1)
-#		define LIBCC_ENABLE_LOG_AT_ALL 1
-#	else
-#		define LIBCC_ENABLE_LOG_AT_ALL 0
-#	endif
+# define LIBCC_ENABLE_LOG_WINDOW true
 #endif
 
 namespace LibCC
 {
   class LogWindow
   {
-		// use this class to help find the right coords for a debug log window.
-		class LogWindowPlacementHelper
+		bool m_unicodeFileFormat;
+		
+		bool m_enableWindow;
+		bool m_enableFile;
+		bool m_enableDebug;
+		static const DWORD m_width = 300;
+		static const DWORD m_height = 300;
+
+		inline bool WindowEnabled() const
 		{
-		public:
-			static const DWORD m_width = 300;
-			static const DWORD m_height = 300;
-			DWORD m_x;
-			DWORD m_y;
-
-			static const wchar_t* GetSemaphoreName()
-			{
-				return L"LibCC_LogWindowCount";
-			}
-
-			LogWindowPlacementHelper()
-			{
-				// determine placement.
-				m_hGlobalSemaphore = CreateSemaphoreW(0, 0, 1000, GetSemaphoreName());
-				// increase ref count and get the previous count.
-				LONG i;
-				ReleaseSemaphore(m_hGlobalSemaphore, 1, &i);
-				int screenColumns = GetSystemMetrics(SM_CXSCREEN) / m_width;
-				m_x = m_width * (i % screenColumns);
-				m_y = m_height * (i / screenColumns);
-			}
-
-			~LogWindowPlacementHelper()
-			{
-				CloseHandle(m_hGlobalSemaphore);
-			}
-
-			HANDLE m_hGlobalSemaphore;
-		};
+			return LIBCC_ENABLE_LOG_WINDOW && m_enableWindow;
+		}
+		inline bool FileEnabled() const
+		{
+			return LIBCC_ENABLE_LOG_FILE && m_enableFile;
+		}
+		inline bool DebugEnabled() const
+		{
+			return LIBCC_ENABLE_LOG_DEBUG && m_enableDebug;
+		}
+		inline bool EnabledAtAll() const
+		{
+			return DebugEnabled() || FileEnabled() || WindowEnabled();
+		}
+		
   public:
 		typedef std::wstring _String;
 
@@ -112,6 +95,38 @@ namespace LibCC
 			m_hTab(0)
 		{
 		}
+		template<typename XChar>
+    LogWindow(const std::basic_string<XChar>& fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true) :
+			m_hMain(0),
+			m_hEdit(0),
+			m_hThread(0),
+			m_hInitialized(0),
+			m_hTab(0),
+			m_enableDebug(enableDebug),
+			m_enableWindow(enableWindow),
+			m_enableFile(enableFile)
+		{
+			if(EnabledAtAll())
+			{
+				Create(fileName, hInstance, enableDebug, enableWindow, enableFile, unicodeFileFormat);
+			}
+		}
+		template<typename XChar>
+    LogWindow(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true) :
+			m_hMain(0),
+			m_hEdit(0),
+			m_hThread(0),
+			m_hInitialized(0),
+			m_hTab(0),
+			m_enableDebug(enableDebug),
+			m_enableWindow(enableWindow),
+			m_enableFile(enableFile)
+		{
+			if(EnabledAtAll())
+			{
+				Create(fileName, hInstance, enableDebug, enableWindow, enableFile, unicodeFileFormat);
+			}
+		}
 
 		~LogWindow()
 		{
@@ -119,54 +134,71 @@ namespace LibCC
 
 		// filename
 		template<typename XChar>
-    void Create(const std::basic_string<XChar>& fileName, HINSTANCE hInstance)
+    void Create(const std::basic_string<XChar>& fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true)
     {
-			ConvertString(fileName, m_fileName);
-			m_hInstance = hInstance;
-			m_hInitialized = CreateEvent(0, FALSE, FALSE, 0);
-			m_hThread = (HANDLE)_beginthread(LogWindow::ThreadProc, 0, this);
-			//SetThreadPriority( m_hThread, THREAD_PRIORITY_NORMAL ); // i don't know what the point of this was.
-			WaitForSingleObject(m_hInitialized, INFINITE);
+			m_enableDebug = enableDebug;
+			m_enableWindow = enableWindow;
+			m_enableFile = enableFile;
+			m_unicodeFileFormat = unicodeFileFormat;
+			if(EnabledAtAll())
+			{			
+				ConvertString(fileName, m_fileName);
+				m_hInstance = hInstance;
+				m_hInitialized = CreateEvent(0, FALSE, FALSE, 0);
+				m_hThread = (HANDLE)_beginthread(LogWindow::ThreadProc, 0, this);
+				//SetThreadPriority( m_hThread, THREAD_PRIORITY_NORMAL ); // i don't know what the point of this was.
+				WaitForSingleObject(m_hInitialized, INFINITE);
 
-			Message(L"-------------------------------");
-			Message(L"Starting log");
+				Message(L"-------------------------------");
+				Message(L"Starting log");
 
-			CloseHandle(m_hInitialized);
-			m_hInitialized = 0;
+				CloseHandle(m_hInitialized);
+				m_hInitialized = 0;
+			}
     }
  		template<typename XChar>
-    void Create(const XChar* fileName, HINSTANCE hInstance)
+    void Create(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true)
     {
-			Create(std::basic_string<XChar>(fileName), hInstance);
+			m_enableDebug = enableDebug;
+			m_enableWindow = enableWindow;
+			m_enableFile = enableFile;
+			if(EnabledAtAll())
+			{
+				Create(std::basic_string<XChar>(fileName), hInstance, enableDebug, enableWindow, enableFile, unicodeFileFormat);
+			}
     }
 
     void Destroy()
     {
-			Message(L"Stopping log");
-
-			// wait.
 			if(m_hThread)
 			{
+				Message(L"Stopping log");
 				PostMessage(m_hMain, WM_LogExit, 0, 0);
 				WaitForSingleObject(m_hThread, INFINITE);
+				m_hThread = 0;
 			}
-			m_hThread = 0;
     }
 
 		void Indent()
 		{
-			SendMessageW(m_hMain, WM_Indent, 0, GetCurrentThreadId());
+			if(EnabledAtAll())
+			{
+				SendMessageW(m_hMain, WM_Indent, 0, GetCurrentThreadId());
+			}
 		}
 
 		void Outdent()
 		{
-			SendMessageW(m_hMain, WM_Outdent, 0, GetCurrentThreadId());
+			if(EnabledAtAll())
+			{
+				SendMessageW(m_hMain, WM_Outdent, 0, GetCurrentThreadId());
+			}
 		}
     
     // 2 string args...
     void Message(const _String& s1, const _String& s2)
     {
-			if(m_hThread)
+			if(EnabledAtAll() && m_hThread)
 			{
 				MessageInfo* pNew = new MessageInfo();
 				GetLocalTime(&pNew->localTime);
@@ -181,43 +213,64 @@ namespace LibCC
     template<typename XChar, typename YChar>
     void Message(const std::basic_string<XChar>& x, const std::basic_string<YChar>& y)
     {
-			_String s1;
-			_String s2;
-			ConvertString(x, s1);
-			ConvertString(y, s2);
-			Message(s1, s2);
+			if(EnabledAtAll())
+			{
+				_String s1;
+				_String s2;
+				ConvertString(x, s1);
+				ConvertString(y, s2);
+				Message(s1, s2);
+			}
     }
     template<typename XChar, typename YChar>
     void Message(const std::basic_string<XChar>& x, const YChar* y)
     {
-			Message(x, std::basic_string<YChar>(y));
+			if(EnabledAtAll())
+			{
+				Message(x, std::basic_string<YChar>(y));
+			}
     }
     template<typename XChar, typename YChar>
     void Message(const XChar* x, const std::basic_string<YChar>& y)
     {
-			Message(std::basic_string<XChar>(x), y);
+			if(EnabledAtAll())
+			{
+				Message(std::basic_string<XChar>(x), y);
+			}
     }
     template<typename XChar, typename YChar>
     void Message(const XChar* x, const YChar* y)
     {
-			Message(std::basic_string<XChar>(x), std::basic_string<YChar>(y));
+			if(EnabledAtAll())
+			{
+				Message(std::basic_string<XChar>(x), std::basic_string<YChar>(y));
+			}
     }
     
     // 1 string arg...
     template<typename XChar>
     void Message(const XChar* s)
     {
-			Message(std::basic_string<XChar>(s));
+			if(EnabledAtAll())
+			{
+				Message(std::basic_string<XChar>(s));
+			}
     }
     template<typename XChar>
     void Message(const std::basic_string<XChar>& s)
     {
-			Message(s, std::string(""));
+			if(EnabledAtAll())
+			{
+				Message(s, std::string(""));
+			}
     }
     template<typename XChar>
     void Message(const FormatX<XChar>& s)
     {
-			Message(s.Str(), std::string(""));
+			if(EnabledAtAll())
+			{
+				Message(s.Str(), std::string(""));
+			}
     }
 
   private:
@@ -238,14 +291,25 @@ namespace LibCC
 			wc.lpszClassName =  m_fileName.c_str();
 			RegisterClassW(&wc);
 
-			LogWindowPlacementHelper placement;
+			// determine placement.
+			HANDLE m_hGlobalSemaphore;
+			DWORD m_x;
+			DWORD m_y;
+			m_hGlobalSemaphore = CreateSemaphoreW(0, 0, 1000, L"LibCC_LogWindowCount");
+			// increase ref count and get the previous count.
+			LONG i;
+			ReleaseSemaphore(m_hGlobalSemaphore, 1, &i);
+			int screenColumns = GetSystemMetrics(SM_CXSCREEN) / m_width;
+			m_x = m_width * (i % screenColumns);
+			m_y = m_height * (i / screenColumns);
 
 			m_hMain = CreateWindowExW(0, m_fileName.c_str(), PathFindFileNameW(m_fileName.c_str()), WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_OVERLAPPEDWINDOW,
-				placement.m_x, placement.m_y, placement.m_width, placement.m_height, 0, 0, m_hInstance, this);
+				m_x, m_y, m_width, m_height, 0, 0, m_hInstance, this);
 
-	#if (LIBCC_ENABLE_LOG_WINDOW == 1)
-			ShowWindow(m_hMain, SW_SHOW);
-	#endif
+			if(WindowEnabled())
+			{
+				ShowWindow(m_hMain, SW_SHOW);
+			}
 			SetEvent(m_hInitialized);
 
 			MSG msg;
@@ -255,6 +319,7 @@ namespace LibCC
 				DispatchMessage(&msg);
 			}
 
+			CloseHandle(m_hGlobalSemaphore);
 			return;
     }
     
@@ -265,28 +330,29 @@ namespace LibCC
 			{
 			case WM_CLOSE:
 				return 0;
-	#if (LIBCC_ENABLE_LOG_WINDOW == 1)
 			case WM_SIZE:
 				{
-					RECT rc;
-					GetClientRect(hWnd, &rc);
-
-					HDWP hdwp = BeginDeferWindowPos(static_cast<int>(pThis->m_threads.size() + 2));// + tabctrl + composite edit
-					// tab ctrl
-					DeferWindowPos(hdwp, pThis->m_hTab, 0, 0, 0, rc.right, rc.bottom, SWP_NOZORDER);
-					TabCtrl_AdjustRect(pThis->m_hTab, FALSE, &rc);
-					// all tab edit box
-					DeferWindowPos(hdwp, pThis->m_hEdit, 0, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, SWP_NOZORDER);
-					for(std::vector<ThreadInfo>::const_iterator it = pThis->m_threads.begin(); it != pThis->m_threads.end(); ++ it)
+					if(pThis->WindowEnabled())
 					{
-						// thread edit box
-						DeferWindowPos(hdwp, it->hEdit, 0, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, SWP_NOZORDER);
-					}
+						RECT rc;
+						GetClientRect(hWnd, &rc);
 
-					EndDeferWindowPos(hdwp);
+						HDWP hdwp = BeginDeferWindowPos(static_cast<int>(pThis->m_threads.size() + 2));// + tabctrl + composite edit
+						// tab ctrl
+						DeferWindowPos(hdwp, pThis->m_hTab, 0, 0, 0, rc.right, rc.bottom, SWP_NOZORDER);
+						TabCtrl_AdjustRect(pThis->m_hTab, FALSE, &rc);
+						// all tab edit box
+						DeferWindowPos(hdwp, pThis->m_hEdit, 0, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, SWP_NOZORDER);
+						for(std::vector<ThreadInfo>::const_iterator it = pThis->m_threads.begin(); it != pThis->m_threads.end(); ++ it)
+						{
+							// thread edit box
+							DeferWindowPos(hdwp, it->hEdit, 0, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, SWP_NOZORDER);
+						}
+
+						EndDeferWindowPos(hdwp);
+					}
 					break;
 				}
-	#endif
 			case WM_DESTROY:
 				{
 					PostQuitMessage(0);
@@ -321,49 +387,71 @@ namespace LibCC
 					SYSTEMTIME st;
 					GetLocalTime(&st);
 
-					std::wstring file(LibCC::FormatW("[%-%-%;%:%:%][%] %%%|")
-						.ul<10,4>(st.wYear)
-						.ul<10,2>(st.wMonth)
-						.ul<10,2>(st.wDay)
-						.ul<10,2>(st.wHour)
-						.ul<10,2>(st.wMinute)
-						.ul<10,2>(st.wSecond)
-						.ul<16,8,'0'>(mi.threadID)
-						.s(indent)
-						.s(mi.s1)
-						.s(mi.s2)
-						.Str());
-					std::wstring gui(LibCC::FormatW("%%%|").s(indent).s(mi.s1).s(mi.s2).Str());
+					std::wstring file;
+					if(pThis->DebugEnabled() || pThis->FileEnabled())
+					{
+						file = LibCC::FormatW("[%-%-%;%:%:%][%] %%%|")
+							.ul<10,4>(st.wYear)
+							.ul<10,2>(st.wMonth)
+							.ul<10,2>(st.wDay)
+							.ul<10,2>(st.wHour)
+							.ul<10,2>(st.wMinute)
+							.ul<10,2>(st.wSecond)
+							.ul<16,8,'0'>(mi.threadID)
+							.s(indent)
+							.s(mi.s1)
+							.s(mi.s2)
+							.Str();
+					}
 
 					// do ods
-	#if (LIBCC_ENABLE_LOG_ODSF == 1)
-					OutputDebugStringW(file.c_str());
-	#endif
+					if(pThis->DebugEnabled())
+					{
+						OutputDebugStringW(file.c_str());
+					}
 
 					// do file
-	#if (LIBCC_ENABLE_LOG_FILE == 1)
-					HANDLE h = CreateFileW(pThis->m_fileName.c_str(), GENERIC_WRITE, FILE_SHARE_READ, 0, OPEN_ALWAYS, 0, 0);
-					if(h && h != INVALID_HANDLE_VALUE)
+					if(pThis->FileEnabled())
 					{
-						SetFilePointer(h, 0, 0, FILE_END);
-						DWORD br;
-						std::string a;
-						ConvertString(file, a);
-						WriteFile(h, a.c_str(), (DWORD)a.size(), &br, 0);
-						CloseHandle(h);
+						HANDLE h = CreateFileW(pThis->m_fileName.c_str(), GENERIC_WRITE, FILE_SHARE_READ, 0, OPEN_ALWAYS, 0, 0);
+						if(h && h != INVALID_HANDLE_VALUE)
+						{
+							DWORD br;
+							if(pThis->m_unicodeFileFormat)
+							{
+								DWORD oldptr = SetFilePointer(h, 0, 0, FILE_END);
+								if(oldptr == 0)
+								{
+									// the file is new. write the Unicode BOM if necessary.
+									WORD bom = 0xfeff;// doing it like this is compatible with other byte-order
+									DWORD bw;
+									WriteFile(h, &bom, 2, &bw, 0);
+								}
+								WriteFile(h, file.c_str(), (DWORD)(sizeof(wchar_t) * file.size()), &br, 0);
+							}
+							else
+							{
+								std::string a;
+								ConvertString(file, a);
+								WriteFile(h, a.c_str(), (DWORD)a.size(), &br, 0);
+							}
+							CloseHandle(h);
+						}
 					}
-	#endif
 
 					// do gui
-	#if (LIBCC_ENABLE_LOG_WINDOW == 1)
-					int ndx = GetWindowTextLength(pThis->m_hEdit);
-					SendMessage(pThis->m_hEdit, EM_SETSEL, (WPARAM)ndx, (LPARAM)ndx);
-					SendMessageW(pThis->m_hEdit, EM_REPLACESEL, 0, (LPARAM)gui.c_str());
+					if(pThis->WindowEnabled())
+					{
+						std::wstring gui(LibCC::FormatW("%%%|").s(indent).s(mi.s1).s(mi.s2).Str());
+						int ndx = GetWindowTextLength(pThis->m_hEdit);
+						SendMessage(pThis->m_hEdit, EM_SETSEL, (WPARAM)ndx, (LPARAM)ndx);
+						SendMessageW(pThis->m_hEdit, EM_REPLACESEL, 0, (LPARAM)gui.c_str());
 
-					ndx = GetWindowTextLength(ti.hEdit);
-					SendMessage(ti.hEdit, EM_SETSEL, (WPARAM)ndx, (LPARAM)ndx);
-					SendMessageW(ti.hEdit, EM_REPLACESEL, 0, (LPARAM)gui.c_str());
-	#endif
+						ndx = GetWindowTextLength(ti.hEdit);
+						SendMessage(ti.hEdit, EM_SETSEL, (WPARAM)ndx, (LPARAM)ndx);
+						SendMessageW(ti.hEdit, EM_REPLACESEL, 0, (LPARAM)gui.c_str());
+					}
+					
 					return 0;
 				}
 			case WM_Indent:
@@ -385,43 +473,44 @@ namespace LibCC
 				}
 			case WM_NOTIFY:
 				{
-	#if (LIBCC_ENABLE_LOG_WINDOW == 1)
-					NMHDR& h = *(NMHDR*)lParam;
-					if(h.hwndFrom == pThis->m_hTab)
+					if(pThis->WindowEnabled())
 					{
-						if(h.code == TCN_SELCHANGE)
+						NMHDR& h = *(NMHDR*)lParam;
+						if(h.hwndFrom == pThis->m_hTab)
 						{
-							int iItem = TabCtrl_GetCurSel(pThis->m_hTab);
-							if(iItem == 0)
+							if(h.code == TCN_SELCHANGE)
 							{
-								// show the ALL tab, hide all others.
-								SetWindowPos(pThis->m_hEdit, HWND_TOP, 0,0,0,0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-								for(std::vector<ThreadInfo>::const_iterator it = pThis->m_threads.begin(); it != pThis->m_threads.end(); ++ it)
+								int iItem = TabCtrl_GetCurSel(pThis->m_hTab);
+								if(iItem == 0)
 								{
-									ShowWindow(it->hEdit, SW_HIDE);
-								}
-							}
-							else
-							{
-								// hide the ALL tab, hide all others, show the selected one.
-								ShowWindow(pThis->m_hEdit, SW_HIDE);
-								for(std::vector<ThreadInfo>::const_iterator it = pThis->m_threads.begin(); it != pThis->m_threads.end(); ++ it)
-								{
-									if(it->tabItem == iItem)
-									{
-										SetWindowPos(it->hEdit, HWND_TOP, 0,0,0,0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-									}
-									else
+									// show the ALL tab, hide all others.
+									SetWindowPos(pThis->m_hEdit, HWND_TOP, 0,0,0,0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+									for(std::vector<ThreadInfo>::const_iterator it = pThis->m_threads.begin(); it != pThis->m_threads.end(); ++ it)
 									{
 										ShowWindow(it->hEdit, SW_HIDE);
 									}
 								}
-							}
+								else
+								{
+									// hide the ALL tab, hide all others, show the selected one.
+									ShowWindow(pThis->m_hEdit, SW_HIDE);
+									for(std::vector<ThreadInfo>::const_iterator it = pThis->m_threads.begin(); it != pThis->m_threads.end(); ++ it)
+									{
+										if(it->tabItem == iItem)
+										{
+											SetWindowPos(it->hEdit, HWND_TOP, 0,0,0,0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+										}
+										else
+										{
+											ShowWindow(it->hEdit, SW_HIDE);
+										}
+									}
+								}
 
-							return 0;
+								return 0;
+							}
 						}
 					}
-	#endif
 					break;
 				}
 			case WM_CREATE:
@@ -430,30 +519,30 @@ namespace LibCC
 					pThis = static_cast<LogWindow*>(pcs->lpCreateParams);
 					SetPropW(hWnd, L"LibCC Log Window", static_cast<HANDLE>(pThis));
 					pThis->m_hMain = hWnd;
-	#if (LIBCC_ENABLE_LOG_WINDOW == 1)
-					HDC dc = GetDC(hWnd);
-					pThis->m_hFont = CreateFontW(-MulDiv(10, GetDeviceCaps(dc, LOGPIXELSY), 72),0,0,0,0,0,0,0,0,0,0,0,0,L"Courier");
-					ReleaseDC(hWnd, dc);
+					if(pThis->WindowEnabled())
+					{
+						HDC dc = GetDC(hWnd);
+						pThis->m_hFont = CreateFontW(-MulDiv(10, GetDeviceCaps(dc, LOGPIXELSY), 72),0,0,0,0,0,0,0,0,0,0,0,0,L"Courier");
+						ReleaseDC(hWnd, dc);
 
-					pThis->m_hTab = CreateWindowExW(0, WC_TABCONTROLW, L"", WS_CLIPSIBLINGS | WS_CHILD | WS_VISIBLE, 27, 74, 3, 2, hWnd, 0, pThis->m_hInstance, 0);
-					SendMessageW(pThis->m_hTab, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
-					TabCtrl_SetItemSize(pThis->m_hTab, 16, 16);
+						pThis->m_hTab = CreateWindowExW(0, WC_TABCONTROLW, L"", WS_CLIPSIBLINGS | WS_CHILD | WS_VISIBLE, 27, 74, 3, 2, hWnd, 0, pThis->m_hInstance, 0);
+						SendMessageW(pThis->m_hTab, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+						TabCtrl_SetItemSize(pThis->m_hTab, 16, 16);
 
-					// create the first tab for the composite
-					TCITEMW tci = {0};
-					tci.mask = TCIF_TEXT;
-					tci.pszText = L"All";
-					TabCtrl_InsertItem(pThis->m_hTab, 0, &tci);
+						// create the first tab for the composite
+						TCITEMW tci = {0};
+						tci.mask = TCIF_TEXT;
+						tci.pszText = L"All";
+						TabCtrl_InsertItem(pThis->m_hTab, 0, &tci);
 
-					pThis->m_hEdit = CreateWindowExW(0, L"EDIT", L"", WS_CLIPSIBLINGS | WS_VSCROLL | WS_HSCROLL | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_MULTILINE | ES_READONLY | WS_CHILD | WS_VISIBLE,
-						27, 74, 3, 2, pThis->m_hMain, 0, 0, 0);
+						pThis->m_hEdit = CreateWindowExW(0, L"EDIT", L"", WS_CLIPSIBLINGS | WS_VSCROLL | WS_HSCROLL | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_MULTILINE | ES_READONLY | WS_CHILD | WS_VISIBLE,
+							27, 74, 3, 2, pThis->m_hMain, 0, 0, 0);
 
-					SetWindowPos(pThis->m_hEdit, HWND_TOP, 0,0,0,0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+						SetWindowPos(pThis->m_hEdit, HWND_TOP, 0,0,0,0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
 
-					SendMessageW(pThis->m_hEdit, WM_SETFONT, (WPARAM)pThis->m_hFont, TRUE);
-					SendMessageW(pThis->m_hEdit, EM_SETLIMITTEXT, (WPARAM)0, 0);
-	#endif
-
+						SendMessageW(pThis->m_hEdit, WM_SETFONT, (WPARAM)pThis->m_hFont, TRUE);
+						SendMessageW(pThis->m_hEdit, EM_SETLIMITTEXT, (WPARAM)0, 0);
+					}
 					return 0;
 				}
 			case WM_PAINT:
@@ -511,21 +600,22 @@ namespace LibCC
 			// omg; not found.  create a new one.
 			HWND hNewEdit = 0;
 			int newTabItem = 0;
-	#if (LIBCC_ENABLE_LOG_WINDOW == 1)
-			newTabItem = TabCtrl_GetItemCount(m_hTab);
-			_String text(LibCC::FormatW(L"%").ul(threadID).Str());
-			TCITEMW tci = {0};
-			tci.mask = TCIF_TEXT;
-			tci.pszText = const_cast<PWSTR>(text.c_str());// i hate these damn non-const structs
-			TabCtrl_InsertItem(m_hTab, newTabItem, &tci);
+			if(WindowEnabled())
+			{
+				newTabItem = TabCtrl_GetItemCount(m_hTab);
+				_String text(LibCC::FormatW(L"%").ul(threadID).Str());
+				TCITEMW tci = {0};
+				tci.mask = TCIF_TEXT;
+				tci.pszText = const_cast<PWSTR>(text.c_str());// i hate these damn non-const structs
+				TabCtrl_InsertItem(m_hTab, newTabItem, &tci);
 
-			hNewEdit = CreateWindowExW(0, L"EDIT", L"",
-				WS_CLIPSIBLINGS | WS_VSCROLL | WS_HSCROLL | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_MULTILINE | ES_READONLY | WS_CHILD,
-				27, 74, 3, 2, m_hMain, 0, m_hInstance, 0);
-			SendMessage(hNewEdit, WM_SETFONT, (WPARAM)m_hFont, TRUE);
-			SendMessage(hNewEdit, EM_SETLIMITTEXT, (WPARAM)0, 0);
-			PostMessage(m_hMain, WM_SIZE, 0, 0);
-	#endif
+				hNewEdit = CreateWindowExW(0, L"EDIT", L"",
+					WS_CLIPSIBLINGS | WS_VSCROLL | WS_HSCROLL | ES_AUTOHSCROLL | ES_AUTOVSCROLL | ES_MULTILINE | ES_READONLY | WS_CHILD,
+					27, 74, 3, 2, m_hMain, 0, m_hInstance, 0);
+				SendMessage(hNewEdit, WM_SETFONT, (WPARAM)m_hFont, TRUE);
+				SendMessage(hNewEdit, EM_SETLIMITTEXT, (WPARAM)0, 0);
+				PostMessage(m_hMain, WM_SIZE, 0, 0);
+			}
 			m_threads.push_back(ThreadInfo());
 			ThreadInfo& ret(m_threads.back());
 			ret.tabItem = newTabItem;
@@ -585,5 +675,4 @@ namespace LibCC
 
     LogWindow* m_pLog;
   };
-//#endif// LIBCC_ENABLE_LOG_AT_ALL
 }
