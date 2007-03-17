@@ -30,7 +30,7 @@
 #pragma once
 
 #ifndef WIN32
-#error LibCC::DebugLog is only available on Windows platforms.
+#error LibCC::Log is only available on Windows platforms.
 #endif
 
 #include "StringUtil.h"
@@ -130,6 +130,7 @@ namespace LibCC
 
 		~Log()
 		{
+			Destroy();
 		}
 
 		// filename
@@ -646,18 +647,20 @@ namespace LibCC
     std::wstring m_fileName;
   };
 
+	extern Log* g_pLog;
+
   class LogScopeMessage
   {
   public:
 		template<typename XChar>
-    LogScopeMessage(const XChar* op, Log* pLog) :
+    LogScopeMessage(const XChar* op, Log* pLog = g_pLog) :
       m_pLog(pLog)
     {
       m_pLog->Message(std::wstring(L"{ "), std::basic_string<XChar>(op));
       m_pLog->Indent();
     }
 		template<typename XChar>
-    LogScopeMessage(const std::basic_string<XChar>& op, Log* pLog) :
+    LogScopeMessage(const std::basic_string<XChar>& op, Log* pLog = g_pLog) :
       m_pLog(pLog)
     {
       m_pLog->Message(std::wstring(L"{ "), op);

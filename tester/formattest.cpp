@@ -2,6 +2,8 @@
 
 #include "test.h"
 #include "libcc\stringutil.h"
+#include "libcc\Log.h"
+
 using namespace LibCC;
 
 
