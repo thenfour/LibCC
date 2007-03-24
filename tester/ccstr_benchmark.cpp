@@ -1,7 +1,7 @@
 
 
 #include "test.h"
-#include "libcc\fps.h"
+#include "libcc\Timer.h"
 using namespace LibCC;
 
 #include <sstream>

@@ -669,14 +669,23 @@ namespace LibCC
     }
     return std::string::npos;
   }
-  
+  template<typename Char>
+	inline size_t XStringLength(const Char* sz)
+	{
+		size_t ret = 0;
+		while(*sz ++)
+		{
+			++ ret;
+		}
+		return ret;
+	}
   template<typename InChar, typename OutChar>
 	inline void XLastDitchStringCopy(const std::basic_string<InChar>& in, std::basic_string<OutChar>& out)
 	{
 		// when there's no other way to convert from 1 string type to another, you can try this basic element-by-element copy
 		out.clear();
 		out.reserve(in.size());
-		for(std::wstring::const_iterator it = in.begin(); it != in.end(); ++ it)
+		for(std::basic_string<InChar>::const_iterator it = in.begin(); it != in.end(); ++ it)
 		{
 			out.push_back(static_cast<OutChar>(*it));
 		}
@@ -686,16 +695,36 @@ namespace LibCC
 	{
 		// when there's no other way to convert from 1 string type to another, you can try this basic element-by-element copy
 		out.clear();
-		out.reserve(in.size());
+		out.reserve(XStringLength(in));
 		for(; *in != 0; ++ in)
 		{
-			out.append(*in);
+			out.push_back(static_cast<OutChar>(*in));
 		}
+	}
+  template<typename InChar, typename OutChar>
+	inline void XLastDitchStringCopy(const InChar* in, OutChar* out)// out must already be allocated
+	{
+		for(; *in != 0; ++ in)
+		{
+			*out = *in;
+			out ++;
+		}
+		*out = 0;
+	}
+  template<typename InChar, typename OutChar>
+	inline void XLastDitchStringCopy(const std::basic_string<InChar>& in, OutChar* out)// out must already be allocated
+	{
+		for(std::basic_string<InChar>::const_iterator it = in.begin(); it != in.end(); ++ it)
+		{
+			*out = *it;
+			out ++;
+		}
+		*out = 0;
 	}
 
 
 #ifdef WIN32
-	inline HRESULT ConvertString(const std::wstring& widestr, Blob<BYTE>& out, UINT codepage)
+	inline HRESULT ConvertString(const std::wstring& widestr, Blob<BYTE>& out, UINT codepage = CP_ACP)
 	{
 		DWORD flags;
 		CPINFO cpinfo;
@@ -719,7 +748,10 @@ namespace LibCC
 			}
 		}
 
-		GetCPInfo(codepage, &cpinfo);
+		if(0 == GetCPInfo(codepage, &cpinfo))
+		{
+			return E_FAIL;
+		}
 	 
 		// get the length first
 		BOOL usedDefaultChar = FALSE;
@@ -738,23 +770,13 @@ namespace LibCC
 
 		return S_OK;
 	}
-	inline HRESULT ConvertString(const std::wstring& widestr, std::string& out, UINT codepage)
+	inline HRESULT ConvertString(const std::wstring& widestr, std::string& out, UINT codepage = CP_ACP)
 	{
 		Blob<BYTE> b;
 		HRESULT hr = ConvertString(widestr, b, codepage);
 		if(FAILED(hr)) return hr;
 		out.assign((const char*)b.GetBuffer(), b.Size());
 		return hr;
-	}
-	inline HRESULT ConvertString(const std::string& in, std::string& out)
-	{
-		out = in;
-		return S_OK;
-	}
-	inline HRESULT ConvertString(const char* in, std::string& out)
-	{
-		out = in;
-		return S_OK;
 	}
 	template<typename Char>
 	inline HRESULT ConvertString(const std::basic_string<Char>& lhs, std::string& out)
@@ -768,9 +790,9 @@ namespace LibCC
 		XLastDitchStringCopy(lhs, out);
 		return S_OK;
 	}
-	inline HRESULT ConvertString(const std::string& multistr, std::wstring& widestr, UINT codepage = CP_ACP)
+	inline HRESULT ConvertString(const BYTE* multistr, size_t sourceLength, std::wstring& widestr, UINT codepage = CP_ACP)
 	{
-		int length = MultiByteToWideChar(codepage, 0, multistr.c_str(), (int)multistr.length(), NULL, 0);
+		int length = MultiByteToWideChar(codepage, 0, (PCSTR)multistr, (int)sourceLength, NULL, 0);
 		if (length == 0)
 			return E_FAIL;
 		Blob<WCHAR> buf;
@@ -778,38 +800,197 @@ namespace LibCC
 		{
 			return E_OUTOFMEMORY;
 		}
-		MultiByteToWideChar(codepage, 0, multistr.c_str(), (int)multistr.length(), buf.GetBuffer(), (int)length);
+		MultiByteToWideChar(codepage, 0, (PCSTR)multistr, (int)sourceLength, buf.GetBuffer(), (int)length);
 		widestr.assign(buf.GetBuffer(), buf.Size());
  
 		return S_OK;
 	}
+
+	inline HRESULT ConvertString(const Blob<BYTE>& multistr, std::wstring& widestr, UINT codepage = CP_ACP)
+	{
+		return ConvertString(multistr.GetBuffer(), multistr.Size(), widestr, codepage);
+	}
+
 	inline HRESULT ConvertString(const char* multistr, std::wstring& widestr, UINT codepage = CP_ACP)
 	{
-		return ConvertString(std::string(multistr), widestr, codepage);
+		return ConvertString((const BYTE*)multistr, strlen(multistr), widestr, codepage);
 	}
-	inline HRESULT ConvertString(const std::wstring& lhs, std::wstring& widestr)
+
+	inline HRESULT ConvertString(const std::string& multistr, std::wstring& widestr, UINT codepage = CP_ACP)
+	{
+		return ConvertString((const BYTE*)multistr.c_str(), multistr.length(), widestr, codepage);
+	}
+
+	inline HRESULT ConvertString(const std::wstring& lhs, std::wstring& widestr, UINT codepage = CP_ACP)// codepage is technically ignored here. again this is just a convenience function to aide compilation.
 	{
 		widestr = lhs;
 		return S_OK;
 	}
-	inline HRESULT ConvertString(const wchar_t* lhs, std::wstring& widestr)
+	inline HRESULT ConvertString(const wchar_t* lhs, std::wstring& widestr, UINT codepage = CP_ACP)// codepage is technically ignored here. again this is just a convenience function to aide compilation.
 	{
 		widestr = lhs;
 		return S_OK;
 	}
 	template<typename CharA, typename CharB>
-	inline HRESULT ConvertString(const std::basic_string<CharA>& lhs, std::basic_string<CharB>& widestr)
+	inline HRESULT ConvertString(const std::basic_string<CharA>& lhs, std::basic_string<CharB>& widestr, UINT codepage = CP_ACP)// codepage is technically ignored here. again this is just a convenience function to aide compilation.
 	{
 		XLastDitchStringCopy(lhs, widestr);
 		return S_OK;
 	}
 	template<typename CharA, typename CharB>
-	inline HRESULT ConvertString(const CharA* lhs, std::basic_string<CharB>& widestr)
+	inline HRESULT ConvertString(const CharA* lhs, std::basic_string<CharB>& widestr, UINT codepage = CP_ACP)// codepage is technically ignored here. again this is just a convenience function to aide compilation.
 	{
 		XLastDitchStringCopy(lhs, widestr);
 		return S_OK;
 	}
-	
+
+	inline HRESULT ConvertString(const std::string& in, std::string& out, UINT fromCodepage = CP_ACP, UINT toCodepage = CP_ACP)// from 'char' string to 'char' string, the codepage is ignored.
+	{
+		if(fromCodepage == toCodepage)
+		{
+			out = in;
+			return S_OK;
+		}
+		std::wstring intermediate;
+		HRESULT hr = ConvertString(in, intermediate, fromCodepage);
+		if(FAILED(hr)) return hr;
+		return ConvertString(intermediate, out, toCodepage);
+	}
+
+	inline HRESULT ConvertString(const char* in, std::string& out, UINT fromCodepage = CP_ACP, UINT toCodepage = CP_ACP)
+	{
+		if(fromCodepage == toCodepage)
+		{
+			out = in;
+			return S_OK;
+		}
+		std::wstring intermediate;
+		HRESULT hr = ConvertString(in, intermediate, fromCodepage);
+		if(FAILED(hr)) return hr;
+		return ConvertString(intermediate, out, toCodepage);
+	}
+
+	inline HRESULT ConvertString(const std::string& in, Blob<BYTE>& out, UINT fromCodepage = CP_ACP, UINT toCodepage = CP_ACP)
+	{
+		if(fromCodepage == toCodepage)
+		{
+			if(!out.Alloc(in.length())) return E_OUTOFMEMORY;
+			memcpy(out.GetBuffer(), in.c_str(), in.length());
+			return S_OK;
+		}
+		std::wstring intermediate;
+		HRESULT hr = ConvertString(in, intermediate, fromCodepage);
+		if(FAILED(hr)) return hr;
+		return ConvertString(intermediate, out, toCodepage);
+	}
+
+	inline HRESULT ConvertString(const char* in, Blob<BYTE>& out, UINT fromCodepage = CP_ACP, UINT toCodepage = CP_ACP)
+	{
+		if(fromCodepage == toCodepage)
+		{
+			size_t len = XStringLength(in);
+			if(!out.Alloc(len)) return E_OUTOFMEMORY;
+			memcpy(out.GetBuffer(), in, len);
+			return S_OK;
+		}
+		std::wstring intermediate;
+		HRESULT hr = ConvertString(in, intermediate, fromCodepage);
+		if(FAILED(hr)) return hr;
+		return ConvertString(intermediate, out, toCodepage);
+	}
+
+	inline HRESULT ConvertString(const BYTE* in, size_t inLength, Blob<BYTE>& out, UINT fromCodepage = CP_ACP, UINT toCodepage = CP_ACP)
+	{
+		if(fromCodepage == toCodepage)
+		{
+			if(!out.Alloc(inLength)) return E_OUTOFMEMORY;
+			memcpy(out.GetBuffer(), in, inLength);
+			return S_OK;
+		}
+		std::wstring intermediate;
+		HRESULT hr = ConvertString(in, inLength, intermediate, fromCodepage);
+		if(FAILED(hr)) return hr;
+		return ConvertString(intermediate, out, toCodepage);
+	}
+
+	inline HRESULT ConvertString(const Blob<BYTE>& in, Blob<BYTE>& out, UINT fromCodepage = CP_ACP, UINT toCodepage = CP_ACP)
+	{
+		return ConvertString(in.GetBuffer(), in.Size(), out, fromCodepage, toCodepage);
+	}
+
+	inline HRESULT ConvertString(const Blob<BYTE>& in, std::string& out, UINT fromCodepage = CP_ACP, UINT toCodepage = CP_ACP)
+	{
+		if(fromCodepage == toCodepage)
+		{
+			out.assign((const char*)in.GetBuffer(), in.Size());
+			return S_OK;
+		}
+		std::wstring intermediate;
+		HRESULT hr = ConvertString(in, intermediate, fromCodepage);
+		if(FAILED(hr)) return hr;
+		return ConvertString(intermediate, out, toCodepage);
+	}
+
+	template<typename Char>
+	inline HRESULT ConvertString(const std::wstring& in, std::basic_string<Char>& out)
+	{
+		XLastDitchStringCopy(in, out);
+		return S_OK;
+	}
+
+	template<typename Char>
+	inline HRESULT ConvertString(const Blob<BYTE>& in, std::basic_string<Char>& out, UINT fromCodepage = CP_ACP)
+	{
+		// convert to unicode, then to Blob
+		std::wstring intermediate;
+		HRESULT hr = ConvertString(in, intermediate, fromCodepage);
+		if(FAILED(hr)) return hr;
+		return ConvertString(intermediate, out);
+	}
+
+	template<typename Char>
+	inline HRESULT ConvertString(const Char* in, Blob<BYTE>& out, UINT toCodepage = CP_ACP)
+	{
+		// convert to unicode, then to Blob
+		std::wstring intermediate;
+		HRESULT hr = ConvertString(in, intermediate);
+		if(FAILED(hr)) return hr;
+		return ConvertString(intermediate, out, toCodepage);
+	}
+
+	template<typename Char>
+	inline HRESULT ConvertString(const std::basic_string<Char>& in, Blob<BYTE>& out, UINT toCodepage = CP_ACP)
+	{
+		// convert to unicode, then to Blob
+		std::wstring intermediate;
+		HRESULT hr = ConvertString(in, intermediate);
+		if(FAILED(hr)) return hr;
+		return ConvertString(intermediate, out, toCodepage);
+	}
+
+	inline HRESULT ConvertString(const BYTE* in, size_t inLength, std::string& out, UINT fromCodepage = CP_ACP, UINT toCodepage = CP_ACP)
+	{
+		if(fromCodepage == toCodepage)
+		{
+			out.assign((const char*)in, inLength);
+			return S_OK;
+		}
+		std::wstring intermediate;
+		HRESULT hr = ConvertString(in, inLength, intermediate, fromCodepage);
+		if(FAILED(hr)) return hr;
+		return ConvertString(intermediate, out, toCodepage);
+	}
+
+	template<typename Char>
+	inline HRESULT ConvertString(const BYTE* in, size_t inLength, std::basic_string<Char>& out, UINT fromCodepage = CP_ACP)
+	{
+		// convert to unicode, then to Blob
+		std::wstring intermediate;
+		HRESULT hr = ConvertString(in, inLength, intermediate, fromCodepage);
+		if(FAILED(hr)) return hr;
+		return ConvertString(intermediate, out);
+	}
+
 	//////
 	inline HRESULT ToUTF8(const std::wstring& widestr, std::string& out)
 	{

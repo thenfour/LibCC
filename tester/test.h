@@ -5,6 +5,7 @@
 #include <iostream>
 #include <tchar.h>
 #include <list>
+#include "libcc\stringutil.h"
 
 //using namespace LibCC;
 
@@ -14,7 +15,7 @@ struct TestState
 	int assertPass;
 };
 
-extern int g_indent;
+//extern int g_indent;
 extern std::list<TestState> g_runningTests;
 
 
@@ -38,12 +39,12 @@ inline bool TestAssert__(bool b, const char* sz, const char* file, int line)
 	{
 		it->assertCount ++;
 	}
-  std::string indent("  ", g_indent ++);
+  std::string indent("  ", g_runningTests.size());
   if(!b)
   {
-    std::cout << indent.c_str() << "    FAILED: " << sz << "(line:" << line << ", " << file << ")" << std::endl;
+    std::cout << indent.c_str() << "FAILED: " << sz << "(line:" << line << ", " << file << ")" << std::endl;
     OutputDebugString(indent.c_str());
-    OutputDebugString("    FAILED: ");
+    OutputDebugString("FAILED: ");
     OutputDebugString(sz);
     OutputDebugString("\r\n");
   }
@@ -53,14 +54,27 @@ inline bool TestAssert__(bool b, const char* sz, const char* file, int line)
 		{
 			it->assertPass ++;
 		}
-    std::cout << indent.c_str() << "    PASS: " << sz << std::endl;
+    std::cout << indent.c_str() << "PASS: " << sz << std::endl;
     OutputDebugString(indent.c_str());
-    OutputDebugString("    PASS: ");
+    OutputDebugString("PASS: ");
     OutputDebugString(sz);
     OutputDebugString("\r\n");
   }
 
   return b;
+}
+
+template<typename Char>
+inline void TestMessage(const std::basic_string<Char>& msg)
+{
+  std::wstring indent(L"  ", g_runningTests.size());
+	std::wstring msgW;
+	LibCC::ConvertString(msg, msgW);
+
+	std::wcout << indent.c_str() << msgW << std::endl;
+  OutputDebugStringW(indent.c_str());
+	OutputDebugStringW(msgW.c_str());
+  OutputDebugStringW(L"\r\n");
 }
 
 #define TestAssert(x) TestAssert__((x), #x, __FILE__, __LINE__)

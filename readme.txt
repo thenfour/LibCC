@@ -5,9 +5,14 @@ x make blob tests.
 x string conversion shit
 x debug log
 	x support disabling efficiently
-	x support unicode log files
+	x support unicode log fils
+	- support disabling log-by-log
+	- add format support to more functions
+	- message classes for selective compiling
+	- time zone to use for timestamp
+	- log size limiting or other splitting techniques
 o test EVERY function... i know they don't even all build correctly.
-	o string
+	x string
 	- format
 	- blob
 	- result

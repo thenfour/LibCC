@@ -279,7 +279,7 @@ namespace LibCC
   {
     return !IsValidHandle(a);
   }
-
+  #define E_TERRORISM_NOT_RULED_OUT E_FAIL
   template<typename Char>
   inline bool PathIsAbsolute(const std::basic_string<Char>& path)
   {

@@ -24,7 +24,8 @@ template<typename Fn>
 bool RunTest__(Fn f, const char* sz)
 {
   bool r = false;
-  std::string indent("  ", g_indent ++);
+	g_indent ++;
+  std::string indent("  ", g_indent);
   g_runningTests.push_back(TestState());
   TestState& state = g_runningTests.back();
 
@@ -41,16 +42,16 @@ bool RunTest__(Fn f, const char* sz)
 
   if(state.assertCount == state.assertPass)
   {
-    std::cout << indent.c_str() << "  Total: PASS (100%)" << std::endl;
+    std::cout << indent.c_str() << "Total: PASS (100%)" << std::endl;
 		OutputDebugString(indent.c_str());
-    OutputDebugString("    Total: PASS");
+    OutputDebugString("Total: PASS");
     OutputDebugString("\r\n");
   }
   else
   {
-    std::cout << indent.c_str() << "  Total: FAIL (" << state.assertPass << " of " << state.assertCount << " passed)" << std::endl;
+    std::cout << indent.c_str() << "Total: FAIL (" << state.assertPass << " of " << state.assertCount << " passed)" << std::endl;
 		OutputDebugString(indent.c_str());
-    OutputDebugString("    Total: FAIL: ");
+    OutputDebugString("Total: FAIL: ");
     OutputDebugString("\r\n");
   }
   g_runningTests.pop_back();
@@ -68,7 +69,7 @@ void TestCollection()
   //RunTest(FormatBenchmark);
  // //RunTest(RegistryTest); // careful with this of course.
   //RunTest(StatusTest);
-  //RunTest(PathMatchSpecTest);
+  RunTest(PathMatchSpecTest);
   RunTest(StringTest);
 }
 
