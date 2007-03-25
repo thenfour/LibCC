@@ -65,12 +65,12 @@ void TestCollection()
 {
 	//RunTest(BlobTest);
 	//RunTest(LogTest);
-	//RunTest(FormatTest);
+	RunTest(FormatTest);
   //RunTest(FormatBenchmark);
  // //RunTest(RegistryTest); // careful with this of course.
   //RunTest(StatusTest);
-  RunTest(PathMatchSpecTest);
-  RunTest(StringTest);
+  //RunTest(PathMatchSpecTest);
+  //RunTest(StringTest);
 }
 
 int _tmain(int argc, _TCHAR* argv[])

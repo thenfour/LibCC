@@ -814,7 +814,102 @@ bool StringTest()
 		TestAssert(XStringEquals(x, "hi there"));
 	}
 
-	{// ToUTF8()
+	{// tounicode
+		std::string a = "hi there";
+		std::wstring w = L"hi there";
+		std::basic_string<DWORD> x;
+		DWORD dw[10];
+		XLastDitchStringCopy("hi there", x);
+		XLastDitchStringCopy("hi there", dw);
+		Blob<BYTE> b;
+		ConvertString(L"hi there", b, 1252);
+
+		TestAssert(ToUnicode("hi there", 1252) == L"hi there");
+		TestAssert(ToUnicode("hi there") == L"hi there");
+		TestAssert(ToUnicode(a, 1252) == L"hi there");
+		TestAssert(ToUnicode(a) == L"hi there");
+		TestAssert(ToUnicode(a.c_str(), 1252) == L"hi there");
+		TestAssert(ToUnicode(a.c_str()) == L"hi there");
+
+		TestAssert(ToUnicode(L"hi there", 1252) == L"hi there");
+		TestAssert(ToUnicode(L"hi there") == L"hi there");
+		TestAssert(ToUnicode(w, 1252) == L"hi there");
+		TestAssert(ToUnicode(w) == L"hi there");
+		TestAssert(ToUnicode(w.c_str(), 1252) == L"hi there");
+		TestAssert(ToUnicode(w.c_str()) == L"hi there");
+
+		TestAssert(ToUnicode(dw, 1252) == L"hi there");
+		TestAssert(ToUnicode(dw) == L"hi there");
+		TestAssert(ToUnicode(x, 1252) == L"hi there");
+		TestAssert(ToUnicode(x) == L"hi there");
+
+		TestAssert(ToUnicode(b.GetBuffer(), b.Size(), 1252) == L"hi there");
+		TestAssert(ToUnicode(b.GetBuffer(), b.Size()) == L"hi there");
+		TestAssert(ToUnicode(b, 1252) == L"hi there");
+		TestAssert(ToUnicode(b) == L"hi there");
+	}
+
+	{// tombcs
+		std::string a = "hi there";
+		std::wstring w = L"hi there";
+		std::basic_string<DWORD> x;
+		DWORD dw[10];
+		XLastDitchStringCopy("hi there", x);
+		XLastDitchStringCopy("hi there", dw);
+		Blob<BYTE> b;
+		ConvertString(L"hi there", b, 1252);
+
+		TestAssert(ToMBCS("hi there", 1252) == "hi there");
+		TestAssert(ToMBCS("hi there") == "hi there");
+		TestAssert(ToMBCS(a, 1252) == "hi there");
+		TestAssert(ToMBCS(a) == "hi there");
+		TestAssert(ToMBCS(a.c_str(), 1252) == "hi there");
+		TestAssert(ToMBCS(a.c_str()) == "hi there");
+
+		TestAssert(ToMBCS(L"hi there", 1252) == "hi there");
+		TestAssert(ToMBCS(L"hi there") == "hi there");
+		TestAssert(ToMBCS(w, 1252) == "hi there");
+		TestAssert(ToMBCS(w) == "hi there");
+		TestAssert(ToMBCS(w.c_str(), 1252) == "hi there");
+		TestAssert(ToMBCS(w.c_str()) == "hi there");
+
+		TestAssert(ToMBCS(dw, 1252) == "hi there");
+		TestAssert(ToMBCS(dw) == "hi there");
+		TestAssert(ToMBCS(x, 1252) == "hi there");
+		TestAssert(ToMBCS(x) == "hi there");
+
+		TestAssert(ToMBCS(b.GetBuffer(), b.Size(), 1252) == "hi there");
+		TestAssert(ToMBCS(b.GetBuffer(), b.Size()) == "hi there");
+		TestAssert(ToMBCS(b, 1252) == "hi there");
+		TestAssert(ToMBCS(b) == "hi there");
+	}
+
+	{// toutf8
+		std::string a = "hi there";
+		std::wstring w = L"hi there";
+		std::basic_string<DWORD> x;
+		DWORD dw[10];
+		XLastDitchStringCopy("hi there", x);
+		XLastDitchStringCopy("hi there", dw);
+		Blob<BYTE> b;
+		ConvertString(L"hi there", b, 1252);
+
+		TestAssert(ToUTF8("hi there") == "hi there");
+		TestAssert(ToUTF8(a) == "hi there");
+		TestAssert(ToUTF8(a.c_str()) == "hi there");
+
+		TestAssert(ToUTF8(L"hi there") == "hi there");
+		TestAssert(ToUTF8(w) == "hi there");
+		TestAssert(ToUTF8(w.c_str()) == "hi there");
+
+		TestAssert(ToUTF8(dw) == "hi there");
+		TestAssert(ToUTF8(x) == "hi there");
+
+		TestAssert(ToUTF8(b.GetBuffer(), b.Size()) == "hi there");
+		TestAssert(ToUTF8(b) == "hi there");
+	}
+
+	{// ToUTF8() (with HRESULT return val)
 		std::string a;
 		std::wstring w;
 		std::string a2;
@@ -843,8 +938,6 @@ bool StringTest()
 		ToUTF8(w, a);
 		ToUTF8(L"aoeu", a);
 	}
-
-	// TODO: add tests for libcc::Format
 
   return true;
 }

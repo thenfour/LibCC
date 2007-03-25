@@ -990,8 +990,64 @@ namespace LibCC
 		if(FAILED(hr)) return hr;
 		return ConvertString(intermediate, out);
 	}
+	
+	// ToUnicode .... jeez. i'm lucky there's no A/W version of this winapi or i'd have to find a new name.
+	template<typename Char>
+	inline std::wstring ToUnicode(const Char* sz, UINT codepage = CP_ACP)
+	{
+		std::wstring ret;
+		ConvertString(sz, ret, codepage);
+		return ret;
+	}
+	template<typename Char>
+	inline std::wstring ToUnicode(const std::basic_string<Char>& s, UINT codepage = CP_ACP)
+	{
+		std::wstring ret;
+		ConvertString(s, ret, codepage);
+		return ret;
+	}
+	inline std::wstring ToUnicode(const BYTE* mbcs, size_t len, UINT codepage = CP_ACP)
+	{
+		std::wstring ret;
+		ConvertString(mbcs, len, ret, codepage);
+		return ret;
+	}
+	inline std::wstring ToUnicode(const Blob<BYTE> mbcs, UINT codepage = CP_ACP)
+	{
+		std::wstring ret;
+		ConvertString(mbcs, ret, codepage);
+		return ret;
+	}
+	
+	// ToMBCS.... jeez. i'm lucky there's no A/W version of this winapi or i'd have to find a new name.
+	template<typename Char>
+	inline std::string ToMBCS(const Char* sz, UINT codepage = CP_ACP)
+	{
+		std::string ret;
+		ConvertString(sz, ret, codepage);
+		return ret;
+	}
+	template<typename Char>
+	inline std::string ToMBCS(const std::basic_string<Char>& s, UINT codepage = CP_ACP)
+	{
+		std::string ret;
+		ConvertString(s, ret, codepage);
+		return ret;
+	}
+	inline std::string ToMBCS(const BYTE* mbcs, size_t len, UINT codepage = CP_ACP)
+	{
+		std::string ret;
+		ConvertString(mbcs, len, ret, codepage);
+		return ret;
+	}
+	inline std::string ToMBCS(const Blob<BYTE> mbcs, UINT codepage = CP_ACP)
+	{
+		std::string ret;
+		ConvertString(mbcs, ret, codepage);
+		return ret;
+	}
 
-	//////
+	// ToUTF8
 	inline HRESULT ToUTF8(const std::wstring& widestr, std::string& out)
 	{
 		return ConvertString(widestr, out, CP_UTF8);
@@ -1014,7 +1070,28 @@ namespace LibCC
 		if(FAILED(hr)) return hr;
 		return ConvertString(intermediate, out, CP_UTF8);
 	}
-	
+
+	template<typename Char>
+	inline std::string ToUTF8(const Char* sz)
+	{
+		return ToMBCS(sz, CP_UTF8);
+	}
+	template<typename Char>
+	inline std::string ToUTF8(const std::basic_string<Char>& s)
+	{
+		return ToMBCS(s, CP_UTF8);
+	}
+	inline std::string ToUTF8(const BYTE* mbcs, size_t len)
+	{
+		return ToMBCS(mbcs, len, CP_UTF8);
+	}
+	inline std::string ToUTF8(const Blob<BYTE> mbcs)
+	{
+		return ToMBCS(mbcs, CP_UTF8);
+	}
+
+
+
 #endif
 
 }
@@ -1090,87 +1167,555 @@ namespace LibCC
     typedef std::basic_string<_Char, _Traits, _Alloc> _String;
     typedef FormatX<_Char, _Traits, _Alloc> _This;
 
-    static const char ReplaceChar = '%';
-    static const char EscapeChar = '^';
-    static const char NewlineChar = '|';
+		static const _Char OpenQuote = '\"';
+		static const _Char CloseQuote = '\"';
 
-    LIBCC_INLINE const _String Str() const;
-    LIBCC_INLINE const _Char* CStr() const;
+    static const _Char ReplaceChar = '%';
+    static const _Char EscapeChar = '^';
+    static const _Char NewlineChar = '|';
 
-#if CCSTR_OPTION_AUTOCAST == 1
-    LIBCC_INLINE operator _String() const;
-    LIBCC_INLINE operator const _Char*() const;
+		inline static bool IsUnicode()
+		{
+			return sizeof(_Char) == sizeof(wchar_t);
+		}
+
+		// notepad, winword, ultraedit do not support these characters
+		// but wordpad & devenv do. not really enough support to justify using these ever, considering anything that supports them will also support \r\n
+		inline static void AppendNewLine(_String& s)
+		{
+#if LIBCC_UNICODENEWLINES == 1
+			if(IsUnicode())
+			{
+				s.push_back(0x2028);// the Unicode line separator char
+			}
+			else
+			{
+				s.push_back('\r');
+				s.push_back('\n');
+			}
+#else
+				s.push_back('\r');
+				s.push_back('\n');
 #endif
+		}
+
+		inline static void AppendNewParagraph(_String& s)
+		{
+#if LIBCC_UNICODENEWLINES == 1
+			if(IsUnicode())
+			{
+				s.push_back(0x2029);// the Unicode new paragraph char
+			}
+			else
+			{
+				s.push_back('\r');
+				s.push_back('\n');
+			}
+#else
+				s.push_back('\r');
+				s.push_back('\n');
+#endif
+		}
 
     // Construction / Assignment
-    LIBCC_INLINE FormatX();
-    LIBCC_INLINE FormatX(const _String& s);
-    LIBCC_INLINE FormatX(const _Char* s);
-    LIBCC_INLINE FormatX(const _This& r);
+		LIBCC_INLINE FormatX() :
+			m_pos(0)
+		{
+		}
+
+    LIBCC_INLINE FormatX(const _This& r) :
+			m_pos(r.m_pos),
+			m_Format(r.m_Format),
+			m_Composite(r.m_Composite)
+		{
+		}
+
+		explicit LIBCC_INLINE FormatX(const _String& s) :
+			m_Format(s),
+			m_pos(0)
+		{
+			m_Composite.reserve(m_Format.size());
+			BuildCompositeChunk();
+		}
+
+    explicit LIBCC_INLINE FormatX(const _Char* s) :
+			m_Format(s),
+			m_pos(0)
+		{
+			if(!s) return;
+			m_Composite.reserve(m_Format.size());
+			BuildCompositeChunk();
+		}
+
     template<typename CharX>
-    explicit inline FormatX(const CharX* s);
+    explicit inline FormatX(const CharX* s) :
+			m_pos(0)
+		{
+			if(!s) return;
+			ConvertString(s, m_Format);
+			BuildCompositeChunk();
+		}
+
+		template<typename CharX>
+		explicit LIBCC_INLINE FormatX(const std::basic_string<CharX>& s) :
+			m_pos(0)
+		{
+			ConvertString(s, m_Format);
+			BuildCompositeChunk();
+		}
 
 #ifdef WIN32
     // construct from stringtable resource
-    LIBCC_INLINE FormatX(HINSTANCE hModule, UINT stringID);
-    LIBCC_INLINE FormatX(UINT stringID);
+    LIBCC_INLINE FormatX(HINSTANCE hModule, UINT stringID) :
+			m_pos(0)
+		{
+			if(LoadStringX(hModule, stringID, m_Format))
+			{
+				m_Composite.reserve(m_Format.size());
+				BuildCompositeChunk();
+			}
+		}
+
+    LIBCC_INLINE FormatX(UINT stringID) :
+			m_pos(0)
+		{
+			if(LoadStringX(GetModuleHandle(NULL), stringID, m_Format))
+			{
+				m_Composite.reserve(m_Format.size());
+				BuildCompositeChunk();
+			}
+		}
 #endif
+
+		LIBCC_INLINE void Clear()
+		{
+			m_pos = 0;
+			m_Format.clear();
+			m_Composite.clear();
+		}
+
     template<typename CharX>
-    LIBCC_INLINE void SetFormat(const CharX* s);
-    LIBCC_INLINE void SetFormat(const _String& s);
-    LIBCC_INLINE void SetFormat(const _Char* s);
+    LIBCC_INLINE void SetFormat(const CharX* s)
+		{
+			if(!s)
+			{
+				Clear();
+				return;
+			}
+			m_pos = 0;
+			ConvertString(s, m_Format);
+			m_Composite.clear();
+			m_Composite.reserve(m_Format.size());
+			BuildCompositeChunk();
+		}
+
+    LIBCC_INLINE void SetFormat(const _String& s)
+		{
+			m_pos = 0;
+			m_Format = s;
+			m_Composite.clear();
+			m_Composite.reserve(m_Format.size());
+			BuildCompositeChunk();
+		}
+
+    LIBCC_INLINE void SetFormat(const _Char* s)
+		{
+			if(s == 0)
+			{
+				Clear();
+				return;
+			}
+
+			m_pos = 0;
+			m_Format = s;
+			m_Composite.clear();
+			m_Composite.reserve(m_Format.size());
+			BuildCompositeChunk();
+		}
+
+    template<typename CharX>
+		LIBCC_INLINE void SetFormat(const std::basic_string<CharX>& s)
+		{
+			m_pos = 0;
+			ConvertString(s, m_Format);
+			m_Composite.clear();
+			m_Composite.reserve(m_Format.size());
+			BuildCompositeChunk();
+		}
+
 #ifdef WIN32
     // assign from stringtable resource
-    LIBCC_INLINE void SetFormat(HINSTANCE hModule, UINT stringID);
-    LIBCC_INLINE void SetFormat(UINT stringID);
+    LIBCC_INLINE void SetFormat(HINSTANCE hModule, UINT stringID)
+		{
+			m_pos = 0;
+			if(LoadStringX(hModule, stringID, m_Format))
+			{
+				m_Composite.clear();
+				m_Composite.reserve(m_Format.size());
+				BuildCompositeChunk();
+			}
+		}
+
+		LIBCC_INLINE void SetFormat(UINT stringID)
+		{
+			m_pos = 0;
+			if(LoadStringX(GetModuleHandle(NULL), stringID, m_Format))
+			{
+				m_Composite.clear();
+				m_Composite.reserve(m_Format.size());
+				BuildCompositeChunk();
+			}
+		}
 #endif
 
-    // POINTER -----------------------------
-    template<typename T>
-    LIBCC_INLINE _This& p(const T* v);
+		// "GET" methods
+    LIBCC_INLINE const _String Str() const
+		{
+			return m_Composite;
+		}
+    LIBCC_INLINE const _Char* CStr() const
+		{
+			return m_Composite.c_str();
+		}
+#if CCSTR_OPTION_AUTOCAST == 1
+		LIBCC_INLINE operator _String() const
+		{
+			return m_Composite;
+		}
+    LIBCC_INLINE operator const _Char*() const
+		{
+			return m_Composite.c_str();
+		}
+#endif
 
-    // CHARACTER -----------------------------
+    // POINTER - NOT portable when unsigned long != pointer size. -----------------------------
     template<typename T>
-    LIBCC_INLINE _This& c(T v);
-    template<typename T>
-    LIBCC_INLINE _This& c(T v, size_t count);
+    LIBCC_INLINE _This& p(const T* v)
+		{
+			m_Composite.push_back('0');
+			m_Composite.push_back('x');
+			unsigned long temp = *(reinterpret_cast<unsigned long*>(&v));
+			return ul<16, 8>(temp);// treat it as an unsigned number
+		}
 
-    // STRING -----------------------------
+    // CHARACTER (count) -----------------------------
+    template<typename T>
+    LIBCC_INLINE _This& c(T v)
+		{
+			m_Composite.push_back(static_cast<_Char>(v));
+			BuildCompositeChunk();
+			return *this;
+		}
+
+    template<typename T>
+    LIBCC_INLINE _This& c(T v, size_t count)
+		{
+			m_Composite.reserve(m_Composite.size() + count);
+			for(; count > 0; --count)
+			{
+				m_Composite.push_back(static_cast<_Char>(v));
+			}
+			BuildCompositeChunk();
+			return *this;
+		}
+
+    // STRING (maxlen) -----------------------------
     template<size_t MaxLen>
-    LIBCC_INLINE _This& s(const _Char* s);
-    LIBCC_INLINE _This& s(const _Char* s, size_t MaxLen);
-    LIBCC_INLINE _This& s(const _Char* s);
-    template<typename aChar>
-    LIBCC_INLINE _This& s(const aChar* foreign);
-    template<size_t MaxLen, typename aChar>
-    LIBCC_INLINE _This& s(const aChar* foreign);
-    template<typename aChar>
-    LIBCC_INLINE _This& s(const aChar* foreign, size_t MaxLen);
-    template<typename aChar, typename aTraits, typename aAlloc>
-    LIBCC_INLINE _This& s(const std::basic_string<aChar, aTraits, aAlloc>& x);
-    template<size_t MaxLen, typename aChar, typename aTraits, typename aAlloc>
-    LIBCC_INLINE _This& s(const std::basic_string<aChar, aTraits, aAlloc>& x);
-    template<typename aChar, typename aTraits, typename aAlloc>
-    LIBCC_INLINE _This& s(const std::basic_string<aChar, aTraits, aAlloc>& x, size_t MaxLen);
-    LIBCC_INLINE _This& NewLine();
+		LIBCC_INLINE _This& s(const _Char* s)
+		{
+			if(s && MaxLen) m_Composite.append(s, MaxLen);
+			BuildCompositeChunk();
+			return *this;
+		}
 
-    // QUOTED STRINGS
+    LIBCC_INLINE _This& s(const _Char* s, size_t MaxLen)
+		{
+			if(s) m_Composite.append(s, MaxLen);
+			BuildCompositeChunk();
+			return *this;
+		}
+
+    LIBCC_INLINE _This& s(const _Char* s)
+		{
+			if(s) m_Composite.append(s);
+			BuildCompositeChunk();
+			return *this;
+		}
+
     template<size_t MaxLen>
-    LIBCC_INLINE _This& qs(const _Char* s);
-    LIBCC_INLINE _This& qs(const _Char* s, size_t MaxLen);
-    LIBCC_INLINE _This& qs(const _Char* s);
+		LIBCC_INLINE _This& s(const _String& s)
+		{
+			if(MaxLen) m_Composite.append(s, 0, MaxLen);
+			BuildCompositeChunk();
+			return *this;
+		}
+
+    LIBCC_INLINE _This& s(const _String& s, size_t MaxLen)
+		{
+			m_Composite.append(s, 0, MaxLen);
+			BuildCompositeChunk();
+			return *this;
+		}
+
+    LIBCC_INLINE _This& s(const _String& s)
+		{
+			m_Composite.append(s);
+			BuildCompositeChunk();
+			return *this;
+		}
+
+		// now all that but in foreign char types
     template<typename aChar>
-    LIBCC_INLINE _This& qs(const aChar* foreign);
+    LIBCC_INLINE _This& s(const aChar* foreign)
+		{
+			if(foreign)
+			{
+				_String native;
+				ConvertString(foreign, native);
+				return s(native);
+			}
+			BuildCompositeChunk();
+			return *this;
+		}
+
+		/*
+			dilemma here is... do we convert foreign to native first, or truncate the string first? if i want
+			to support localized strings correctly i should convert first. but that may mean potentially creating
+			copies of huge strings when maxlen might be very small. i figure that's a rare enough case that i
+			should go for accuracy.
+		*/
     template<size_t MaxLen, typename aChar>
-    LIBCC_INLINE _This& qs(const aChar* foreign);
+    LIBCC_INLINE _This& s(const aChar* foreign)
+		{
+			if(MaxLen && foreign)
+			{
+				_String native;
+				ConvertString(foreign, native);
+				return s<MaxLen>(native);
+			}
+			BuildCompositeChunk();
+			return *this;
+		}
+
     template<typename aChar>
-    LIBCC_INLINE _This& qs(const aChar* foreign, size_t MaxLen);
+    LIBCC_INLINE _This& s(const aChar* foreign, size_t MaxLen)
+		{
+			if(foreign)
+			{
+				_String native;
+				ConvertString(foreign, native);
+				return s(native, MaxLen);
+			}
+			BuildCompositeChunk();
+			return *this;
+		}
+    
+		template<typename aChar, typename aTraits, typename aAlloc>
+    LIBCC_INLINE _This& s(const std::basic_string<aChar, aTraits, aAlloc>& x)
+		{
+			_String native;
+			ConvertString(x, native);
+			return s(native);
+		}
+    
+		template<size_t MaxLen, typename aChar, typename aTraits, typename aAlloc>
+    LIBCC_INLINE _This& s(const std::basic_string<aChar, aTraits, aAlloc>& x)
+		{
+			if(MaxLen)
+			{
+				_String native;
+				ConvertString(x, native);
+				return s<MaxLen>(native);
+			}
+			BuildCompositeChunk();
+			return *this;
+		}
+    
+		template<typename aChar, typename aTraits, typename aAlloc>
+    LIBCC_INLINE _This& s(const std::basic_string<aChar, aTraits, aAlloc>& x, size_t MaxLen)
+		{
+			_String native;
+			ConvertString(x, native);
+			return s(native, MaxLen);
+		}
+		
+		LIBCC_INLINE _This& NewLine()
+		{
+			AppendNewLine(m_Composite);
+			BuildCompositeChunk();
+			return *this;
+		}
+		
+		LIBCC_INLINE _This& NewParagraph()
+		{
+			AppendNewParagraph(m_Composite);
+			BuildCompositeChunk();
+			return *this;
+		}
+
+    // QUOTED STRINGS (maxlen)
+    template<size_t MaxLen>
+    LIBCC_INLINE _This& qs(const _Char* s)
+		{
+			if(MaxLen && s)
+			{
+				m_Composite.push_back(OpenQuote);
+				if(MaxLen >= 3)
+				{
+					m_Composite.append(s, MaxLen - 2);
+					m_Composite.push_back(CloseQuote);
+				}
+				else if(MaxLen == 2)
+				{
+					m_Composite.push_back(CloseQuote);
+				}
+			}
+			BuildCompositeChunk();
+			return *this;
+		}
+
+    LIBCC_INLINE _This& qs(const _Char* s, size_t MaxLen)
+		{
+			if(MaxLen && s)
+			{
+				m_Composite.push_back(OpenQuote);
+				if(MaxLen >= 3)
+				{
+					m_Composite.append(s, MaxLen - 2);
+					m_Composite.push_back(CloseQuote);
+				}
+				else if(MaxLen == 2)
+				{
+					m_Composite.push_back(CloseQuote);
+				}
+			}
+			BuildCompositeChunk();
+			return *this;
+		}
+
+    LIBCC_INLINE _This& qs(const _Char* s)
+		{
+			if(s)
+			{
+				m_Composite.push_back(OpenQuote);
+				m_Composite.append(s);
+				m_Composite.push_back(CloseQuote);
+			}
+			BuildCompositeChunk();
+			return *this;
+		}
+
+		template<size_t MaxLen>
+    LIBCC_INLINE _This& qs(const _String& s)
+		{
+			if(MaxLen)
+			{
+				m_Composite.push_back(OpenQuote);
+				if(MaxLen >= 3)
+				{
+					m_Composite.append(s, 0, MaxLen - 2);
+					m_Composite.push_back(CloseQuote);
+				}
+				else if(MaxLen == 2)
+				{
+					m_Composite.push_back(CloseQuote);
+				}
+			}
+			BuildCompositeChunk();
+			return *this;
+		}
+
+    LIBCC_INLINE _This& qs(const _String& s, size_t MaxLen)
+		{
+			if(MaxLen > 0)
+			{
+				m_Composite.push_back(OpenQuote);
+				if(MaxLen >= 3)
+				{
+					m_Composite.append(s, 0, MaxLen - 2);
+					m_Composite.push_back(CloseQuote);
+				}
+				else if(MaxLen == 2)
+				{
+					m_Composite.push_back(CloseQuote);
+				}
+			}
+			BuildCompositeChunk();
+			return *this;
+		}
+
+    LIBCC_INLINE _This& qs(const _String& s)
+		{
+			m_Composite.push_back(OpenQuote);
+			m_Composite.append(s);
+			m_Composite.push_back(CloseQuote);
+			BuildCompositeChunk();
+			return *this;
+		}
+
+		// (now the same stuff but with foreign characters)
+    template<typename aChar>
+    LIBCC_INLINE _This& qs(const aChar* foreign)
+		{
+			if(foreign)
+			{
+				_String native;
+				ConvertString(foreign, native);
+				return qs(native);
+			}
+			BuildCompositeChunk();
+			return *this;
+		}
+
+    template<size_t MaxLen, typename aChar>
+    LIBCC_INLINE _This& qs(const aChar* foreign)
+		{
+			if(MaxLen && foreign)
+			{
+				_String native;
+				ConvertString(foreign, native);
+				return qs<MaxLen>(native);
+			}
+			BuildCompositeChunk();
+			return *this;
+		}
+
+    template<typename aChar>
+    LIBCC_INLINE _This& qs(const aChar* foreign, size_t MaxLen)
+		{
+			if(foreign)
+			{
+				_String native;
+				ConvertString(foreign, native);
+				return qs(native, MaxLen);
+			}
+			BuildCompositeChunk();
+			return *this;
+		}
+
     template<typename aChar, typename aTraits, typename aAlloc>
-    LIBCC_INLINE _This& qs(const std::basic_string<aChar, aTraits, aAlloc>& x);
+    LIBCC_INLINE _This& qs(const std::basic_string<aChar, aTraits, aAlloc>& x)
+		{
+			_String native;
+			ConvertString(x, native);
+			return qs(native);
+		}
+
     template<size_t MaxLen, typename aChar, typename aTraits, typename aAlloc>
-    LIBCC_INLINE _This& qs(const std::basic_string<aChar, aTraits, aAlloc>& x);
+    LIBCC_INLINE _This& qs(const std::basic_string<aChar, aTraits, aAlloc>& x)
+		{
+			_String native;
+			ConvertString(x, native);
+			return qs<MaxLen>(native);
+		}
+
     template<typename aChar, typename aTraits, typename aAlloc>
-    LIBCC_INLINE _This& qs(const std::basic_string<aChar, aTraits, aAlloc>& x, size_t MaxLen);
+    LIBCC_INLINE _This& qs(const std::basic_string<aChar, aTraits, aAlloc>& x, size_t MaxLen)
+		{
+			_String native;
+			ConvertString(x, native);
+			return qs(native, MaxLen);
+		}
 
     // UNSIGNED LONG -----------------------------
     template<size_t Base, size_t Width, _Char PadChar>
@@ -1472,7 +2017,7 @@ namespace LibCC
 			if(LoadStringX(hInstance, stringID, ws))
 			{
 				r = true;
-				StringCopy(out, ws);
+				ConvertString(ws, out);
 			}
 			return r;
 		}
@@ -1492,432 +2037,6 @@ namespace LibCC
 namespace LibCC
 {
 #define THIS_T FormatX<Char__, Traits__, Alloc__>
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE const typename THIS_T::_String THIS_T::Str() const
-  {
-    return m_Composite;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE const Char__* THIS_T::CStr() const
-  {
-    return m_Composite.c_str();
-  }
-
-#if CCSTR_OPTION_AUTOCAST == 1
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T::operator typename THIS_T::_String() const
-  {
-    return m_Composite;
-  }
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T::operator const typename THIS_T::_Char*() const
-  {
-    return m_Composite.c_str();
-  }
-#endif
-
-  // Construction
-  template<typename Char__, typename Traits__, typename Alloc__>
-  THIS_T::FormatX() :
-    m_pos(0)
-  {
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  THIS_T::FormatX(const _String& s) :
-    m_Format(s),
-    m_pos(0)
-  {
-    m_Composite.reserve(m_Format.size());
-    BuildCompositeChunk();
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  THIS_T::FormatX(const _Char* s) :
-    m_Format(s),
-    m_pos(0)
-  {
-    if(!s) return;
-    m_Composite.reserve(m_Format.size());
-    BuildCompositeChunk();
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  THIS_T::FormatX(const _This& r) :
-    m_pos(r.m_pos),
-    m_Format(r.m_Format),
-    m_Composite(r.m_Composite)
-  {
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename CharX>
-  LIBCC_INLINE THIS_T::FormatX(const CharX* s) :
-    m_pos(0)
-  {
-    if(!s) return;
-    ConvertString(s, m_Format);
-    BuildCompositeChunk();
-  }
-
-#ifdef WIN32
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T::FormatX(HINSTANCE hModule, UINT stringID) :
-    m_pos(0)
-  {
-    if(LoadStringX(hModule, stringID, m_Format))
-    {
-      m_Composite.reserve(m_Format.size());
-      BuildCompositeChunk();
-    }
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T::FormatX(UINT stringID) :
-    m_pos(0)
-  {
-    if(LoadStringX(GetModuleHandle(NULL), stringID, m_Format))
-    {
-      m_Composite.reserve(m_Format.size());
-      BuildCompositeChunk();
-    }
-  }
-#endif
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE void THIS_T::SetFormat(const _String& s)
-  {
-    m_pos = 0;
-    m_Format = s;
-    m_Composite.reserve(m_Format.size());
-    BuildCompositeChunk();
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE void THIS_T::SetFormat(const _Char* s)
-  {
-    if(!s)
-    {
-      m_pos = 0;
-      m_Format.clear();
-      m_Composite.clear();
-      return;
-    }
-
-    m_pos = 0;
-    m_Format = s;
-    m_Composite.reserve(m_Format.size());
-    BuildCompositeChunk();
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename CharX>
-  LIBCC_INLINE void THIS_T::SetFormat(const CharX* s)
-  {
-    if(!s)
-    {
-      m_pos = 0;
-      m_Format.clear();
-      m_Composite.clear();
-    }
-
-    m_pos = 0;
-    ConvertString(s, m_Format);
-    m_Composite.reserve(m_Format.size());
-    BuildCompositeChunk();
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE void THIS_T::SetFormat(HINSTANCE hModule, UINT stringID)
-  {
-    m_pos = 0;
-    if(LoadStringX(hModule, stringID, m_Format))
-    {
-      m_Composite.reserve(m_Format.size());
-      BuildCompositeChunk();
-    }
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE void THIS_T::SetFormat(UINT stringID)
-  {
-    m_pos = 0;
-    if(LoadStringX(GetModuleHandle(NULL), stringID, m_Format))
-    {
-      m_Composite.reserve(m_Format.size());
-      BuildCompositeChunk();
-    }
-  }
-
-  // POINTER -----------------------------
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename T>
-  LIBCC_INLINE THIS_T& THIS_T::p(const T* v)
-  {
-    m_Composite.push_back('0');
-    m_Composite.push_back('x');
-    unsigned long temp = *(reinterpret_cast<unsigned long*>(&v));
-    return ul<16, 8>(temp);// treat it as an unsigned number
-  }
-
-  // CHARACTER -----------------------------
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename T>
-  LIBCC_INLINE THIS_T& THIS_T::c(T v)
-  {
-    m_Composite.push_back(static_cast<_Char>(v));
-    BuildCompositeChunk();
-    return *this;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename T>
-  LIBCC_INLINE THIS_T& THIS_T::c(T v, size_t count)
-  {
-    m_Composite.reserve(m_Composite.size() + count);
-    for(; count > 0; --count)
-    {
-      m_Composite.push_back(static_cast<_Char>(v));
-    }
-    BuildCompositeChunk();
-    return *this;
-  }
-
-  // STRING -----------------------------
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t MaxLen>
-  LIBCC_INLINE THIS_T& THIS_T::s(const _Char* s)
-  {
-    if(s) m_Composite.append(s, MaxLen);
-    BuildCompositeChunk();
-    return *this;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::s(const _Char* s, size_t MaxLen)
-  {
-    if(s) m_Composite.append(s, MaxLen);
-    BuildCompositeChunk();
-    return *this;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::s(const _Char* s)
-  {
-    if(s) m_Composite.append(s);
-    BuildCompositeChunk();
-    return *this;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename aChar>
-  LIBCC_INLINE THIS_T& THIS_T::s(const aChar* foreign)
-  {
-    if(foreign)
-    {
-      _String native;
-      ConvertString(foreign, native);
-      m_Composite.append(native);
-    }
-    BuildCompositeChunk();
-    return *this;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t MaxLen, typename aChar>
-  LIBCC_INLINE THIS_T& THIS_T::s(const aChar* foreign)
-  {
-    if(foreign)
-    {
-      _String native;
-      StringCopyN(native, foreign, MaxLen);
-      m_Composite.append(native);
-    }
-    BuildCompositeChunk();
-    return *this;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename aChar>
-  LIBCC_INLINE THIS_T& THIS_T::s(const aChar* foreign, size_t MaxLen)
-  {
-    if(foreign)
-    {
-      _String native;
-      StringCopyN(native, foreign, MaxLen);
-      m_Composite.append(native);
-    }
-    BuildCompositeChunk();
-    return *this;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename aChar, typename aTraits, typename aAlloc>
-  LIBCC_INLINE THIS_T& THIS_T::s(const std::basic_string<aChar, aTraits, aAlloc>& x)
-  {
-    return s(x.c_str());
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t MaxLen, typename aChar, typename aTraits, typename aAlloc>
-  LIBCC_INLINE THIS_T& THIS_T::s(const std::basic_string<aChar, aTraits, aAlloc>& x)
-  {
-    return s<MaxLen>(x.c_str());
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename aChar, typename aTraits, typename aAlloc>
-  LIBCC_INLINE THIS_T& THIS_T::s(const std::basic_string<aChar, aTraits, aAlloc>& x, size_t MaxLen)
-  {
-    return s(x.c_str(), MaxLen);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::NewLine()
-  {
-    return s("\r\n");
-  }
-
-  // QUOTED STRINGS
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t MaxLen>
-  LIBCC_INLINE THIS_T& THIS_T::qs(const _Char* s)
-  {
-    if(MaxLen && s)
-    {
-      m_Composite.push_back('\"');
-      if(MaxLen >= 3)
-      {
-        m_Composite.append(s, MaxLen - 2);
-        m_Composite.push_back('\"');
-      }
-      else if(MaxLen == 2)
-      {
-        m_Composite.push_back('\"');
-      }
-    }
-    BuildCompositeChunk();
-
-    return *this;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::qs(const _Char* s, size_t MaxLen)
-  {
-    if(MaxLen && s)
-    {
-      m_Composite.push_back('\"');
-      if(MaxLen >= 3)
-      {
-        m_Composite.append(s, MaxLen - 2);
-        m_Composite.push_back('\"');
-      }
-      else if(MaxLen == 2)
-      {
-        m_Composite.push_back('\"');
-      }
-    }
-    BuildCompositeChunk();
-    return *this;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::qs(const _Char* s)
-  {
-    if(s)
-    {
-      m_Composite.push_back('\"');
-      m_Composite.append(s);
-      m_Composite.push_back('\"');
-    }
-    BuildCompositeChunk();
-    return *this;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename aChar>
-  LIBCC_INLINE THIS_T& THIS_T::qs(const aChar* foreign)
-  {
-    if(foreign)
-    {
-      _String native;
-      StringCopy(native, foreign);
-      m_Composite.push_back('\"');
-      m_Composite.append(native);
-      m_Composite.push_back('\"');
-    }
-    BuildCompositeChunk();
-    return *this;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t MaxLen, typename aChar>
-  LIBCC_INLINE THIS_T& THIS_T::qs(const aChar* foreign)
-  {
-    if(MaxLen && foreign)
-    {
-      m_Composite.push_back('\"');
-      if(MaxLen >= 3)
-      {
-        _String native;
-        StringCopyN(native, foreign, MaxLen);
-        m_Composite.append(native.c_str(), MaxLen - 2);
-        m_Composite.push_back('\"');
-      }
-      else if(MaxLen == 2)
-      {
-        m_Composite.push_back('\"');
-      }
-    }
-    BuildCompositeChunk();
-    return *this;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename aChar>
-  LIBCC_INLINE THIS_T& THIS_T::qs(const aChar* foreign, size_t MaxLen)
-  {
-    if(MaxLen && foreign)
-    {
-      m_Composite.push_back('\"');
-      if(MaxLen >= 3)
-      {
-        _String native;
-        StringCopyN(native, foreign, MaxLen);
-        m_Composite.append(native.c_str(), MaxLen - 2);
-        m_Composite.push_back('\"');
-      }
-      else if(MaxLen == 2)
-      {
-        m_Composite.push_back('\"');
-      }
-    }
-    BuildCompositeChunk();
-    return *this;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename aChar, typename aTraits, typename aAlloc>
-  LIBCC_INLINE THIS_T& THIS_T::qs(const std::basic_string<aChar, aTraits, aAlloc>& x)
-  {
-    return qs(x.c_str());
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t MaxLen, typename aChar, typename aTraits, typename aAlloc>
-  LIBCC_INLINE THIS_T& THIS_T::qs(const std::basic_string<aChar, aTraits, aAlloc>& x)
-  {
-    return qs<MaxLen>(x.c_str());
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename aChar, typename aTraits, typename aAlloc>
-  LIBCC_INLINE THIS_T& THIS_T::qs(const std::basic_string<aChar, aTraits, aAlloc>& x, size_t MaxLen)
-  {
-    return qs(x.c_str(), MaxLen);
-  }
 
   // UNSIGNED LONG -----------------------------
   template<typename Char__, typename Traits__, typename Alloc__>
@@ -2545,8 +2664,7 @@ namespace LibCC
           }
           break;
         case NewlineChar:
-          m_Composite.push_back('\r');
-          m_Composite.push_back('\n');
+					AppendNewLine(m_Composite);
           break;
         case ReplaceChar:
           // we are done.  the loop will advance the thing one more, then end.

@@ -4,6 +4,8 @@
 //
 #define IDS_TEST                        101
 #define IDS_UNICODE                     102
+#define IDS_STRING103                   103
+#define IDS_HI                          103
 
 // Next default values for new objects
 // 

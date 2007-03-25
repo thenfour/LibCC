@@ -56,6 +56,7 @@ STRINGTABLE
 BEGIN
     IDS_TEST                "testing"
     IDS_UNICODE             "?oeu"
+    IDS_HI                  "hi %"
 END
 
 #endif    // English (U.S.) resources
