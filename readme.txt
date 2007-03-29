@@ -13,9 +13,9 @@ x debug log
 	- log size limiting or other splitting techniques
 o test EVERY function... i know they don't even all build correctly.
 	x string
-		- add ConvertString() overloads which return the resulting string? Actually "ToUnicode" or "ToMBCS" would be appropriate for that.
+		x add ConvertString() overloads which return the resulting string? Actually "ToUnicode" or "ToMBCS" would be appropriate for that.
 	- format
-		- Use the line-separator character (0x2028) and the paragraph-separator character (0x2029) to divide plain text. A new line is begun after each line separator. A new paragraph is begun after each paragraph separator. 
+		x Use the line-separator character (0x2028) and the paragraph-separator character (0x2029) to divide plain text. A new line is begun after each line separator. A new paragraph is begun after each paragraph separator. 
 	- blob
 	- result
 	- pathmatchspec

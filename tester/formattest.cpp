@@ -515,6 +515,59 @@ bool FormatTest()
 		TestAssert(fw.Str() == qw);
 	}
 
+	// u(number, base, width, paddingchar)
+	{
+		TestAssert(FormatW().ul(256).Str() == L"256");
+		TestAssert(FormatW().ul(256, 16).Str() == L"100");
+		TestAssert(FormatW().ul(256, 16, 8).Str() == L"00000100");
+		TestAssert(FormatW().ul(256, 16, 8, '-').Str() == L"-----100");
+		TestAssert(FormatW().ul<16>(256).Str() == L"100");
+		FormatW w;
+		
+		w.Clear();
+		w.ul<16, 8>(256);
+		TestAssert(w.Str() == L"00000100");
+		
+		w.Clear();
+		w.ul<16, 8, '-'>(256);
+		TestAssert(w.Str() == L"-----100");
+
+		w.Clear();
+		w.ul<1>(256);
+		TestAssert(w.Str() == L"");
+
+		TestAssert(FormatW().ul(0).Str() == L"0");
+		TestAssert(FormatW().ul(1).Str() == L"1");
+		TestAssert(FormatW().ul(7).Str() == L"7");
+		TestAssert(FormatW().ul(8).Str() == L"8");
+		TestAssert(FormatW().ul(9).Str() == L"9");
+		TestAssert(FormatW().ul(10).Str() == L"10");
+		TestAssert(FormatW().ul(99).Str() == L"99");
+		TestAssert(FormatW().ul(100).Str() == L"100");
+		TestAssert(FormatW().ul(255).Str() == L"255");
+		TestAssert(FormatW().ul(256).Str() == L"256");
+		TestAssert(FormatW().ul(0x1000).Str() == L"4096");
+		TestAssert(FormatW().ul(0x10000).Str() == L"65536");
+		TestAssert(FormatW().ul(0xffffff).Str() == L"16777215");
+		TestAssert(FormatW().ul(0xfffffff).Str() == L"268435455");
+		TestAssert(FormatW().ul(0xffffffff).Str() == L"4294967295");
+
+		TestAssert(FormatW().ul<2>(0).Str() == L"0");
+		TestAssert(FormatW().ul<2>(1).Str() == L"1");
+		TestAssert(FormatW().ul<2>(7).Str() == L"111");
+		TestAssert(FormatW().ul<2>(8).Str() == L"1000");
+		TestAssert(FormatW().ul<2>(9).Str() == L"1001");
+		TestAssert(FormatW().ul<2>(10).Str() == L"1010");
+		TestAssert(FormatW().ul<2>(99).Str() == L"1100011");
+		TestAssert(FormatW().ul<2>(100).Str() == L"1100100");
+		TestAssert(FormatW().ul<2>(255).Str() == L"11111111");
+		TestAssert(FormatW().ul<2>(256).Str() == L"100000000");
+		TestAssert(FormatW().ul<2>(0x1000).Str() == L"1000000000000");
+		TestAssert(FormatW().ul<2>(0x10000).Str() == L"10000000000000000");
+		TestAssert(FormatW().ul<2>(0xffffff).Str() == L"111111111111111111111111");
+		TestAssert(FormatW().ul<2>(0xfffffff).Str() == L"1111111111111111111111111111");
+		TestAssert(FormatW().ul<2>(0xffffffff).Str() == L"11111111111111111111111111111111");
+	}
 
 	return true;
 }

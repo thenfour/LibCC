@@ -1719,25 +1719,83 @@ namespace LibCC
 
     // UNSIGNED LONG -----------------------------
     template<size_t Base, size_t Width, _Char PadChar>
-    LIBCC_INLINE _This& ul(unsigned long n);
+    LIBCC_INLINE _This& ul(unsigned long n)
+		{
+			const size_t BufferSize = _BufferSizeNeededInteger<Width, unsigned long>::Value;
+			_Char buf[BufferSize];
+			_Char* p = buf + BufferSize - 1;
+			*p = 0;
+			return s(_UnsignedNumberToString<Base, Width, PadChar>(p, n));
+		}
+
     template<size_t Base, size_t Width>
-    LIBCC_INLINE _This& ul(unsigned long n);
-    template<size_t Base>
-    LIBCC_INLINE _This& ul(unsigned long n);
-    LIBCC_INLINE _This& ul(unsigned long n);
-    LIBCC_INLINE _This& ul(unsigned long n, size_t Base, size_t Width = 0, _Char PadChar = '0');
+    LIBCC_INLINE _This& ul(unsigned long n)
+		{
+			return ul<Base, Width, '0'>(n);
+		}
+    
+		template<size_t Base>
+    LIBCC_INLINE _This& ul(unsigned long n)
+		{
+			return ul<Base, 0, '0'>(n);
+		}
+
+    LIBCC_INLINE _This& ul(unsigned long n)
+		{
+			return ul<10, 0, '0'>(n);
+		}
+
+    LIBCC_INLINE _This& ul(unsigned long n, size_t Base, size_t Width = 0, _Char PadChar = '0')
+		{
+			const size_t BufferSize = _RuntimeBufferSizeNeededInteger<unsigned long>(Width);
+			_Char* buf = (_Char*)_alloca(BufferSize * sizeof(_Char));
+			_Char* p = buf + BufferSize - 1;
+			*p = 0;
+			return s(_RuntimeUnsignedNumberToString<unsigned long>(p, n, Base, Width, PadChar));
+		}
 
     // SIGNED LONG -----------------------------
     template<size_t Base, size_t Width, _Char PadChar, bool ForceShowSign>
-    LIBCC_INLINE _This& l(signed long n);
+    LIBCC_INLINE _This& l(signed long n)
+		{
+			const size_t BufferSize = _BufferSizeNeededInteger<Width, signed long>::Value;
+			_Char buf[BufferSize];
+			_Char* p = buf + BufferSize - 1;
+			*p = 0;
+			return s(_SignedNumberToString<Base, Width, PadChar, ForceShowSign>(p, n));
+		}
+
     template<size_t Base, size_t Width, _Char PadChar>
-    LIBCC_INLINE _This& l(signed long n);
+    LIBCC_INLINE _This& l(signed long n)
+		{
+			return l<Base, Width, PadChar, false>(n);
+		}
+
     template<size_t Base, size_t Width>
-    LIBCC_INLINE _This& l(signed long n);
+    LIBCC_INLINE _This& l(signed long n)
+		{
+			return l<Base, Width, '0', false>(n);
+		}
+
     template<size_t Base>
-    LIBCC_INLINE _This& l(signed long n);
-    LIBCC_INLINE _This& l(signed long n);
-    LIBCC_INLINE _This& l(signed long n, size_t Base, size_t Width = 0, _Char PadChar = '0', bool ForceShowSign = false);
+    LIBCC_INLINE _This& l(signed long n)
+		{
+			return l<Base, 0, '0', false>(n);
+		}
+
+    LIBCC_INLINE _This& l(signed long n)
+		{
+			return l<10, 0, '0', false>(n);
+		}
+
+    LIBCC_INLINE _This& l(signed long n, size_t Base, size_t Width = 0, _Char PadChar = '0', bool ForceShowSign = false)
+		{
+			const size_t BufferSize = _RuntimeBufferSizeNeededInteger<unsigned long>(Width);
+			_Char* buf = (_Char*)_alloca(BufferSize * sizeof(_Char));
+			_Char* p = buf + BufferSize - 1;
+			*p = 0;
+			return s(_RuntimeSignedNumberToString(p, n, Base, Width, PadChar, ForceShowSign));
+		}
 
     // UNSIGNED INT (just stubs for ul()) -----------------------------
     template<size_t Base, size_t Width, _Char PadChar>
@@ -1797,56 +1855,179 @@ namespace LibCC
     // FLOAT ----------------------------- 3.14   [intwidth].[decwidth]
     // integralwidth is the MINIMUM digits.  Decimalwidth is the MAXIMUM digits.
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, size_t Base>
-    LIBCC_INLINE _This& f(float val);
+    LIBCC_INLINE _This& f(float val)
+		{
+	    return _AppendFloat<SinglePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val);
+		}
+
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign>
-    LIBCC_INLINE _This& f(float val);
+    LIBCC_INLINE _This& f(float val)
+		{
+	    return f<DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, 10>(val);
+		}
+
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar>
-    LIBCC_INLINE _This& f(float val);
+    LIBCC_INLINE _This& f(float val)
+		{
+	    return f<DecimalWidthMax, IntegralWidthMin, PaddingChar, false, 10>(val);
+		}
+
     template<size_t DecimalWidthMax, size_t IntegralWidthMin>
-    LIBCC_INLINE _This& f(float val);
+    LIBCC_INLINE _This& f(float val)
+		{
+	    return f<DecimalWidthMax, IntegralWidthMin, '0', false, 10>(val);
+		}
+
     template<size_t DecimalWidthMax>
-    LIBCC_INLINE _This& f(float val);
-    LIBCC_INLINE _This& f(float val, size_t DecimalWidthMax = 2, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10);
+    LIBCC_INLINE _This& f(float val)
+		{
+	    return f<DecimalWidthMax, 1, '0', false, 10>(val);
+		}
+
+    LIBCC_INLINE _This& f(float val)
+		{
+	    return f<2, 1, '0', false, 10>(val);
+		}
+
+    LIBCC_INLINE _This& f(float val, size_t DecimalWidthMax = 2, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
+		{
+	    return _RuntimeAppendFloat<SinglePrecisionFloat>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
+		}
 
     // DOUBLE -----------------------------
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, size_t Base>
-    LIBCC_INLINE _This& d(double val);
+    LIBCC_INLINE _This& d(double val)
+		{
+	    return _AppendFloat<DoublePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val);
+		}
+
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign>
-    LIBCC_INLINE _This& d(double val);
+    LIBCC_INLINE _This& d(double val)
+		{
+	    return d<DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, 10>(val);
+		}
+
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar>
-    LIBCC_INLINE _This& d(double val);
+    LIBCC_INLINE _This& d(double val)
+		{
+	    return d<DecimalWidthMax, IntegralWidthMin, PaddingChar, false, 10>(val);
+		}
+
     template<size_t DecimalWidthMax, size_t IntegralWidthMin>
-    LIBCC_INLINE _This& d(double val);
+    LIBCC_INLINE _This& d(double val)
+		{
+	    return d<DecimalWidthMax, IntegralWidthMin, '0', false, 10>(val);
+		}
+
     template<size_t DecimalWidthMax>
-    LIBCC_INLINE _This& d(double val);
-    LIBCC_INLINE _This& d(double val, size_t DecimalWidthMax = 3, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10);
+    LIBCC_INLINE _This& d(double val)
+		{
+	    return d<DecimalWidthMax, 1, '0', false, 10>(val);
+		}
+
+    LIBCC_INLINE _This& d(double val)
+		{
+			return d<3, 1, '0', false, 10>(val);
+		}
+
+    LIBCC_INLINE _This& d(double val, size_t DecimalWidthMax = 3, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
+		{
+	    return _RuntimeAppendFloat<DoublePrecisionFloat>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
+		}
 
     // UNSIGNED INT 64 -----------------------------
     template<size_t Base, size_t Width, _Char PadChar>
-    LIBCC_INLINE _This& ui64(unsigned __int64 n);
+    LIBCC_INLINE _This& ui64(unsigned __int64 n)
+		{
+			const size_t BufferSize = _BufferSizeNeededInteger<Width, unsigned __int64>::Value;
+			_Char buf[BufferSize];
+			_Char* p = buf + BufferSize - 1;
+			*p = 0;
+			return s(_UnsignedNumberToString<Base, Width, PadChar>(p, n));
+		}
+
     template<size_t Base, size_t Width>
-    LIBCC_INLINE _This& ui64(unsigned __int64 n);
+    LIBCC_INLINE _This& ui64(unsigned __int64 n)
+		{
+	    return ui64<Base, Width, '0'>(n);
+		}
+
     template<size_t Base> 
-    LIBCC_INLINE _This& ui64(unsigned __int64 n);
-    LIBCC_INLINE _This& ui64(unsigned __int64 n);
-    LIBCC_INLINE _This& ui64(unsigned __int64 n, size_t Base, size_t Width = 0, _Char PadChar = '0');
+    LIBCC_INLINE _This& ui64(unsigned __int64 n)
+		{
+	    return ui64<Base, 0, 0>(n);
+		}
+
+    LIBCC_INLINE _This& ui64(unsigned __int64 n)
+		{
+	    return ui64<10, 0, 0>(n);
+		}
+
+    LIBCC_INLINE _This& ui64(unsigned __int64 n, size_t Base, size_t Width = 0, _Char PadChar = '0')
+		{
+			const size_t BufferSize = _RuntimeBufferSizeNeededInteger<unsigned __int64>(Width);
+			_Char* buf = (_Char*)_alloca(BufferSize * sizeof(_Char));
+			_Char* p = buf + BufferSize - 1;
+			*p = 0;
+			return s(_RuntimeUnsignedNumberToString<unsigned __int64>(p, n, Base, Width, PadChar));
+		}
 
     // SIGNED INT 64 -----------------------------
     template<size_t Base, size_t Width, _Char PadChar, bool ForceShowSign>
-    LIBCC_INLINE _This& i64(signed __int64 n);
+    LIBCC_INLINE _This& i64(signed __int64 n)
+		{
+			const size_t BufferSize = _BufferSizeNeededInteger<Width, unsigned __int64>::Value;
+			_Char buf[BufferSize];
+			_Char* p = buf + BufferSize - 1;
+			*p = 0;
+			return s(_SignedNumberToString<Base, Width, PadChar, ForceShowSign>(p, n));
+		}
+
     template<size_t Base, size_t Width, _Char PadChar>
-    LIBCC_INLINE _This& i64(__int64 n);
+    LIBCC_INLINE _This& i64(__int64 n)
+		{
+	    return i64<Base, Width, PadChar, false>(n);
+		}
+
     template<size_t Base, size_t Width>
-    LIBCC_INLINE _This& i64(__int64 n);
+    LIBCC_INLINE _This& i64(__int64 n)
+		{
+	    return i64<Base, Width, '0', false>(n);
+		}
+
     template<size_t Base>
-    LIBCC_INLINE _This& i64(__int64 n);
-    LIBCC_INLINE _This& i64(__int64 n);
-    LIBCC_INLINE _This& i64(signed __int64 n, size_t Base = 10, size_t Width = 0, _Char PadChar = '0', bool ForceShowSign = false);
+    LIBCC_INLINE _This& i64(__int64 n)
+		{
+	    return i64<Base, 0, 0, false>(n);
+		}
+
+    LIBCC_INLINE _This& i64(__int64 n)
+		{
+	    return i64<10, 0, 0, false>(n);
+		}
+
+    LIBCC_INLINE _This& i64(signed __int64 n, size_t Base = 10, size_t Width = 0, _Char PadChar = '0', bool ForceShowSign = false)
+		{
+			const size_t BufferSize = _RuntimeBufferSizeNeededInteger<unsigned __int64>(Width);
+			_Char* buf = (_Char*)_alloca(BufferSize * sizeof(_Char));
+			_Char* p = buf + BufferSize - 1;
+			*p = 0;
+			return s(_RuntimeSignedNumberToString<signed __int64>(p, n, Base, Width, PadChar, ForceShowSign));
+		}
 
     // GETLASTERROR() -----------------------------
 #ifdef WIN32
-    LIBCC_INLINE _This& gle(int code);
-    LIBCC_INLINE _This& gle();
+    LIBCC_INLINE _This& gle(int code)
+		{
+			_String str;
+			FormatMessageGLE(str, code);
+			return s(str);
+		}
+
+    LIBCC_INLINE _This& gle()
+		{
+	    return gle(GetLastError());
+		}
 #endif
 
     // CONVENIENCE OPERATOR () -----------------------------
@@ -1892,17 +2073,219 @@ namespace LibCC
     }
 
   private:
-    LIBCC_INLINE _This& _RuntimeAppendZeroFloat(size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign);
+    LIBCC_INLINE _This& _RuntimeAppendZeroFloat(size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign)
+		{
+			// zero.
+			// pre-decimal part.
+			// "-----0"
+			if(IntegralWidthMin > 0)
+			{
+				// append padding
+				m_Composite.reserve(m_Composite.size() + IntegralWidthMin);
+				for(size_t i = 1; i < IntegralWidthMin; ++ i)
+				{
+					m_Composite.push_back(static_cast<_Char>(PaddingChar));
+				}
+				// append the integral zero
+				m_Composite.push_back('0');
+			}
+			if(DecimalWidthMax)
+			{
+				// if there are any decimal digits to set, then just append ".0"
+				m_Composite.reserve(m_Composite.size() + 2);
+				m_Composite.push_back('.');
+				m_Composite.push_back('0');
+			}
+			BuildCompositeChunk();
+			return *this;
+		}
+
     template<typename FloatType>
-    LIBCC_INLINE _This& _RuntimeAppendNormalizedFloat(FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign);
+    LIBCC_INLINE _This& _RuntimeAppendNormalizedFloat(FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign)
+		{
+			// how do we know how many chars we will use?  we don't right now.
+			_Char* buf = reinterpret_cast<_Char*>(_alloca(sizeof(_Char) * (2200 + IntegralWidthMin + DecimalWidthMax)));
+			long IntegralWidthLeft = static_cast<long>(IntegralWidthMin);
+			_Char* middle = buf + 2100 - DecimalWidthMax;
+			_Char* sIntPart = middle;
+			_Char* sDecPart = middle;
+			FloatType::Mantissa _int;// integer part raw value
+			FloatType::Mantissa _dec;// decimal part raw value
+			FloatType::Exponent exp = _f.GetExponent();// exponent raw value
+			FloatType::Mantissa m = _f.GetMantissa();
+			size_t DecBits;// how many bits out of the mantissa are used by the decimal part?
+
+			const size_t BasicTypeBits = sizeof(FloatType::BasicType)*8;
+			if((exp < FloatType::MantissaBits) && (exp > (FloatType::MantissaBits - BasicTypeBits)))
+			{
+				// write the integral (before decimal point) part.
+				DecBits = _f.MantissaBits - exp;
+				_int = m >> DecBits;// the integer part.
+				_dec = m & (((FloatType::Mantissa)1 << DecBits) - 1);
+				do
+				{
+					--IntegralWidthLeft;
+					*(-- sIntPart) = DigitToChar(static_cast<unsigned char>(_int % Base));
+					_int = _int / static_cast<FloatType::Mantissa>(Base);
+				}
+				while(_int);
+
+				while(IntegralWidthLeft > 0)
+				{
+					*(-- sIntPart) = static_cast<_Char>(PaddingChar);
+					IntegralWidthLeft --;
+				}
+
+				// write the after-decimal part.  here we basically do long division!
+				// the decimal part is basically a fraction that we convert bases on.
+				// since we need to deal with a number as large as the denominator, this will only work
+				// when DecBits is less than 32 (for single precsion)
+				if(DecimalWidthMax)
+				{
+					size_t DecimalWidthLeft = DecimalWidthMax;
+					middle[0] = '.';
+					FloatType::Mantissa denominator = (FloatType::Mantissa)1 << DecBits;// same as 'capacity'.
+					FloatType::Mantissa& numerator(_dec);
+					numerator *= static_cast<FloatType::Mantissa>(Base);
+					FloatType::Mantissa digit;
+					while(numerator && DecimalWidthLeft)
+					{
+						digit = numerator / denominator;// integer division
+						// add the digit, and drill down into the remainder.
+						*(++ sDecPart) = DigitToChar(static_cast<unsigned char>(digit % Base));
+						numerator -= digit * denominator;
+						numerator *= static_cast<FloatType::Mantissa>(Base);
+						-- DecimalWidthLeft;
+					}
+				}
+				else
+				{
+					middle[0] = 0;
+				}
+			}
+			else
+			{
+				// We are here because doing conversions would take large numbers - too large to hold in
+				// a InternalType integral.  So until i can come up with a cooler way to do it, i will
+				// just do floating point divides and 
+
+				// do the integral part just like a normal int.
+				FloatType::This integerPart(_f);
+				integerPart.RemoveDecimal();
+				integerPart.AbsoluteValue();
+				FloatType::BasicType fBase = static_cast<FloatType::BasicType>(Base);
+				do
+				{
+					IntegralWidthLeft --;
+					// at this point integerPart has no decimal and Base of course doesnt.
+					*(-- sIntPart) = DigitToChar(static_cast<unsigned char>(fmod(integerPart.m_BasicVal, fBase)));
+					integerPart.m_BasicVal /= Base;
+					integerPart.RemoveDecimal();
+				}
+				while(integerPart.m_BasicVal > 0);
+
+				while(IntegralWidthLeft > 0)
+				{
+					*(-- sIntPart) = static_cast<_Char>(PaddingChar);
+					IntegralWidthLeft --;
+				}
+
+				// now the decimal part.
+				if(DecimalWidthMax)
+				{
+					size_t DecimalWidthLeft = DecimalWidthMax;
+					middle[0] = '.';
+					FloatType::This val(_f);
+					val.AbsoluteValue();
+					// remove integer part.
+					FloatType::This integerPart(val);
+					integerPart.RemoveDecimal();
+					val.m_BasicVal -= integerPart.m_BasicVal;
+					do
+					{
+						DecimalWidthLeft --;
+						val.m_BasicVal *= Base;
+						// isolate the integral part
+						integerPart.m_BasicVal = val.m_BasicVal;
+						integerPart.RemoveDecimal();
+						*(++ sDecPart) = DigitToChar(static_cast<unsigned char>(fmod(integerPart.m_BasicVal, fBase)));
+						// use the integral part to leave only the decimal part.
+						val.m_BasicVal -= integerPart.m_BasicVal;
+					}
+					while((val.m_BasicVal > 0) && DecimalWidthLeft);
+				}
+				else
+				{
+					middle[0] = 0;
+				}
+			}
+
+			// display the sign
+			if(_f.IsNegative())
+			{
+				*(-- sIntPart) = '-';
+			}
+			else if(ForceSign)
+			{
+				*(-- sIntPart) = '+';
+			}
+
+			// null terminate
+			*(++ sDecPart) = 0;
+
+			return s(sIntPart);
+		}
 
     /*
       Converts any floating point (LibCC::IEEEFloat<>) number to a string, and appends it just like any other string.
     */
     template<typename FloatType>
-    LIBCC_INLINE _This& _RuntimeAppendFloat(const FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign);
+    LIBCC_INLINE _This& _RuntimeAppendFloat(const FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign)
+		{
+			if(!(_f.m_val & _f.ExponentMask))
+			{
+				// exponont = 0.  that means its either zero or denormalized.
+				if(_f.m_val & _f.MantissaMask)
+				{
+					// denormalized
+					return s("Unsupported denormalized number");
+				}
+				else
+				{
+					// zero
+					return _RuntimeAppendZeroFloat(DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
+				}
+			}
+			else if((_f.m_val & _f.ExponentMask) == _f.ExponentMask)
+			{
+				// exponent = MAX.  either infinity or NAN.
+				if(_f.IsPositiveInfinity())
+				{
+					return s("+Inf");
+				}
+				else if(_f.IsNegativeInfinity())
+				{
+					return s("-Inf");
+				}
+				else if(_f.IsQNaN())
+				{
+					return s("QNaN");
+				}
+				else if(_f.IsSNaN())
+				{
+					return s("SNaN");
+				}
+			}
+
+			// normalized number.
+			return _RuntimeAppendNormalizedFloat(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
+		}
+
     template<typename FloatType, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign>
-    LIBCC_INLINE _This& _AppendFloat(const FloatType& _f);
+    LIBCC_INLINE _This& _AppendFloat(const FloatType& _f)
+		{
+	    return _RuntimeAppendFloat<FloatType>(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
+		}
 
     template<size_t Width, typename T>
     struct _BufferSizeNeededInteger
@@ -1916,22 +2299,149 @@ namespace LibCC
     };
 
     template<typename T>
-    LIBCC_INLINE long _RuntimeBufferSizeNeededInteger(size_t Width);
+    LIBCC_INLINE long _RuntimeBufferSizeNeededInteger(size_t Width)
+		{
+	    return (sizeof(T) * 8) + 2 > (Width + 1) ? (sizeof(T) * 8) + 2 : (Width + 1);
+		}
 
     // buf must point to a null terminator.  It is "pulled back" and the result is returned.
     // its simply faster to build the string in reverse order.
     template<typename T>
-    LIBCC_INLINE static _Char* _RuntimeUnsignedNumberToString(_Char* buf, T num, size_t Base, size_t Width, _Char PaddingChar);
+    LIBCC_INLINE static _Char* _RuntimeUnsignedNumberToString(_Char* buf, T num, size_t Base, size_t Width, _Char PaddingChar)
+		{
+			long PadRemaining = static_cast<long>(Width);
+			_Char _PadChar = PaddingChar;
+			do
+			{
+				PadRemaining --;
+				*(--buf) = static_cast<_Char>(DigitToChar(static_cast<unsigned char>(num % Base)));
+				num = num / static_cast<T>(Base);
+			}
+			while(num);
+
+			while(PadRemaining-- > 0)
+			{
+				*(--buf) = _PadChar;
+			}
+			return buf;
+		}
+
     template<size_t Base, size_t Width, _Char PaddingChar, typename T>
-    LIBCC_INLINE static _Char* _UnsignedNumberToString(_Char* buf, T num);
+    LIBCC_INLINE static _Char* _UnsignedNumberToString(_Char* buf, T num)
+		{
+			if(Base < 2)
+			{
+				static _Char x[] = { 0 };
+				return x;
+			}
+			long PadRemaining = static_cast<long>(Width);
+			_Char _PadChar = PaddingChar;
+			do
+			{
+				PadRemaining --;
+				*(--buf) = static_cast<_Char>(DigitToChar(static_cast<unsigned char>(num % Base)));
+				num = num / static_cast<T>(Base);
+			}
+			while(num);
+
+			while(PadRemaining-- > 0)
+			{
+				*(--buf) = _PadChar;
+			}
+			return buf;
+		}
+
     // same thing, but params can be set at runtime
     template<typename T>
-    LIBCC_INLINE static _Char* _RuntimeSignedNumberToString(_Char* buf, T num, size_t Base, size_t Width, _Char PaddingChar, bool ForceSign);
+    LIBCC_INLINE static _Char* _RuntimeSignedNumberToString(_Char* buf, T num, size_t Base, size_t Width, _Char PaddingChar, bool ForceSign)
+		{
+			if(Base < 2)
+			{
+				static _Char x[] = { 0 };
+				return x;
+			}
+			if(num < 0)
+			{
+				buf = _RuntimeUnsignedNumberToString(buf, -num, Base, Width-1, PaddingChar);
+				*(--buf) = '-';
+			}
+			else
+			{
+				if(ForceSign)
+				{
+					buf = _RuntimeUnsignedNumberToString(buf, num, Base, Width-1, PaddingChar);
+					*(--buf) = '+';
+				}
+				else
+				{
+					buf = _RuntimeUnsignedNumberToString(buf, num, Base, Width, PaddingChar);
+				}
+			}
+			return buf;
+		}
+
     template<size_t Base, size_t Width, _Char PaddingChar, bool ForceSign, typename T>
-    LIBCC_INLINE static _Char* _SignedNumberToString(_Char* buf, T num);
+    LIBCC_INLINE static _Char* _SignedNumberToString(_Char* buf, T num)
+		{
+			if(num < 0)
+			{
+				buf = _UnsignedNumberToString<Base, Width-1, PaddingChar, T>(buf, -num);
+				*(--buf) = '-';
+			}
+			else
+			{
+				if(ForceSign)
+				{
+					buf = _UnsignedNumberToString<Base, Width-1, PaddingChar, T>(buf, num);
+					*(--buf) = '+';
+				}
+				else
+				{
+					buf = _UnsignedNumberToString<Base, Width, PaddingChar, T>(buf, num);
+				}
+			}
+			return buf;
+		}
 
     // build composite as much as we can (until a replace-char)
-    LIBCC_INLINE void BuildCompositeChunk();
+    LIBCC_INLINE void BuildCompositeChunk()
+		{
+			// go from m_pos to the next insertion point
+			bool bKeepGoing = true;
+			while(bKeepGoing)
+			{
+				if(m_pos >= m_Format.size())
+				{
+					break;
+				}
+				else
+				{
+					_Char ch = m_Format[m_pos];
+					switch(ch)
+					{
+					case EscapeChar:
+						++ m_pos;
+						if(m_pos < m_Format.size())
+						{
+							m_Composite.push_back(m_Format[m_pos]);
+						}
+						break;
+					case NewlineChar:
+						AppendNewLine(m_Composite);
+						break;
+					case ReplaceChar:
+						// we are done.  the loop will advance the thing one more, then end.
+						bKeepGoing = false;
+						break;
+					default:
+						m_Composite.push_back(ch);
+						break;
+					}
+
+					++ m_pos;
+				}
+			}
+		}
 
     _String m_Format;// the original format string.  this plus arguments that are fed in is used to build m_Composite.
     _String m_Composite;// the "output" string - this is what we are building.
@@ -2027,658 +2537,6 @@ namespace LibCC
   typedef FormatX<char, std::char_traits<char>, std::allocator<char> > FormatA;
   typedef FormatX<wchar_t, std::char_traits<wchar_t>, std::allocator<wchar_t> > FormatW;
   typedef FormatX<TCHAR, std::char_traits<TCHAR>, std::allocator<TCHAR> > Format;
-}
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// IMPLEMENTATION ////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace LibCC
-{
-#define THIS_T FormatX<Char__, Traits__, Alloc__>
-
-  // UNSIGNED LONG -----------------------------
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base, size_t Width, Char__ PadChar>
-  LIBCC_INLINE THIS_T& THIS_T::ul(unsigned long n)
-  {
-    const size_t BufferSize = _BufferSizeNeededInteger<Width, unsigned long>::Value;
-    _Char buf[BufferSize];
-    _Char* p = buf + BufferSize - 1;
-    *p = 0;
-    return s(_UnsignedNumberToString<Base, Width, PadChar>(p, n));
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base, size_t Width>
-  LIBCC_INLINE THIS_T& THIS_T::ul(unsigned long n)
-  {
-    return ul<Base, Width, '0'>(n);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base>
-  LIBCC_INLINE THIS_T& THIS_T::ul(unsigned long n)
-  {
-    return ul<Base, 0, 0>(n);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::ul(unsigned long n)
-  {
-    return ul<10, 0, 0>(n);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::ul(unsigned long n, size_t Base, size_t Width, _Char PadChar)
-  {
-    const size_t BufferSize = _RuntimeBufferSizeNeededInteger<unsigned long>(Width);
-    _Char* buf = (_Char*)_alloca(BufferSize * sizeof(_Char));
-    _Char* p = buf + BufferSize - 1;
-    *p = 0;
-    return s(_RuntimeUnsignedNumberToString<unsigned long>(p, n, Base, Width, PadChar));
-  }
-
-  // SIGNED LONG -----------------------------
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base, size_t Width, Char__ PadChar, bool ForceShowSign>
-  LIBCC_INLINE THIS_T& THIS_T::l(signed long n)
-  {
-    const size_t BufferSize = _BufferSizeNeededInteger<Width, signed long>::Value;
-    _Char buf[BufferSize];
-    _Char* p = buf + BufferSize - 1;
-    *p = 0;
-    return s(_SignedNumberToString<Base, Width, PadChar, ForceShowSign>(p, n));
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base, size_t Width, Char__ PadChar>
-  LIBCC_INLINE THIS_T& THIS_T::l(signed long n)
-  {
-    return l<Base, Width, PadChar, false>(n);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base, size_t Width>
-  LIBCC_INLINE THIS_T& THIS_T::l(signed long n)
-  {
-    return l<Base, Width, '0', false>(n);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base>
-  LIBCC_INLINE THIS_T& THIS_T::l(signed long n)
-  {
-    return l<Base, 0, 0, false>(n);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::l(signed long n)
-  {
-    return l<10, 0, 0, false>(n);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::l(signed long n, size_t Base, size_t Width = 0, _Char PadChar = '0', bool ForceShowSign = false)
-  {
-    const size_t BufferSize = _RuntimeBufferSizeNeededInteger<unsigned long>(Width);
-    _Char* buf = (_Char*)_alloca(BufferSize * sizeof(_Char));
-    _Char* p = buf + BufferSize - 1;
-    *p = 0;
-    return s(_RuntimeSignedNumberToString(p, n, Base, Width, PadChar, ForceShowSign));
-  }
-
-  // FLOAT -----------------------------
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t DecimalWidthMax, size_t IntegralWidthMin, Char__ PaddingChar, bool ForceSign, size_t Base>
-  LIBCC_INLINE THIS_T& THIS_T::f(float val)
-  {
-    return _AppendFloat<SinglePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t DecimalWidthMax, size_t IntegralWidthMin, Char__ PaddingChar, bool ForceSign>
-  LIBCC_INLINE THIS_T& THIS_T::f(float val)
-  {
-    return f<DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, 10>(val);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t DecimalWidthMax, size_t IntegralWidthMin, Char__ PaddingChar>
-  LIBCC_INLINE THIS_T& THIS_T::f(float val)
-  {
-    return f<DecimalWidthMax, IntegralWidthMin, PaddingChar, false, 10>(val);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t DecimalWidthMax, size_t IntegralWidthMin>
-  LIBCC_INLINE THIS_T& THIS_T::f(float val)
-  {
-    return f<DecimalWidthMax, IntegralWidthMin, '0', false, 10>(val);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t DecimalWidthMax>
-  LIBCC_INLINE THIS_T& THIS_T::f(float val)
-  {
-    return f<DecimalWidthMax, 1, '0', false, 10>(val);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::f(float val, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, size_t Base)
-  {
-    return _RuntimeAppendFloat<SinglePrecisionFloat>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
-  }
-
-  // DOUBLE -----------------------------
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t DecimalWidthMax, size_t IntegralWidthMin, Char__ PaddingChar, bool ForceSign, size_t Base>
-  LIBCC_INLINE THIS_T& THIS_T::d(double val)
-  {
-    return _AppendFloat<DoublePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t DecimalWidthMax, size_t IntegralWidthMin, Char__ PaddingChar, bool ForceSign>
-  LIBCC_INLINE THIS_T& THIS_T::d(double val)
-  {
-    return d<DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, 10>(val);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t DecimalWidthMax, size_t IntegralWidthMin, Char__ PaddingChar>
-  LIBCC_INLINE THIS_T& THIS_T::d(double val)
-  {
-    return d<DecimalWidthMax, IntegralWidthMin, PaddingChar, false, 10>(val);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t DecimalWidthMax, size_t IntegralWidthMin>
-  LIBCC_INLINE THIS_T& THIS_T::d(double val)
-  {
-    return d<DecimalWidthMax, IntegralWidthMin, '0', false, 10>(val);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t DecimalWidthMax>
-  LIBCC_INLINE THIS_T& THIS_T::d(double val)
-  {
-    return d<DecimalWidthMax, 1, '0', false, 10>(val);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::d(double val, size_t DecimalWidthMax = 3, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
-  {
-    return _RuntimeAppendFloat<DoublePrecisionFloat>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
-  }
-
-  // UNSIGNED INT 64 -----------------------------
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base, size_t Width, Char__ PadChar>
-  LIBCC_INLINE THIS_T& THIS_T::ui64(unsigned __int64 n)
-  {
-    const size_t BufferSize = _BufferSizeNeededInteger<Width, unsigned __int64>::Value;
-    _Char buf[BufferSize];
-    _Char* p = buf + BufferSize - 1;
-    *p = 0;
-    return s(_UnsignedNumberToString<Base, Width, PadChar>(p, n));
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base, size_t Width>
-  LIBCC_INLINE THIS_T& THIS_T::ui64(unsigned __int64 n)
-  {
-    return ui64<Base, Width, '0'>(n);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base> 
-  LIBCC_INLINE THIS_T& THIS_T::ui64(unsigned __int64 n)
-  {
-    return ui64<Base, 0, 0>(n);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::ui64(unsigned __int64 n)
-  {
-    return ui64<10, 0, 0>(n);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::ui64(unsigned __int64 n, size_t Base, size_t Width, _Char PadChar)
-  {
-    const size_t BufferSize = _RuntimeBufferSizeNeededInteger<unsigned __int64>(Width);
-    _Char* buf = (_Char*)_alloca(BufferSize * sizeof(_Char));
-    _Char* p = buf + BufferSize - 1;
-    *p = 0;
-    return s(_RuntimeUnsignedNumberToString<unsigned __int64>(p, n, Base, Width, PadChar));
-  }
-
-  // SIGNED INT 64 -----------------------------
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base, size_t Width, Char__ PadChar, bool ForceShowSign>
-  LIBCC_INLINE THIS_T& THIS_T::i64(signed __int64 n)
-  {
-    const size_t BufferSize = _BufferSizeNeededInteger<Width, unsigned __int64>::Value;
-    _Char buf[BufferSize];
-    _Char* p = buf + BufferSize - 1;
-    *p = 0;
-    return s(_SignedNumberToString<Base, Width, PadChar, ForceShowSign>(p, n));
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base, size_t Width, Char__ PadChar>
-  LIBCC_INLINE THIS_T& THIS_T::i64(__int64 n)
-  {
-    return i64<Base, Width, PadChar, false>(n);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base, size_t Width>
-  LIBCC_INLINE THIS_T& THIS_T::i64(__int64 n)
-  {
-    return i64<Base, Width, '0', false>(n);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base>
-  LIBCC_INLINE THIS_T& THIS_T::i64(__int64 n)
-  {
-    return i64<Base, 0, 0, false>(n);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::i64(__int64 n)
-  {
-    return i64<10, 0, 0, false>(n);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::i64(signed __int64 n, size_t Base, size_t Width, _Char PadChar, bool ForceShowSign)
-  {
-    const size_t BufferSize = _RuntimeBufferSizeNeededInteger<unsigned __int64>(Width);
-    _Char* buf = (_Char*)_alloca(BufferSize * sizeof(_Char));
-    _Char* p = buf + BufferSize - 1;
-    *p = 0;
-    return s(_RuntimeSignedNumberToString<signed __int64>(p, n, Base, Width, PadChar, ForceShowSign));
-  }
-
-  // GETLASTERROR() -----------------------------
-#ifdef WIN32
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::gle(int code)
-  {
-    _String str;
-    FormatMessageGLE(str, code);
-    return s(str);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::gle()
-  {
-    return gle(GetLastError());
-  }
-#endif
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE THIS_T& THIS_T::_RuntimeAppendZeroFloat(size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool)
-  {
-    // zero.
-    // pre-decimal part.
-    // "-----0"
-    if(IntegralWidthMin > 0)
-    {
-      // append padding
-      m_Composite.reserve(m_Composite.size() + IntegralWidthMin);
-      for(size_t i = 1; i < IntegralWidthMin; ++ i)
-      {
-        m_Composite.push_back(static_cast<_Char>(PaddingChar));
-      }
-      // append the integral zero
-      m_Composite.push_back('0');
-    }
-    if(DecimalWidthMax)
-    {
-      // if there are any decimal digits to set, then just append ".0"
-      m_Composite.reserve(m_Composite.size() + 2);
-      m_Composite.push_back('.');
-      m_Composite.push_back('0');
-    }
-    BuildCompositeChunk();
-    return *this;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename FloatType>
-  LIBCC_INLINE THIS_T& THIS_T::_RuntimeAppendNormalizedFloat(FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign)
-  {
-    // how do we know how many chars we will use?  we don't right now.
-    _Char* buf = reinterpret_cast<_Char*>(_alloca(sizeof(_Char) * (2200 + IntegralWidthMin + DecimalWidthMax)));
-    long IntegralWidthLeft = static_cast<long>(IntegralWidthMin);
-    _Char* middle = buf + 2100 - DecimalWidthMax;
-    _Char* sIntPart = middle;
-    _Char* sDecPart = middle;
-    FloatType::Mantissa _int;// integer part raw value
-    FloatType::Mantissa _dec;// decimal part raw value
-    FloatType::Exponent exp = _f.GetExponent();// exponent raw value
-    FloatType::Mantissa m = _f.GetMantissa();
-    size_t DecBits;// how many bits out of the mantissa are used by the decimal part?
-
-    const size_t BasicTypeBits = sizeof(FloatType::BasicType)*8;
-    if((exp < FloatType::MantissaBits) && (exp > (FloatType::MantissaBits - BasicTypeBits)))
-    {
-      // write the integral (before decimal point) part.
-      DecBits = _f.MantissaBits - exp;
-      _int = m >> DecBits;// the integer part.
-      _dec = m & (((FloatType::Mantissa)1 << DecBits) - 1);
-      do
-      {
-        --IntegralWidthLeft;
-        *(-- sIntPart) = DigitToChar(static_cast<unsigned char>(_int % Base));
-        _int = _int / static_cast<FloatType::Mantissa>(Base);
-      }
-      while(_int);
-
-      while(IntegralWidthLeft > 0)
-      {
-        *(-- sIntPart) = static_cast<_Char>(PaddingChar);
-        IntegralWidthLeft --;
-      }
-
-      // write the after-decimal part.  here we basically do long division!
-      // the decimal part is basically a fraction that we convert bases on.
-      // since we need to deal with a number as large as the denominator, this will only work
-      // when DecBits is less than 32 (for single precsion)
-      if(DecimalWidthMax)
-      {
-        size_t DecimalWidthLeft = DecimalWidthMax;
-        middle[0] = '.';
-        FloatType::Mantissa denominator = (FloatType::Mantissa)1 << DecBits;// same as 'capacity'.
-        FloatType::Mantissa& numerator(_dec);
-        numerator *= static_cast<FloatType::Mantissa>(Base);
-        FloatType::Mantissa digit;
-        while(numerator && DecimalWidthLeft)
-        {
-          digit = numerator / denominator;// integer division
-          // add the digit, and drill down into the remainder.
-          *(++ sDecPart) = DigitToChar(static_cast<unsigned char>(digit % Base));
-          numerator -= digit * denominator;
-          numerator *= static_cast<FloatType::Mantissa>(Base);
-          -- DecimalWidthLeft;
-        }
-      }
-      else
-      {
-        middle[0] = 0;
-      }
-    }
-    else
-    {
-      // We are here because doing conversions would take large numbers - too large to hold in
-      // a InternalType integral.  So until i can come up with a cooler way to do it, i will
-      // just do floating point divides and 
-
-      // do the integral part just like a normal int.
-      FloatType::This integerPart(_f);
-      integerPart.RemoveDecimal();
-      integerPart.AbsoluteValue();
-      FloatType::BasicType fBase = static_cast<FloatType::BasicType>(Base);
-      do
-      {
-        IntegralWidthLeft --;
-        // at this point integerPart has no decimal and Base of course doesnt.
-        *(-- sIntPart) = DigitToChar(static_cast<unsigned char>(fmod(integerPart.m_BasicVal, fBase)));
-        integerPart.m_BasicVal /= Base;
-        integerPart.RemoveDecimal();
-      }
-      while(integerPart.m_BasicVal > 0);
-
-      while(IntegralWidthLeft > 0)
-      {
-        *(-- sIntPart) = static_cast<_Char>(PaddingChar);
-        IntegralWidthLeft --;
-      }
-
-      // now the decimal part.
-      if(DecimalWidthMax)
-      {
-        size_t DecimalWidthLeft = DecimalWidthMax;
-        middle[0] = '.';
-        FloatType::This val(_f);
-        val.AbsoluteValue();
-        // remove integer part.
-        FloatType::This integerPart(val);
-        integerPart.RemoveDecimal();
-        val.m_BasicVal -= integerPart.m_BasicVal;
-        do
-        {
-          DecimalWidthLeft --;
-          val.m_BasicVal *= Base;
-          // isolate the integral part
-          integerPart.m_BasicVal = val.m_BasicVal;
-          integerPart.RemoveDecimal();
-          *(++ sDecPart) = DigitToChar(static_cast<unsigned char>(fmod(integerPart.m_BasicVal, fBase)));
-          // use the integral part to leave only the decimal part.
-          val.m_BasicVal -= integerPart.m_BasicVal;
-        }
-        while((val.m_BasicVal > 0) && DecimalWidthLeft);
-      }
-      else
-      {
-        middle[0] = 0;
-      }
-    }
-
-    // display the sign
-    if(_f.IsNegative())
-    {
-      *(-- sIntPart) = '-';
-    }
-    else if(ForceSign)
-    {
-      *(-- sIntPart) = '+';
-    }
-
-    // null terminate
-    *(++ sDecPart) = 0;
-
-    return s(sIntPart);
-  }
-
-  /*
-    Converts any floating point (LibCC::IEEEFloat<>) number to a string, and appends it just like any other string.
-  */
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename FloatType>
-  LIBCC_INLINE THIS_T& THIS_T::_RuntimeAppendFloat(const FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign)
-  {
-    if(!(_f.m_val & _f.ExponentMask))
-    {
-      // exponont = 0.  that means its either zero or denormalized.
-      if(_f.m_val & _f.MantissaMask)
-      {
-        // denormalized
-        return s("Unsupported denormalized number");
-      }
-      else
-      {
-        // zero
-        return _RuntimeAppendZeroFloat(DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
-      }
-    }
-    else if((_f.m_val & _f.ExponentMask) == _f.ExponentMask)
-    {
-      // exponent = MAX.  either infinity or NAN.
-      if(_f.IsPositiveInfinity())
-      {
-        return s("+Inf");
-      }
-      else if(_f.IsNegativeInfinity())
-      {
-        return s("-Inf");
-      }
-      else if(_f.IsQNaN())
-      {
-        return s("QNaN");
-      }
-      else if(_f.IsSNaN())
-      {
-        return s("SNaN");
-      }
-    }
-
-    // normalized number.
-    return _RuntimeAppendNormalizedFloat(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename FloatType, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, Char__ PaddingChar, bool ForceSign>
-  LIBCC_INLINE THIS_T& THIS_T::_AppendFloat(const FloatType& _f)
-  {
-    return _RuntimeAppendFloat<FloatType>(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename T>
-  LIBCC_INLINE long THIS_T::_RuntimeBufferSizeNeededInteger(size_t Width)
-  {
-    return (sizeof(T) * 8) + 2 > (Width + 1) ? (sizeof(T) * 8) + 2 : (Width + 1);
-  };
-
-  // buf must point to a null terminator.  It is "pulled back" and the result is returned.
-  // its simply faster to build the string in reverse order.
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename T>
-  LIBCC_INLINE Char__* THIS_T::_RuntimeUnsignedNumberToString(_Char* buf, T num, size_t Base, size_t Width, _Char PaddingChar)
-  {
-    long PadRemaining = static_cast<long>(Width);
-    _Char _PadChar = PaddingChar;
-    do
-    {
-      PadRemaining --;
-      *(--buf) = static_cast<_Char>(DigitToChar(static_cast<unsigned char>(num % Base)));
-      num = num / static_cast<T>(Base);
-    }
-    while(num);
-
-    while(PadRemaining-- > 0)
-    {
-      *(--buf) = _PadChar;
-    }
-    return buf;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base, size_t Width, Char__ PaddingChar, typename T>
-  LIBCC_INLINE Char__* THIS_T::_UnsignedNumberToString(_Char* buf, T num)
-  {
-    long PadRemaining = static_cast<long>(Width);
-    _Char _PadChar = PaddingChar;
-    do
-    {
-      PadRemaining --;
-      *(--buf) = static_cast<_Char>(DigitToChar(static_cast<unsigned char>(num % Base)));
-      num = num / static_cast<T>(Base);
-    }
-    while(num);
-
-    while(PadRemaining-- > 0)
-    {
-      *(--buf) = _PadChar;
-    }
-    return buf;
-  }
-
-  // same thing, but params can be set at runtime
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<typename T>
-  LIBCC_INLINE Char__* THIS_T::_RuntimeSignedNumberToString(_Char* buf, T num, size_t Base, size_t Width, _Char PaddingChar, bool ForceSign)
-  {
-    if(num < 0)
-    {
-      buf = _RuntimeUnsignedNumberToString(buf, -num, Base, Width-1, PaddingChar);
-      *(--buf) = '-';
-    }
-    else
-    {
-      if(ForceSign)
-      {
-        buf = _RuntimeUnsignedNumberToString(buf, num, Base, Width-1, PaddingChar);
-        *(--buf) = '+';
-      }
-      else
-      {
-        buf = _RuntimeUnsignedNumberToString(buf, num, Base, Width, PaddingChar);
-      }
-    }
-    return buf;
-  }
-
-  template<typename Char__, typename Traits__, typename Alloc__>
-  template<size_t Base, size_t Width, Char__ PaddingChar, bool ForceSign, typename T>
-  LIBCC_INLINE Char__* THIS_T::_SignedNumberToString(_Char* buf, T num)
-  {
-    if(num < 0)
-    {
-      buf = _UnsignedNumberToString<Base, Width-1, PaddingChar, T>(buf, -num);
-      *(--buf) = '-';
-    }
-    else
-    {
-      if(ForceSign)
-      {
-        buf = _UnsignedNumberToString<Base, Width-1, PaddingChar, T>(buf, num);
-        *(--buf) = '+';
-      }
-      else
-      {
-        buf = _UnsignedNumberToString<Base, Width, PaddingChar, T>(buf, num);
-      }
-    }
-    return buf;
-  }
-
-  // build composite as much as we can (until a replace-char)
-  template<typename Char__, typename Traits__, typename Alloc__>
-  LIBCC_INLINE void THIS_T::BuildCompositeChunk()
-  {
-    // go from m_pos to the next insertion point
-    bool bKeepGoing = true;
-    while(bKeepGoing)
-    {
-      if(m_pos >= m_Format.size())
-      {
-        break;
-      }
-      else
-      {
-        _Char ch = m_Format[m_pos];
-        switch(ch)
-        {
-        case EscapeChar:
-          ++ m_pos;
-          if(m_pos < m_Format.size())
-          {
-            m_Composite.push_back(m_Format[m_pos]);
-          }
-          break;
-        case NewlineChar:
-					AppendNewLine(m_Composite);
-          break;
-        case ReplaceChar:
-          // we are done.  the loop will advance the thing one more, then end.
-          bKeepGoing = false;
-          break;
-        default:
-          m_Composite.push_back(ch);
-          break;
-        }
-
-        ++ m_pos;
-      }
-    }
-  }
 }
 
 #pragma warning(pop)
