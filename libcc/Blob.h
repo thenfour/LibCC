@@ -111,17 +111,12 @@ namespace LibCC
   class Blob
   {
   private:
-    template<typename Trel, typename Trtraits>
-    Blob<Tel, Ttraits>& operator =(const Blob<Trel, Trtraits>& rhs)
-    {
-      // no assignment available
-      return *this;
-    }
-
-    template<typename Trel, typename Trtraits>
-    Blob(const Blob<Trel, Trtraits>& rhs)
-    {
-      // no copy construction available
+		template<typename T>
+    void operator =(const T&)
+		{ // no assignment available
+		}
+    Blob(const Blob<Tel, Ttraits>&)
+    { // no copy construction available
     }
 
   public:
@@ -149,6 +144,17 @@ namespace LibCC
     ~Blob()
     {
       Free();
+    }
+
+    bool Assign(const Blob<_El, _Traits>& rhs)
+    {
+      bool r = false;
+      if(Alloc(rhs.Size()))
+      {
+        memcpy(GetBuffer(), rhs.GetBuffer(), rhs.Size() * sizeof(_El));
+        r = true;
+      }
+      return r;
     }
 
     size_t Size() const
@@ -191,7 +197,11 @@ namespace LibCC
       {
         if(m_StaticBuffer != m_p)
         {
+#ifdef DEBUG
+					free(m_p);
+#else
           HeapFree(GetProcessHeap(), 0, m_p);
+#endif
           m_p = m_StaticBuffer;
           m_allocatedSize = _StaticBufferSize;
         }
@@ -201,7 +211,11 @@ namespace LibCC
       {
         if(m_p)
         {
+#ifdef DEBUG
+					free(m_p);
+#else
           HeapFree(GetProcessHeap(), 0, m_p);
+#endif
           m_p = 0;
           m_allocatedSize = 0;
         }
@@ -228,7 +242,11 @@ namespace LibCC
         if(CurrentlyUsingStaticBuffer() || CompletelyUnallocated())
         {
           // allocate for the first time.
+#ifdef DEBUG
+					pNew = static_cast<Tel*>(malloc(sizeof(Tel) * nNewSize));
+#else
           pNew = static_cast<Tel*>(HeapAlloc(GetProcessHeap(), 0, sizeof(Tel) * nNewSize));
+#endif
           if(pNew)
           {
             if(CurrentlyUsingStaticBuffer())
@@ -247,7 +265,11 @@ namespace LibCC
         else
         {
           // realloc, because we already have a heap buffer.
+#ifdef DEBUG
+          pNew = static_cast<Tel*>(realloc(m_p, sizeof(Tel) * nNewSize));
+#else
           pNew = static_cast<Tel*>(HeapReAlloc(GetProcessHeap(), 0, m_p, sizeof(Tel) * nNewSize));
+#endif
           if(pNew)
           {
             m_p = pNew;

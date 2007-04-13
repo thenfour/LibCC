@@ -119,12 +119,12 @@ namespace LibCC
     ResultX(HRESULT hr, const Char* text) :
       m_hr(hr)
     {
-      StringCopy(m_String, text);
+			ConvertString(text, m_String);
     }
     ResultX(HRESULT hr, const String& text) :
       m_hr(hr)
     {
-      StringCopy(m_String, text);
+			ConvertString(text, m_String);
     }
 
     // --------------------------------- Assignment

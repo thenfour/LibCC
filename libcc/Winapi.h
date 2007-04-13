@@ -68,9 +68,8 @@ namespace LibCC
   template<typename Char>
   inline LONG RegCreateKeyExX(HKEY hKey, const Char* szSubKey, DWORD dwOptions, REGSAM Sam, PHKEY pResult, DWORD* pdwDisposition)
   {
-    //BlobTypes<wchar_t>::PathBlob buf;
     std::wstring buf;
-    StringCopy(buf, szSubKey);
+		ConvertString(szSubKey, buf);
     return RegCreateKeyExW(hKey, buf.c_str(), 0, 0, dwOptions, Sam, 0, pResult, pdwDisposition);
   }
 
@@ -83,9 +82,7 @@ namespace LibCC
   template<typename Char>
   inline LONG RegOpenKeyExX(HKEY hKey, const Char* szSubKey, DWORD dwOptions, REGSAM Sam, PHKEY pResult)
   {
-    //BlobTypes<wchar_t>::PathBlob buf;
-    std::wstring buf;
-    StringCopy(buf, szSubKey);
+    std::wstring buf = ToUnicode(szSubKey);
     return RegOpenKeyExW(hKey, buf.c_str(), dwOptions, Sam, pResult);
   }
 
@@ -103,8 +100,7 @@ namespace LibCC
   template<typename Char>
   inline LONG RegDeleteValueX(HKEY hKey, const Char* lpValueName)
   {
-    std::wstring buf;
-    StringCopy(buf, lpValueName);
+    std::wstring buf = ToUnicode(lpValueName);
     return RegDeleteValueW(hKey, buf.c_str());
   }
 
@@ -113,11 +109,10 @@ namespace LibCC
   inline LONG RegSetValueExStringX( HKEY hKey, const Char* lpValueName, DWORD Reserved, DWORD dwType, const Char* strX)
   {
     std::wstring valueName;
+		std::wstring strW = ToUnicode(strX);
     if(lpValueName)
     {
-      std::wstring strW;
-      StringCopy(valueName, lpValueName);
-      StringCopy(strW, strX);
+      ConvertString(lpValueName, valueName);
     }
     return RegSetValueExW(hKey, lpValueName ? valueName.c_str() : 0, Reserved, REG_SZ, (const BYTE*)(strW.c_str()), (DWORD)(strW.size() + 1) * sizeof(wchar_t));
   }
@@ -136,7 +131,7 @@ namespace LibCC
     std::wstring valueName;
     if(lpValueName)
     {
-      StringCopy(valueName, lpValueName);
+			valueName = ToUnicode(lpValueName);
     }
     return RegSetValueExX(hKey, lpValueName ? valueName.c_str() : 0, dwType, lpData, cbData);
   }
@@ -191,7 +186,7 @@ namespace LibCC
     if(szValueName)
     {
       std::wstring strW;
-      ConvertString(lpValueName, valueName);
+      ConvertString(szValueName, valueName);
     }
     return RegQueryValueExX(hKey, szValueName ? valueName.c_str() : 0, type, data, cbData);
   }
@@ -257,7 +252,7 @@ namespace LibCC
   {
     std::wstring outNameW;
     LONG ret = RegEnumKeyExX(hKey, dwIndex, outNameW, maxNameSize);
-    StringCopy(outName, outNameW);
+		ConvertString(outNameW, outName);
     return ret;
   }
   template<typename Char>
@@ -266,7 +261,7 @@ namespace LibCC
     std::wstring outNameW;
     DWORD maxNameSize = 0;
     LONG ret = RegEnumKeyExX(hKey, dwIndex, outNameW, maxNameSize);
-    StringCopy(outName, outNameW);
+		ConvertString(outNameW, outName);
     return ret;
   }
 
