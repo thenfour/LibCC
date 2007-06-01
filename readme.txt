@@ -6,8 +6,9 @@ x string conversion shit
 x debug log
 	x support disabling efficiently
 	x support unicode log fils
-	- support disabling log-by-log
 	- add format support to more functions
+	- support disabling log-by-log
+	- support an output hook
 	- message classes for selective compiling
 	- time zone to use for timestamp
 	- log size limiting or other splitting techniques
@@ -19,7 +20,7 @@ o test EVERY function... i know they don't even all build correctly.
 	- blob
 	- result
 	- pathmatchspec
-	- debuglog
+	- log
 
 - make libcc compile on other compilers
 - Make Format work on other platforms, handle win32 shit correctly. don't depend on winapi.h

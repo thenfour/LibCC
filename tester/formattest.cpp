@@ -569,5 +569,9 @@ bool FormatTest()
 		TestAssert(FormatW().ul<2>(0xffffffff).Str() == L"11111111111111111111111111111111");
 	}
 
+	{
+		// during float operations, make sure to test 0.5. and other combinations of oddball shit
+	}
+
 	return true;
 }
