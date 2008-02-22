@@ -521,18 +521,32 @@ namespace LibCC
 		return StringReplace(std::basic_string<Char>(src), std::basic_string<Char>(searchString), std::basic_string<Char>(replaceString));
 	}
 
+	// because of later versions of VS crapping out on string functions
+	template<typename Char>
+	void StringCopyToBlob(Blob<Char>& out, const std::basic_string<Char>& in)
+	{
+		out.Alloc(in.length() + 1);
+		Char* p = out.GetBuffer();
+		for(std::basic_string<Char>::const_iterator it = in.begin(); it != in.end(); ++ it)
+		{
+			*p = *it;
+			p ++;
+		}
+		*p = 0;
+	}
+
 	// NOTE: the stdlib toupper functions do not handle unicode very well, so this will have to do.
 	inline std::wstring StringToUpper(const std::wstring& s)
 	{
-		Blob<wchar_t> buf(s.length() + 1);
-		wcscpy(buf.GetBuffer(), s.c_str());
+		Blob<wchar_t> buf;
+		StringCopyToBlob(buf, s);
 		CharUpperBuffW(buf.GetBuffer(), (DWORD)s.length());
 		return std::wstring(buf.GetBuffer());
 	}
 	inline std::string StringToUpper(const std::string& s)
 	{
-		Blob<char> buf(s.length() + 1);
-		strcpy(buf.GetBuffer(), s.c_str());
+		Blob<char> buf;
+		StringCopyToBlob(buf, s);
 		CharUpperBuffA(buf.GetBuffer(), (DWORD)s.length());
 		return std::string(buf.GetBuffer());
 	}
@@ -564,15 +578,15 @@ namespace LibCC
 
 	inline std::wstring StringToLower(const std::wstring& s)
 	{
-		Blob<wchar_t> buf(s.length() + 1);
-		wcscpy(buf.GetBuffer(), s.c_str());
+		Blob<wchar_t> buf;
+		StringCopyToBlob(buf, s);
 		CharLowerBuffW(buf.GetBuffer(), (DWORD)s.length());
 		return std::wstring(buf.GetBuffer());
 	}
 	inline std::string StringToLower(const std::string& s)
 	{
-		Blob<char> buf(s.length() + 1);
-		strcpy(buf.GetBuffer(), s.c_str());
+		Blob<char> buf;
+		StringCopyToBlob(buf, s);
 		CharLowerBuffA(buf.GetBuffer(), (DWORD)s.length());
 		return std::string(buf.GetBuffer());
 	}
@@ -2301,7 +2315,7 @@ namespace LibCC
     template<typename T>
     LIBCC_INLINE long _RuntimeBufferSizeNeededInteger(size_t Width)
 		{
-	    return (sizeof(T) * 8) + 2 > (Width + 1) ? (sizeof(T) * 8) + 2 : (Width + 1);
+	    return (long)((sizeof(T) * 8) + 2 > (Width + 1) ? (sizeof(T) * 8) + 2 : (Width + 1));
 		}
 
     // buf must point to a null terminator.  It is "pulled back" and the result is returned.

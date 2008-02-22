@@ -1,21 +1,19 @@
-Microsoft Visual Studio Solution File, Format Version 8.00
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tester", "tester\tester.vcproj", "{84B4F2FB-2382-4E83-BAE4-91EA2BED0170}"
-	ProjectSection(ProjectDependencies) = postProject
-	EndProjectSection
 EndProject
 Global
-	GlobalSection(SolutionConfiguration) = preSolution
-		Debug = Debug
-		Release = Release
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
 	EndGlobalSection
-	GlobalSection(ProjectConfiguration) = postSolution
-		{84B4F2FB-2382-4E83-BAE4-91EA2BED0170}.Debug.ActiveCfg = Debug|Win32
-		{84B4F2FB-2382-4E83-BAE4-91EA2BED0170}.Debug.Build.0 = Debug|Win32
-		{84B4F2FB-2382-4E83-BAE4-91EA2BED0170}.Release.ActiveCfg = Release|Win32
-		{84B4F2FB-2382-4E83-BAE4-91EA2BED0170}.Release.Build.0 = Release|Win32
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{84B4F2FB-2382-4E83-BAE4-91EA2BED0170}.Debug|Win32.ActiveCfg = Debug|Win32
+		{84B4F2FB-2382-4E83-BAE4-91EA2BED0170}.Debug|Win32.Build.0 = Debug|Win32
+		{84B4F2FB-2382-4E83-BAE4-91EA2BED0170}.Release|Win32.ActiveCfg = Release|Win32
+		{84B4F2FB-2382-4E83-BAE4-91EA2BED0170}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-	EndGlobalSection
-	GlobalSection(ExtensibilityAddIns) = postSolution
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal

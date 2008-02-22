@@ -541,8 +541,8 @@ namespace LibCC
     void SetCriteria(CriteriaList* pCriteria, const String& s)
     {
       // this basically "compiles" the string into our internal structure.
-      String::const_iterator it = 0;
-      String::value_type c = 0;
+      String::const_iterator it;
+      String::value_type c;
 
       for(it=s.begin();it!=s.end();it++)
       {
