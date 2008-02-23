@@ -97,6 +97,10 @@ namespace LibCC
     {
       return This(hr);
     }
+		static This Failure(const String& s)
+    {
+      return This(E_FAIL, s);
+    }
 
     // ---------------------------------Constructors
     ResultX() :
