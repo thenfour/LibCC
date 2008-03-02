@@ -69,7 +69,7 @@ void TestCollection()
   //RunTest(FormatBenchmark);
  // //RunTest(RegistryTest); // careful with this of course.
   //RunTest(StatusTest);
-  //RunTest(PathMatchSpecTest);
+  RunTest(PathMatchSpecTest);
   //RunTest(StringTest);
 }
 

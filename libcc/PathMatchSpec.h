@@ -153,10 +153,10 @@ namespace LibCC
             break;
           }
 
+          if(itsCriteria == s.end()) break;// no match.
+
           // make sure we didn't encounter a path separator.
           if(IsPathSeparator(*itsCriteria)) break;
-
-          if(itsCriteria == s.end()) break;// no match.
 
           itsCriteria ++;
           pos ++;
