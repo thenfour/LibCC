@@ -1,8 +1,9 @@
 /*
-  LibCC Release "March 9, 2007"
+  LibCC
   StringUtil Module
   (c) 2004-2007 Carl Corcoran, carlco@gmail.com
   Documentation: http://wiki.winprog.org/wiki/LibCC
+	Official source code: http://svn.winprog.org/personal/carl/LibCC
 
 	== License:
 

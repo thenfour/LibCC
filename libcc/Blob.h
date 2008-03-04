@@ -1,8 +1,9 @@
 /*
-  LibCC Release "March 9, 2007"
+  LibCC
   Blob Module
   (c) 2004-2007 Carl Corcoran, carlco@gmail.com
   Documentation: http://wiki.winprog.org/wiki/LibCC
+	Official source code: http://svn.winprog.org/personal/carl/LibCC
 
 	== License:
 
@@ -78,6 +79,35 @@
 
 namespace LibCC
 {
+	class SuperSimpleBlob
+	{
+		BYTE* m_p;
+		size_t m_size;
+	public:
+		SuperSimpleBlob() :
+			m_p(0),
+			m_size(0)
+		{
+		}
+		void Free()
+		{
+			if(m_p)
+			{
+				HeapFree(GetProcessHeap(), 0, m_p);
+				m_p = 0;
+				m_size = 0;
+			}
+		}
+		void Alloc(size_t n)
+		{
+			Free();
+			m_p = (BYTE*)HeapAlloc(GetProcessHeap(), 0, n * 2);
+			m_size = n;
+		}
+		BYTE* GetBuffer() { return m_p; }
+		size_t Size() const { return m_size; }
+	};
+
   template<bool StaticBufferSupport = true, size_t StaticBufferSize = 100>// in reality, you should never change these, or else Blob types are really incompatible.
   class BlobTraits
   {

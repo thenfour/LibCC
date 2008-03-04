@@ -1,8 +1,9 @@
-/*
-  LibCC Release "March 9, 2007"
+ /*
+  LibCC
   PathMatchSpec Module
   (c) 2004-2007 Carl Corcoran, carlco@gmail.com
   Documentation: http://wiki.winprog.org/wiki/LibCC
+	Official source code: http://svn.winprog.org/personal/carl/LibCC
 
 	== License:
 
@@ -412,11 +413,11 @@ namespace LibCC
     {
         bool r = false;
         CriteriaList* pFirstList = &(m_CriteriaLists.front());
-        CCriteriaTypeBase* pFirstCriteria = pFirstList->front();
+        CriteriaEngineBase<Char>* pFirstCriteria = pFirstList->front();
 
-        if(pFirstCriteria->m_Type == CT_Literal)
+        if(pFirstCriteria->m_Type == CE_Literal)
         {
-            CLiteralType* pLiteral = (CLiteralType*)pFirstCriteria;
+            LiteralType<Char>* pLiteral = (LiteralType<Char>*)pFirstCriteria;
             s = PathRemoveFilename(pLiteral->m_s);
         }
         r = true;
@@ -507,21 +508,21 @@ namespace LibCC
 
       for(it=pCriteria->rbegin();it!=pCriteria->rend();it++)
       {
-          CCriteriaTypeBase* pBase = *it;
+          CriteriaEngineBase<Char>* pBase = *it;
           switch(pBase->m_Type)
           {
-          case CT_Ellipses:
+          case CE_Ellipses:
               r = true;
               break;
-          case CT_Star:
+          case CE_Star:
               if(bHaveHitPathSep) r = true;
               break;
-          case CT_Question:
+          case CE_Question:
               if(bHaveHitPathSep) r = true;
               break;
-          case CT_Literal:
+          case CE_Literal:
               {
-                  CLiteralType* plt = (CLiteralType*)pBase;
+                  LiteralType* plt = (LiteralType*)pBase;
                   // search for path separator.
                   if(String::npos != plt->m_s.find_first_of("\\/"))
                   {
@@ -633,7 +634,7 @@ namespace LibCC
   {
   public:
       virtual bool Reset(const std::basic_string<Char>& sDir) = 0;
-      virtual bool Next(std::basic_string<Char>& sFullPath, DWORD* pdwAttributes) = 0;
+	  virtual bool Next(std::basic_string<Char>& sFullPath, DWORD* pdwAttributes, std::basic_string<Char>* psFileName) = 0;
   };
 
 
@@ -658,8 +659,8 @@ namespace LibCC
 
         _Free();
 
-        std::string sQuery;
-        sQuery = PathJoin(sDir, std::basic_string<Char>("*"));
+        std::basic_string<Char> sQuery;
+        sQuery = PathJoin(sDir, std::basic_string<Char>(1, '*'));
 
         m_BaseDir = sDir;
         m_hFind = FindFirstFile(sQuery.c_str(), &m_fd);
@@ -678,7 +679,7 @@ namespace LibCC
         return r;
       }
 
-      bool Next(std::basic_string<Char>& sFullPath, DWORD* pdwAttributes = 0)
+	  bool Next(std::basic_string<Char>& sFullPath, DWORD* pdwAttributes = 0, std::basic_string<Char>* psFileName = 0)
       {
         bool r = false;
         if(IsValidHandle(m_hFind))
@@ -690,6 +691,7 @@ namespace LibCC
               // use it!
               sFullPath = PathJoin(m_BaseDir, std::basic_string<Char>(m_fd.cFileName));
               if(pdwAttributes) *pdwAttributes = m_fd.dwFileAttributes;
+			  if(psFileName) *psFileName = m_fd.cFileName;
               r = true;
 
               // advance to the next one so we're queued up next call.
@@ -764,7 +766,7 @@ namespace LibCC
       bool Reset(const std::basic_string<Char>& sDir)
       {
         bool r = false;
-        m_stack.push(CFileIterator());
+        m_stack.push(FileIteratorX<Char>());
         FileIteratorX<Char>& it = m_stack.top();
         if(it.Reset(sDir))
         {
@@ -778,17 +780,19 @@ namespace LibCC
         return r;
       }
 
-      bool Next(std::basic_string<Char>& sFullPath, DWORD* pdwAttributes = 0)
+	  bool Next(std::basic_string<Char>& sFullPath, DWORD* pdwAttributes = 0, std::basic_string<Char>* psFileName = 0)
       {
         bool r = false;
         DWORD dwAttr = 0;
+		std::basic_string<Char> sFileName;
 
         while(m_stack.size())
         {
           FileIteratorX<Char>& it = m_stack.top();
-          if(it.Next(sFullPath, &dwAttr))
+          if(it.Next(sFullPath, &dwAttr, &sFileName))
           {
             if(pdwAttributes) *pdwAttributes = dwAttr;
+			if(psFileName) *psFileName = sFileName;
             if(dwAttr & FILE_ATTRIBUTE_DIRECTORY)
             {
               // push an enum to this thing.
