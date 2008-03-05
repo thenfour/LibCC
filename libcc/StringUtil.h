@@ -1,7 +1,7 @@
 /*
   LibCC
   StringUtil Module
-  (c) 2004-2007 Carl Corcoran, carlco@gmail.com
+  (c) 2004-2008 Carl Corcoran, carlco@gmail.com
   Documentation: http://wiki.winprog.org/wiki/LibCC
 	Official source code: http://svn.winprog.org/personal/carl/LibCC
 
@@ -52,7 +52,7 @@
 #pragma warning(disable:4127)
 #pragma warning(disable:4312)// CharUpper() and CharLower() require me to cast some char -> PWSTR, which gives this error.
 #pragma warning(disable:4311)// CharUpper() and CharLower() require me to cast some char -> PWSTR, which gives this error.
-
+#pragma warning(disable:4996)// warning C4996: 'wcscpy' was declared deprecated  -- uh, i know how to use this function just fine, thanks.
 
 #define CCSTR_OPTION_AUTOCAST 0// set this to 1 and class Format can auto-cast into std::string
 
@@ -1800,55 +1800,55 @@ namespace LibCC
 
     // UNSIGNED INT (just stubs for ul()) -----------------------------
     template<size_t Base, size_t Width, _Char PadChar>
-    _This& ui(unsigned long n)
+    _This& ui(unsigned int n)
     {
       return ul<Base, Width, PadChar>(n);
     }
     template<size_t Base, size_t Width>
-    _This& ui(unsigned long n)
+    _This& ui(unsigned int n)
     {
       return ul<Base, Width>(n);
     }
     template<size_t Base>
-    _This& ui(unsigned long n)
+    _This& ui(unsigned int n)
     {
       return ul<Base>(n);
     }
-    _This& ui(unsigned long n)
+    _This& ui(unsigned int n)
     {
       return ul(n);
     }
-    _This& ui(unsigned long n, size_t Base, size_t Width = 0, _Char PadChar = '0')
+    _This& ui(unsigned int n, size_t Base, size_t Width = 0, _Char PadChar = '0')
     {
       return ul(n, Base, Width, PadChar);
     }
 
     // SIGNED INT -----------------------------
     template<size_t Base, size_t Width, _Char PadChar, bool ForceShowSign>
-    _This& i(signed long n)
+    _This& i(signed int n)
     {
       return l<Base, Width, PadChar, ForceShowSign>(n);
     }
     template<size_t Base, size_t Width, _Char PadChar>
-    _This& i(signed long n)
+    _This& i(signed int n)
     {
       return l<Base, Width, PadChar>(n);
     }
     template<size_t Base, size_t Width>
-    _This& i(signed long n)
+    _This& i(signed int n)
     {
       return l<Base, Width>(n);
     }
     template<size_t Base>
-    _This& i(signed long n)
+    _This& i(signed int n)
     {
       return l<Base>(n);
     }
-    _This& i(signed long n)
+    _This& i(signed int n)
     {
       return l(n);
     }
-    _This& i(signed long n, size_t Base, size_t Width = 0, _Char PadChar = '0', bool ForceShowSign = false)
+    _This& i(signed int n, size_t Base, size_t Width = 0, _Char PadChar = '0', bool ForceShowSign = false)
     {
       return l(n, Base, Width, PadChar, ForceShowSign);
     }

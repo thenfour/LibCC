@@ -232,6 +232,14 @@
 			Name="libcc"
 			>
 			<File
+				RelativePath="..\libcc\AllocationTracker.h"
+				>
+			</File>
+			<File
+				RelativePath=".\AllocationTrackerTest.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\libcc\Blob.h"
 				>
 			</File>

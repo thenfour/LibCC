@@ -5,6 +5,7 @@
 #include "libcc\stringutil.h"
 #include "resource.h"
 using namespace LibCC;
+#include "libcc\AllocationTracker.h"
 
 void FormatTestA(FormatA a)
 {
