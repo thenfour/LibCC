@@ -522,9 +522,10 @@ namespace LibCC
               break;
           case CE_Literal:
               {
-                  LiteralType* plt = (LiteralType*)pBase;
+                  LiteralType<Char>* plt = (LiteralType<Char>*)pBase;
                   // search for path separator.
-                  if(String::npos != plt->m_s.find_first_of("\\/"))
+									Char t[3] = { '\\', '/' };
+                  if(String::npos != plt->m_s.find_first_of(t))
                   {
                       bHaveHitPathSep = true;
                   }
@@ -629,18 +630,26 @@ namespace LibCC
 	  return !*wild;
   }
 
-  template<typename Char>
+  template<typename Char, typename T_WIN32_FIND_DATA>
   class FileIteratorBaseX
   {
   public:
-      virtual bool Reset(const std::basic_string<Char>& sDir) = 0;
-	  virtual bool Next(std::basic_string<Char>& sFullPath, DWORD* pdwAttributes, std::basic_string<Char>* psFileName) = 0;
+    virtual bool Reset(const std::basic_string<Char>& sDir) = 0;
+		virtual bool Next(std::basic_string<Char>& sFullPath, T_WIN32_FIND_DATA& fileData) = 0;
+		bool Next(std::basic_string<Char>& sFullPath)
+		{
+			T_WIN32_FIND_DATA unused_data;
+			return Next(sFullPath, unused_data);
+		}
   };
+	typedef FileIteratorBaseX<wchar_t, WIN32_FIND_DATAW> FileIteratorBaseW;
+	typedef FileIteratorBaseX<char, WIN32_FIND_DATAA> FileIteratorBaseA;
 
 
   // class for iterating through a single directory.
-  template<typename Char>
-  class FileIteratorX : public FileIteratorBaseX<Char>
+	template<typename Char, typename T_WIN32_FIND_DATA>
+  class FileIteratorX :
+		public FileIteratorBaseX<Char, T_WIN32_FIND_DATA>
   {
   public:
       FileIteratorX() :
@@ -679,61 +688,55 @@ namespace LibCC
         return r;
       }
 
-	  bool Next(std::basic_string<Char>& sFullPath, DWORD* pdwAttributes = 0, std::basic_string<Char>* psFileName = 0)
-      {
-        bool r = false;
-        if(IsValidHandle(m_hFind))
-        {
-          while(1)
-          {
-            if(IsUsableFileName(&m_fd))
-            {
-              // use it!
-              sFullPath = PathJoin(m_BaseDir, std::basic_string<Char>(m_fd.cFileName));
-              if(pdwAttributes) *pdwAttributes = m_fd.dwFileAttributes;
-			  if(psFileName) *psFileName = m_fd.cFileName;
-              r = true;
+			virtual bool Next(std::basic_string<Char>& sFullPath, T_WIN32_FIND_DATA& fileData)
+			{
+				bool r = false;
+				if(IsValidHandle(m_hFind))
+				{
+					while(true)
+					{
+						if(IsUsableFileName(m_fd))
+						{
+							// use it!
+							sFullPath = PathJoin(m_BaseDir, std::basic_string<Char>(m_fd.cFileName));
+							fileData = m_fd;
+							r = true;
+							if(0 == FindNextFile(m_hFind, &m_fd))
+							{
+								_Free();
+							}
+							break;
+						}
 
-              // advance to the next one so we're queued up next call.
-              if(0 == FindNextFile(m_hFind, &m_fd))
-              {
-                FindClose(m_hFind);
-                m_hFind = 0;
-              }
-              break;
-            }
-
-            // otherwise, proceed to the next one.
-            if(0 == FindNextFile(m_hFind, &m_fd))
-            {
-              // failure; make sure we clean everything up and return false.
-              FindClose(m_hFind);
-              m_hFind = 0;
-              break;
-            }
-          }
-        }
-        return r;
-      }
+						// otherwise, proceed to the next one.
+						if(0 == FindNextFile(m_hFind, &m_fd))
+						{
+							_Free();
+							break;
+						}
+					}
+				}
+				return r;
+			}
 
   private:
-      bool IsUsableFileName(const WIN32_FIND_DATA* pfd)
+      bool IsUsableFileName(const T_WIN32_FIND_DATA& pfd)
       {
         bool r = true;
-        if(pfd->cFileName[0])
+        if(pfd.cFileName[0])
         {
-          if(pfd->cFileName[0] == '.')
+          if(pfd.cFileName[0] == '.')
           {
-            if(pfd->cFileName[1] == 0)
+            if(pfd.cFileName[1] == 0)
             {
               // it equals "."
               r = false;
             }
             else
             {
-              if(pfd->cFileName[1] == '.')
+              if(pfd.cFileName[1] == '.')
               {
-                if(pfd->cFileName[2] == 0) r = false;// it equals ".."
+                if(pfd.cFileName[2] == 0) r = false;// it equals ".."
               }
             }
           }
@@ -741,7 +744,7 @@ namespace LibCC
         return r;
       }
 
-      bool IsDirectory(const WIN32_FIND_DATA* pfd);
+      //bool IsDirectory(const WIN32_FIND_DATA* pfd);
 
       void _Free()
       {
@@ -751,11 +754,15 @@ namespace LibCC
 
       std::basic_string<Char> m_BaseDir;// directory for this find
       HANDLE m_hFind;
-      WIN32_FIND_DATA m_fd;
+			T_WIN32_FIND_DATA m_fd;
   };
+	typedef FileIteratorX<wchar_t, WIN32_FIND_DATAW> FileIteratorW;
+	typedef FileIteratorX<char, WIN32_FIND_DATAA> FileIteratorA;
 
-  template<typename Char>
-  class RecursiveFileIteratorX : public FileIteratorBaseX<Char>
+
+	template<typename Char, typename T_WIN32_FIND_DATA>
+  class RecursiveFileIteratorX :
+		public FileIteratorBaseX<Char, T_WIN32_FIND_DATA>
   {
   public:
       ~RecursiveFileIteratorX()
@@ -766,8 +773,8 @@ namespace LibCC
       bool Reset(const std::basic_string<Char>& sDir)
       {
         bool r = false;
-        m_stack.push(FileIteratorX<Char>());
-        FileIteratorX<Char>& it = m_stack.top();
+        m_stack.push(FileIteratorX<Char, T_WIN32_FIND_DATA>());
+        FileIteratorX<Char, T_WIN32_FIND_DATA>& it = m_stack.top();
         if(it.Reset(sDir))
         {
           r = true;
@@ -780,24 +787,22 @@ namespace LibCC
         return r;
       }
 
-	  bool Next(std::basic_string<Char>& sFullPath, DWORD* pdwAttributes = 0, std::basic_string<Char>* psFileName = 0)
+	  bool Next(std::basic_string<Char>& sFullPath, T_WIN32_FIND_DATA& fileData)
       {
         bool r = false;
         DWORD dwAttr = 0;
-		std::basic_string<Char> sFileName;
+				std::basic_string<Char> sFileName;
 
         while(m_stack.size())
         {
-          FileIteratorX<Char>& it = m_stack.top();
-          if(it.Next(sFullPath, &dwAttr, &sFileName))
+          FileIteratorX<Char, T_WIN32_FIND_DATA>& it = m_stack.top();
+          if(it.Next(sFullPath, fileData))
           {
-            if(pdwAttributes) *pdwAttributes = dwAttr;
-			if(psFileName) *psFileName = sFileName;
-            if(dwAttr & FILE_ATTRIBUTE_DIRECTORY)
+            if(fileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
             {
               // push an enum to this thing.
-              m_stack.push(FileIteratorX<Char>());
-              FileIteratorX<Char>& it = m_stack.top();
+              m_stack.push(FileIteratorX<Char, T_WIN32_FIND_DATA>());
+              FileIteratorX<Char, T_WIN32_FIND_DATA>& it = m_stack.top();
               it.Reset(sFullPath);
             }
 
@@ -814,7 +819,7 @@ namespace LibCC
       }
 
   private:
-      std::stack<FileIteratorX<Char> > m_stack;
+      std::stack<FileIteratorX<Char, T_WIN32_FIND_DATA> > m_stack;
       void _Free()
       {
         while(m_stack.size())
@@ -823,6 +828,8 @@ namespace LibCC
         }
       }
   };
+	typedef RecursiveFileIteratorX<wchar_t, WIN32_FIND_DATAW> RecursiveFileIteratorW;
+	typedef RecursiveFileIteratorX<char, WIN32_FIND_DATAA> RecursiveFileIteratorA;
 
 
 }
