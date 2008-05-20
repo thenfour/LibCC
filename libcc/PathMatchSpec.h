@@ -81,6 +81,7 @@ namespace LibCC
     public:
       typedef std::vector<CriteriaEngineBase<Char>*> CriteriaList;
       typedef typename CriteriaList::iterator CriteriaListIterator;
+      typedef typename CriteriaList::const_iterator CriteriaListConstIterator;
       typedef std::basic_string<Char> String;
 
       CriteriaEngineBase(CriteriaEngine type) :
@@ -94,7 +95,7 @@ namespace LibCC
 
       // here, we will start at the current position and just perform the rest of the criteria.
       // if we encounter a path separator in our quest, no match.
-      virtual bool Match(CriteriaList& cl, CriteriaListIterator itCriteria, const std::basic_string<Char>& s) = 0;
+      virtual bool Match(const CriteriaList& cl, CriteriaListConstIterator itCriteria, const std::basic_string<Char>& s) const = 0;
       CriteriaEngine m_Type;
     };
 
@@ -106,7 +107,7 @@ namespace LibCC
         CriteriaEngineBase<Char>(CE_Question)
       {
       }
-      bool Match(CriteriaList& cl, CriteriaListIterator itCriteria, const std::basic_string<Char>& s)
+      bool Match(const CriteriaList& cl, CriteriaListConstIterator itCriteria, const std::basic_string<Char>& s) const
       {
         bool r = false;
 
@@ -134,7 +135,7 @@ namespace LibCC
         CriteriaEngineBase<Char>(CE_Star)
       {
       }
-      bool Match(CriteriaList& cl, CriteriaListIterator itCriteria, const std::basic_string<Char>& s)
+      bool Match(const CriteriaList& cl, CriteriaListConstIterator itCriteria, const std::basic_string<Char>& s) const
       {
         bool r = false;
         itCriteria++;
@@ -175,7 +176,7 @@ namespace LibCC
         CriteriaEngineBase<Char>(CE_Ellipses)
       {
       }
-      bool Match(CriteriaList& cl, CriteriaListIterator itCriteria, const std::basic_string<Char>& s)
+      bool Match(const CriteriaList& cl, CriteriaListConstIterator itCriteria, const std::basic_string<Char>& s) const
       {
         bool r = false;
         itCriteria++;
@@ -213,7 +214,7 @@ namespace LibCC
         CriteriaEngineBase<Char>(CE_EndOfLine)
       {
       }
-      bool Match(CriteriaList& cl, CriteriaListIterator itCriteria, const std::basic_string<Char>& s)
+      bool Match(const CriteriaList& cl, CriteriaListConstIterator itCriteria, const std::basic_string<Char>& s) const
       {
           return (s.empty());
       }
@@ -228,7 +229,7 @@ namespace LibCC
       {
       }
       std::basic_string<Char> m_s;
-      bool Match(CriteriaList& cl, CriteriaListIterator _itCriteria, const std::basic_string<Char>& s)
+      bool Match(const CriteriaList& cl, CriteriaListConstIterator _itCriteria, const std::basic_string<Char>& s) const
       {
           bool r = false;
 
@@ -303,6 +304,15 @@ namespace LibCC
     typedef std::basic_string<Char> String;
     typedef typename std::basic_string<Char>::const_iterator StringConstIterator;
 
+	private:
+		String m_criteria;
+
+	public:
+		String GetCriteria() const
+		{
+			return m_criteria;
+		}
+
     void SetCriteria(const String& s)
     {
       ClearCriteria();
@@ -375,18 +385,18 @@ namespace LibCC
       return;
     }
 
-    bool Match(const String& s)
+    bool Match(const String& s) const
     {
       bool r = false;
-      CriteriaListList::iterator it;
+      CriteriaListList::const_iterator it;
       //CriteriaList* pCriteriaItem = 0;
 
       for(it = m_CriteriaLists.begin(); it != m_CriteriaLists.end(); it++)
       {
-        CriteriaList& item(*it);
+        const CriteriaList& item(*it);
         if(!item.empty())// empty criteria == no match.
         {
-          typename CriteriaEngineBase<Char>::CriteriaListIterator itCriteria = item.begin();
+          typename CriteriaEngineBase<Char>::CriteriaListConstIterator itCriteria = item.begin();
           r = item.front()->Match(item, itCriteria, s);
         }
 
@@ -397,10 +407,10 @@ namespace LibCC
 
     //void DumpCriteria();
 
-    bool SpansSubDirectories()// convenience function so we don't always have to search sub directories.
+    bool SpansSubDirectories() const// convenience function so we don't always have to search sub directories.
     {
         bool r = false;
-        CriteriaListList::iterator it;
+				CriteriaListList::const_iterator it;
         for(it=m_CriteriaLists.begin();it!=m_CriteriaLists.end();it++)
         {
             r = SpansSubDirectories(&(*it));
@@ -499,10 +509,10 @@ namespace LibCC
 
     CriteriaListList m_CriteriaLists;
 
-    bool SpansSubDirectories(CriteriaList* pCriteria)
+    bool SpansSubDirectories(const CriteriaList* pCriteria) const
     {
       bool r = false;
-      CriteriaList::reverse_iterator it;
+			CriteriaList::const_reverse_iterator it;
 
       bool bHaveHitPathSep = false;
 
