@@ -1370,7 +1370,7 @@ namespace LibCC
 #endif
 
 		// "GET" methods
-    LIBCC_INLINE const _String Str() const
+    LIBCC_INLINE const _String& Str() const
 		{
 			return m_Composite;
 		}

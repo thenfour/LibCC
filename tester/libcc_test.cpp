@@ -68,8 +68,8 @@ void TestCollection()
 	//RunTest(BlobTest);
 	//RunTest(LogTest);
 	RunTest(AllocationTrackerTest);
-	//RunTest(FormatTest);
-  //RunTest(FormatBenchmark);
+	RunTest(FormatTest);
+  RunTest(FormatBenchmark);
 	//RunTest(RegistryTest); // careful with this of course.
   //RunTest(StatusTest);
   //RunTest(PathMatchSpecTest);
