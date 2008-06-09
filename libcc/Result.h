@@ -94,6 +94,10 @@ namespace LibCC
     {
       return This(S_OK);
     }
+    static This Success(const String& s)
+    {
+      return This(S_OK, s);
+    }
     static This Failure(HRESULT hr = E_FAIL)
     {
       return This(hr);

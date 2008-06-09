@@ -420,7 +420,7 @@ namespace LibCC
 
 	inline std::wstring PathAppendX(IN const std::wstring& lhs, const std::wstring& rhs)
   {
-		Blob<wchar_t> b(lhs.size() + rhs.size());
+		Blob<wchar_t> b(lhs.size() + rhs.size() + 4);// +2 for null term + a backslash if necessary.
 		XLastDitchStringCopy(lhs.c_str(), b.GetBuffer());
 		PathAppendW(b.GetBuffer(), rhs.c_str());
 		return std::wstring(b.GetBuffer());
