@@ -201,7 +201,7 @@ namespace LibCC
   inline LONG RegDeleteKeyX(HKEY hKey, const Char* subKey)
   {
     std::wstring strW;
-    StringCopy(strW, subKey);
+    XLastDitchStringCopy(subKey, strW);
     return RegDeleteKeyW(hKey, strW);
   }
 
@@ -378,7 +378,7 @@ namespace LibCC
       buf.Alloc(size + 1);
       if(GetTempPathW(buf.Size(), buf.GetWritableBuffer()))
       {
-        StringCopy(sOut, buf.GetBuffer());
+        XLastDitchStringCopy(buf.GetBuffer(), sOut);
         r = true;
       }
     }
@@ -392,7 +392,7 @@ namespace LibCC
     Blob<wchar_t, false, BlobTraits<true, MAX_PATH> > t;
     t.Alloc(StringLength(buffer) + 1);
     t.GetWritableBuffer()[0] = 0;
-    StringCopy(t.GetWritableBuffer(), buffer);
+    XLastDitchStringCopy(buffer, t.GetWritableBuffer());
     return LoadLibraryW(t.GetBuffer());
   }
 
@@ -409,7 +409,7 @@ namespace LibCC
     t.Alloc(buffermax + 1);
     t.GetWritableBuffer()[0] = 0;
     int r = LoadStringW(hInstance, id, t.GetWritableBuffer(), buffermax);
-    StringCopy(buffer, t.GetBuffer());
+    XLastDitchStringCopy(t.GetBuffer(), buffer);
     return r;
   }
 
@@ -418,33 +418,22 @@ namespace LibCC
     return LoadStringW(hInstance, id, buffer, buffermax);
   }
 
-  // PathAppend
-  template<typename Char, typename Traits, typename Alloc>
-  inline void PathAppendX(IN OUT std::basic_string<Char, Traits, Alloc>& sPath, const std::basic_string<Char, Traits, Alloc>& sFilename)
+	inline std::wstring PathAppendX(IN const std::wstring& lhs, const std::wstring& rhs)
   {
-    // add trailing backslash if needed
-    if(sPath.size() && sPath[sPath.size() - 1] != '\\')
-    {
-      sPath.push_back('\\');
-    }
-
-    sPath.append(sFilename);
-  }
-
-	// added 2007-06-23
-  // PathAppend
-  template<typename Char, typename Traits, typename Alloc>
-  inline void PathAppendX(IN OUT std::basic_string<Char, Traits, Alloc>& sPath, const Char* sFilename)
-  {
-		PathAppendX(sPath, std::basic_string<Char, Traits, Alloc>(sFilename));
+		Blob<wchar_t> b(lhs.size() + rhs.size());
+		XLastDitchStringCopy(lhs.c_str(), b.GetBuffer());
+		PathAppendW(b.GetBuffer(), rhs.c_str());
+		return std::wstring(b.GetBuffer());
   }
 
   template<typename Char>
 	inline std::basic_string<Char> PathAppendX(IN const std::basic_string<Char>& lhs, const std::basic_string<Char>& rhs)
   {
-		// there's a better way to do this.
-		std::basic_string<Char> ret = lhs;
-		PathAppendX(ret, rhs);
+		std::basic_string<Char> lhsX, rhsX, ret;
+		ConvertString<Char, wchar_t>(lhs, lhsX);
+		ConvertString<Char, wchar_t>(rhs, rhsX);
+		std::wstring retW = PathAppendX(lhsX, rhsX);
+		ConvertString<wchar_t, Char>(retW, ret);
 		return ret;
   }
 
@@ -452,7 +441,7 @@ namespace LibCC
   inline bool PathFileExistsX(const Char* path)
   {
     BlobTypes<Char>::PathBlob t;
-    StringCopy(t, path);
+    XLastDitchStringCopy(path, t);
     bool r = (TRUE == PathFileExistsW(t.GetBuffer()));
     return r;
   }
@@ -471,7 +460,7 @@ namespace LibCC
     BlobTypes<wchar_t>::PathBlob buf;
     if(TRUE == SHGetSpecialFolderPathW(hOwner, buf.GetWritableBuffer(), nFolder, create))
     {
-      StringCopy(sOut, buf.GetBuffer());
+      XLastDitchStringCopy(sOut, buf.GetBuffer());
       r = true;
     }
     return r;
@@ -522,7 +511,7 @@ namespace LibCC
   {
     std::wstring s;
     FormatMessageGLE(s, code);
-    StringCopy(out, s);
+    XLastDitchStringCopy(out, s);
     return;
   }
 
@@ -575,7 +564,7 @@ namespace LibCC
     if(LoadStringX(hInstance, stringID, ws))
     {
       r = true;
-      StringCopy(out, ws);
+      XLastDitchStringCopy(out, ws);
     }
     return r;
   }
