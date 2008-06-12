@@ -429,10 +429,11 @@ namespace LibCC
   template<typename Char>
 	inline std::basic_string<Char> PathAppendX(IN const std::basic_string<Char>& lhs, const std::basic_string<Char>& rhs)
   {
-		std::basic_string<Char> lhsX, rhsX, ret;
-		ConvertString<Char, wchar_t>(lhs, lhsX);
-		ConvertString<Char, wchar_t>(rhs, rhsX);
-		std::wstring retW = PathAppendX(lhsX, rhsX);
+		std::basic_string<wchar_t> lhsW, rhsW, retW;
+		ConvertString<Char, wchar_t>(lhs, lhsW);
+		ConvertString<Char, wchar_t>(rhs, rhsW);
+		retW = PathAppendX(lhsW, rhsW);
+		std::basic_string<Char> ret;
 		ConvertString<wchar_t, Char>(retW, ret);
 		return ret;
   }
@@ -465,6 +466,23 @@ namespace LibCC
     }
     return r;
   }
+
+  template<typename Char, typename HandleType>// handle can be either HINSTANCE or HMODULE
+	inline std::basic_string<Char> GetModuleFilenameX(HandleType h)
+	{
+		if(h == 0)
+			h = GetModuleHandle(0);
+		wchar_t ret[MAX_PATH+1];
+		ret[0] = 0;
+		::GetModuleFileNameW((HMODULE)h, ret, MAX_PATH);
+		return ret;
+	}
+
+  template<typename HandleType>// handle can be either HINSTANCE or HMODULE
+	inline std::wstring GetModuleFilenameW(HandleType h)
+	{
+		return GetModuleFilenameX<wchar_t>(h);
+	}
 }
 
 
@@ -569,6 +587,20 @@ namespace LibCC
     return r;
   }
 
+
+	inline void StdOutPrint(const std::string& s)
+	{
+		DWORD bw;
+		WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), s.c_str(), s.size(), &bw, 0);
+	}
+
+	template<typename Char>
+	inline void StdOutPrint(const std::basic_string<Char>& s)
+	{
+		std::string A;
+		LibCC::ConvertString(s, A);
+		StdOutPrint(A);
+	}
 }
 
 

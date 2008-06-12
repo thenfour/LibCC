@@ -35,6 +35,7 @@
 #endif
 
 #include "StringUtil.h"
+#include "Log.h"
 #include <vector>
 #include <process.h>
 #include <shlwapi.h>
@@ -65,6 +66,7 @@ namespace LibCC
 		bool m_enableWindow;
 		bool m_enableFile;
 		bool m_enableDebug;
+		bool m_enableStdOut;
 		static const DWORD m_width = 300;
 		static const DWORD m_height = 300;
 
@@ -80,9 +82,13 @@ namespace LibCC
 		{
 			return LIBCC_ENABLE_LOG_DEBUG && m_enableDebug;
 		}
+		inline bool StdOutEnabled() const
+		{
+			return LIBCC_ENABLE_LOG_DEBUG && m_enableStdOut;
+		}
 		inline bool EnabledAtAll() const
 		{
-			return DebugEnabled() || FileEnabled() || WindowEnabled();
+			return DebugEnabled() || FileEnabled() || WindowEnabled() || StdOutEnabled();
 		}
 		
   public:
@@ -93,11 +99,15 @@ namespace LibCC
 			m_hEdit(0),
 			m_hThread(0),
 			m_hInitialized(0),
-			m_hTab(0)
+			m_hTab(0),
+			m_enableWindow(false),
+			m_enableFile(false),
+			m_enableDebug(false),
+			m_enableStdOut(false)
 		{
 		}
 		template<typename XChar>
-    Log(const std::basic_string<XChar>& fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true) :
+    Log(const std::basic_string<XChar>& fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false) :
 			m_hMain(0),
 			m_hEdit(0),
 			m_hThread(0),
@@ -105,7 +115,8 @@ namespace LibCC
 			m_hTab(0),
 			m_enableDebug(enableDebug),
 			m_enableWindow(enableWindow),
-			m_enableFile(enableFile)
+			m_enableFile(enableFile),
+			m_enableStdOut(enableStdOut)
 		{
 			if(EnabledAtAll())
 			{
@@ -113,7 +124,7 @@ namespace LibCC
 			}
 		}
 		template<typename XChar>
-    Log(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true) :
+    Log(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false) :
 			m_hMain(0),
 			m_hEdit(0),
 			m_hThread(0),
@@ -121,7 +132,8 @@ namespace LibCC
 			m_hTab(0),
 			m_enableDebug(enableDebug),
 			m_enableWindow(enableWindow),
-			m_enableFile(enableFile)
+			m_enableFile(enableFile),
+			m_enableStdOut(enableStdOut)
 		{
 			if(EnabledAtAll())
 			{
@@ -442,16 +454,24 @@ namespace LibCC
 					}
 
 					// do gui
-					if(pThis->WindowEnabled())
+					if(pThis->WindowEnabled() || pThis->StdOutEnabled())
 					{
 						std::wstring gui(LibCC::FormatW("%%%|").s(indent).s(mi.s1).s(mi.s2).Str());
-						int ndx = GetWindowTextLength(pThis->m_hEdit);
-						SendMessage(pThis->m_hEdit, EM_SETSEL, (WPARAM)ndx, (LPARAM)ndx);
-						SendMessageW(pThis->m_hEdit, EM_REPLACESEL, 0, (LPARAM)gui.c_str());
 
-						ndx = GetWindowTextLength(ti.hEdit);
-						SendMessage(ti.hEdit, EM_SETSEL, (WPARAM)ndx, (LPARAM)ndx);
-						SendMessageW(ti.hEdit, EM_REPLACESEL, 0, (LPARAM)gui.c_str());
+						if(pThis->WindowEnabled())
+						{
+							int ndx = GetWindowTextLength(pThis->m_hEdit);
+							SendMessage(pThis->m_hEdit, EM_SETSEL, (WPARAM)ndx, (LPARAM)ndx);
+							SendMessageW(pThis->m_hEdit, EM_REPLACESEL, 0, (LPARAM)gui.c_str());
+
+							ndx = GetWindowTextLength(ti.hEdit);
+							SendMessage(ti.hEdit, EM_SETSEL, (WPARAM)ndx, (LPARAM)ndx);
+							SendMessageW(ti.hEdit, EM_REPLACESEL, 0, (LPARAM)gui.c_str());
+						}
+						if(pThis->StdOutEnabled())
+						{
+							StdOutPrint(gui);
+						}
 					}
 					
 					return 0;

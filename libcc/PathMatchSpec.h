@@ -655,6 +655,25 @@ namespace LibCC
 	typedef FileIteratorBaseX<wchar_t, WIN32_FIND_DATAW> FileIteratorBaseW;
 	typedef FileIteratorBaseX<char, WIN32_FIND_DATAA> FileIteratorBaseA;
 
+	inline HANDLE FindFirstFileX(const wchar_t* path, WIN32_FIND_DATAW* fd)
+	{
+		return ::FindFirstFileW(path, fd);
+	}
+
+	inline HANDLE FindFirstFileX(const char* path, WIN32_FIND_DATAA* fd)
+	{
+		return ::FindFirstFileA(path, fd);
+	}
+
+	inline BOOL FindNextFileX(HANDLE h, WIN32_FIND_DATAW* fd)
+	{
+		return ::FindNextFileW(h, fd);
+	}
+
+	inline BOOL FindNextFileX(HANDLE h, WIN32_FIND_DATAA* fd)
+	{
+		return ::FindNextFileA(h, fd);
+	}
 
   // class for iterating through a single directory.
 	template<typename Char, typename T_WIN32_FIND_DATA>
@@ -682,7 +701,7 @@ namespace LibCC
         sQuery = PathJoin(sDir, std::basic_string<Char>(1, '*'));
 
         m_BaseDir = sDir;
-        m_hFind = FindFirstFile(sQuery.c_str(), &m_fd);
+        m_hFind = FindFirstFileX(sQuery.c_str(), &m_fd);
 
         if(IsBadHandle(m_hFind))
         {
@@ -711,7 +730,7 @@ namespace LibCC
 							sFullPath = PathJoin(m_BaseDir, std::basic_string<Char>(m_fd.cFileName));
 							fileData = m_fd;
 							r = true;
-							if(0 == FindNextFile(m_hFind, &m_fd))
+							if(0 == FindNextFileX(m_hFind, &m_fd))
 							{
 								_Free();
 							}
@@ -719,7 +738,7 @@ namespace LibCC
 						}
 
 						// otherwise, proceed to the next one.
-						if(0 == FindNextFile(m_hFind, &m_fd))
+						if(0 == FindNextFileX(m_hFind, &m_fd))
 						{
 							_Free();
 							break;
