@@ -700,3 +700,40 @@ namespace LibCC
     Log* m_pLog;
   };
 }
+#include "timer.h"
+namespace LibCC
+{
+  class LogScopeMessageTimer
+  {
+  public:
+		template<typename XChar>
+    LogScopeMessageTimer(const XChar* op, Log* pLog = g_pLog) :
+      m_pLog(pLog)
+    {
+			t.Tick();
+      m_pLog->Message(std::wstring(L"{ "), std::basic_string<XChar>(op));
+      m_pLog->Indent();
+    }
+		template<typename XChar>
+    LogScopeMessageTimer(const std::basic_string<XChar>& op, Log* pLog = g_pLog) :
+      m_pLog(pLog)
+    {
+			t.Tick();
+      m_pLog->Message(std::wstring(L"{ "), op);
+      m_pLog->Indent();
+    }
+    
+    ~LogScopeMessageTimer()
+    {
+      if(m_pLog)
+      {
+        m_pLog->Outdent();
+				t.Tick();
+				m_pLog->Message(LibCC::FormatA("} (% seconds)").d<4>(t.GetLastDelta()));
+      }
+    }
+
+		Timer t;
+    Log* m_pLog;
+  };
+}

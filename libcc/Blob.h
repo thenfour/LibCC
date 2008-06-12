@@ -145,9 +145,6 @@ namespace LibCC
     void operator =(const T&)
 		{ // no assignment available
 		}
-    Blob(const Blob<Tel, Ttraits>&)
-    { // no copy construction available
-    }
 
   public:
 
@@ -169,6 +166,14 @@ namespace LibCC
       m_reportedSize(0)
     {
 			Alloc(size);
+    }
+
+		Blob(const Blob<Tel, Ttraits>& rhs) :
+      m_p(_StaticBufferSupport ? m_StaticBuffer : 0),
+      m_allocatedSize(_StaticBufferSupport ? _StaticBufferSize : 0),
+      m_reportedSize(0)
+    {
+			Assign(rhs);
     }
 
     ~Blob()
