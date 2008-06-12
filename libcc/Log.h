@@ -35,7 +35,7 @@
 #endif
 
 #include "StringUtil.h"
-#include "Log.h"
+#include "Winapi.h"
 #include <vector>
 #include <process.h>
 #include <shlwapi.h>
@@ -57,18 +57,28 @@
 # define LIBCC_ENABLE_LOG_WINDOW true
 #endif
 
+#ifndef LIBCC_LOG_WINDOW_WIDTH
+# define LIBCC_LOG_WINDOW_WIDTH 300
+#endif
+
+#ifndef LIBCC_LOG_WINDOW_HEIGHT
+# define LIBCC_LOG_WINDOW_HEIGHT 300
+#endif
+
 namespace LibCC
 {
   class Log
   {
 		bool m_unicodeFileFormat;
-		
+		bool m_writeHeader;
 		bool m_enableWindow;
 		bool m_enableFile;
 		bool m_enableDebug;
 		bool m_enableStdOut;
-		static const DWORD m_width = 300;
-		static const DWORD m_height = 300;
+		static const DWORD m_width = LIBCC_LOG_WINDOW_WIDTH;
+		static const DWORD m_height = LIBCC_LOG_WINDOW_HEIGHT;
+
+		static const size_t IndentSize = 2;
 
 		inline bool WindowEnabled() const
 		{
@@ -103,42 +113,19 @@ namespace LibCC
 			m_enableWindow(false),
 			m_enableFile(false),
 			m_enableDebug(false),
-			m_enableStdOut(false)
+			m_enableStdOut(false),
+			m_writeHeader(false)
 		{
 		}
 		template<typename XChar>
-    Log(const std::basic_string<XChar>& fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false) :
-			m_hMain(0),
-			m_hEdit(0),
-			m_hThread(0),
-			m_hInitialized(0),
-			m_hTab(0),
-			m_enableDebug(enableDebug),
-			m_enableWindow(enableWindow),
-			m_enableFile(enableFile),
-			m_enableStdOut(enableStdOut)
+    Log(const std::basic_string<XChar>& fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false, bool writeHeader = true)
 		{
-			if(EnabledAtAll())
-			{
-				Create(fileName, hInstance, enableDebug, enableWindow, enableFile, unicodeFileFormat);
-			}
+			Create(fileName, hInstance, enableDebug, enableWindow, enableFile, unicodeFileFormat, enableStdOut, writeHeader);
 		}
 		template<typename XChar>
-    Log(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false) :
-			m_hMain(0),
-			m_hEdit(0),
-			m_hThread(0),
-			m_hInitialized(0),
-			m_hTab(0),
-			m_enableDebug(enableDebug),
-			m_enableWindow(enableWindow),
-			m_enableFile(enableFile),
-			m_enableStdOut(enableStdOut)
+    Log(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false, bool writeHeader = true)
 		{
-			if(EnabledAtAll())
-			{
-				Create(fileName, hInstance, enableDebug, enableWindow, enableFile, unicodeFileFormat);
-			}
+			Create(fileName, hInstance, enableDebug, enableWindow, enableFile, unicodeFileFormat, enableStdOut, writeHeader);
 		}
 
 		~Log()
@@ -148,12 +135,19 @@ namespace LibCC
 
 		// filename
 		template<typename XChar>
-    void Create(const std::basic_string<XChar>& fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true)
+    void Create(const std::basic_string<XChar>& fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false, bool writeHeader = true)
     {
+			m_hMain = 0;
+			m_hEdit = 0;
+			m_hThread = 0;
+			m_hInitialized = 0;
+			m_hTab = 0;
 			m_enableDebug = enableDebug;
 			m_enableWindow = enableWindow;
 			m_enableFile = enableFile;
 			m_unicodeFileFormat = unicodeFileFormat;
+			m_enableStdOut = enableStdOut;
+			m_writeHeader = writeHeader;
 			if(EnabledAtAll())
 			{			
 				ConvertString(fileName, m_fileName);
@@ -163,30 +157,30 @@ namespace LibCC
 				//SetThreadPriority( m_hThread, THREAD_PRIORITY_NORMAL ); // i don't know what the point of this was.
 				WaitForSingleObject(m_hInitialized, INFINITE);
 
-				Message(L"-------------------------------");
-				Message(L"Starting log");
+				if(m_writeHeader)
+				{
+					Message(L"-------------------------------");
+					Message(L"Starting log");
+				}
 
 				CloseHandle(m_hInitialized);
 				m_hInitialized = 0;
 			}
     }
- 		template<typename XChar>
-    void Create(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true)
-    {
-			m_enableDebug = enableDebug;
-			m_enableWindow = enableWindow;
-			m_enableFile = enableFile;
-			if(EnabledAtAll())
-			{
-				Create(std::basic_string<XChar>(fileName), hInstance, enableDebug, enableWindow, enableFile, unicodeFileFormat);
-			}
-    }
+		template<typename XChar>
+    void Create(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false, bool writeHeader = true)
+		{
+			Create(std::basic_string<XChar>(fileName), hInstance, enableDebug, enableWindow, enableFile, unicodeFileFormat, enableStdOut, writeHeader);
+		}
 
     void Destroy()
     {
 			if(m_hThread)
 			{
-				Message(L"Stopping log");
+				if(m_writeHeader)
+				{
+					Message(L"Stopping log");
+				}
 				PostMessage(m_hMain, WM_LogExit, 0, 0);
 				WaitForSingleObject(m_hThread, INFINITE);
 				m_hThread = 0;
@@ -207,6 +201,25 @@ namespace LibCC
 			{
 				SendMessageW(m_hMain, WM_Outdent, 0, GetCurrentThreadId());
 			}
+		}
+
+		int GetIndentLevel()
+		{
+			if(EnabledAtAll())
+			{
+				return SendMessageW(m_hMain, WM_GetIndentLevel, 0, GetCurrentThreadId());
+			}
+			return 0;
+		}
+
+		std::wstring GetIndentStringW()
+		{
+			return std::wstring(GetIndentLevel() * IndentSize, L' ');
+		}
+
+		std::string GetIndentStringA()
+		{
+			return std::string(GetIndentLevel() * IndentSize, ' ');
 		}
     
     // 2 string args...
@@ -377,8 +390,6 @@ namespace LibCC
 					MessageInfo& mi = *(MessageInfo*)lParam;
 					ThreadInfo& ti = pThis->GetThreadInfo(mi.threadID);
 
-					static const size_t IndentSize = 2;
-
 					// convert all newline chars into something else
 					for(_String::iterator it = mi.s1.begin(); it != mi.s1.end(); ++ it)
 					{
@@ -488,6 +499,11 @@ namespace LibCC
 					ti.indent --;
 					return 0;
 				}
+			case WM_GetIndentLevel:
+				{
+					ThreadInfo& ti = pThis->GetThreadInfo(static_cast<DWORD>(lParam));
+					return ti.indent;
+				}
 			case WM_LogExit:
 				{
 					DestroyWindow(hWnd);
@@ -580,6 +596,7 @@ namespace LibCC
     static const UINT WM_LogExit = WM_APP + 2;
     static const UINT WM_Indent = WM_APP + 3;
     static const UINT WM_Outdent = WM_APP + 4;
+    static const UINT WM_GetIndentLevel = WM_APP + 5;
 
     // each thread gets a different edit, tab item, and id.
     struct ThreadInfo
