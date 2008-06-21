@@ -1,7 +1,7 @@
 
 
 #include "test.h"
-#include "libcc\pathmatchspec.h"
+#include "libcc\pathmatchspec.hpp"
 
 #pragma comment(lib, "shlwapi.lib")
 

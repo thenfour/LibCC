@@ -1,7 +1,7 @@
 
 
 #include "test.h"
-#include "libcc\result.h"
+#include "libcc\result.hpp"
 using namespace LibCC;
 
 bool StatusTest()

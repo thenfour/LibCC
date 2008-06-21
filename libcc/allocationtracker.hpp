@@ -78,7 +78,7 @@ You can also set a breakpoint using:
 
 #pragma once
 
-#include "StringUtil.h"
+#include "StringUtil.hpp"
 #include <map>
 #include <set>
 

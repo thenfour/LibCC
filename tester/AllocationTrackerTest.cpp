@@ -1,7 +1,7 @@
 
 
 #include "test.h"
-#include "libcc\AllocationTracker.h"
+#include "libcc\allocationtracker.hpp"
 using namespace LibCC;
 
 AllocationManager* LibCC::g_pAllocationManager = 0;

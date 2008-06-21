@@ -34,8 +34,8 @@
 #error LibCC::Log is only available on Windows platforms.
 #endif
 
-#include "StringUtil.h"
-#include "Winapi.h"
+#include "stringutil.hpp"
+#include "winapi.hpp"
 #include <vector>
 #include <process.h>
 #include <shlwapi.h>
@@ -717,7 +717,7 @@ namespace LibCC
     Log* m_pLog;
   };
 }
-#include "timer.h"
+#include "timer.hpp"
 namespace LibCC
 {
   class LogScopeMessageTimer

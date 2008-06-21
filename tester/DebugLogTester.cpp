@@ -1,7 +1,7 @@
 
 
 #include "test.h"
-#include "libcc\Log.h"
+#include "libcc\Log.hpp"
 using namespace LibCC;
 
 namespace LibCC

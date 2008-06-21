@@ -92,7 +92,7 @@
 #include <malloc.h>// for alloca()
 #include <math.h>// for fmod()
 
-#include "Blob.h"
+#include "Blob.hpp"
 
 #ifdef WIN32
 # include <windows.h>// for GetLastError() / LoadStrin / FormatMessage...

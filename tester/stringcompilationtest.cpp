@@ -1,7 +1,7 @@
 
 
 #include "test.h"
-#include "libcc\stringutil.h"
+#include "libcc\stringutil.hpp"
 #include <vector>
 using namespace LibCC;
 

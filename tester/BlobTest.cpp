@@ -1,7 +1,7 @@
 
 
 #include "test.h"
-#include "libcc\Blob.h"
+#include "libcc\blob.hpp"
 using namespace LibCC;
 
 

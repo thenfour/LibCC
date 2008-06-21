@@ -32,8 +32,8 @@
 #ifdef WIN32
 
 #include <string>
-#include "StringUtil.h"
-#include "blob.h"
+#include "StringUtil.hpp"
+#include "blob.hpp"
 
 
 #include <windows.h>// for windows types

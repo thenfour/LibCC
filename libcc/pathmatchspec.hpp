@@ -58,8 +58,8 @@
 #include <string>
 #include <vector>
 #include <stack>
-#include "StringUtil.h"
-#include "Winapi.h"
+#include "stringutil.hpp"
+#include "Winapi.hpp"
 
 namespace LibCC
 {

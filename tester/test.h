@@ -5,7 +5,7 @@
 #include <iostream>
 #include <tchar.h>
 #include <list>
-#include "libcc\stringutil.h"
+#include "libcc\stringutil.hpp"
 
 //using namespace LibCC;
 

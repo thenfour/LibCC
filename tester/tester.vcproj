@@ -240,39 +240,39 @@
 			Name="libcc"
 			>
 			<File
-				RelativePath="..\libcc\AllocationTracker.h"
+				RelativePath="..\libcc\allocationtracker.hpp"
 				>
 			</File>
 			<File
-				RelativePath="..\libcc\Blob.h"
+				RelativePath="..\libcc\blob.hpp"
 				>
 			</File>
 			<File
-				RelativePath="..\libcc\Log.h"
+				RelativePath="..\libcc\log.hpp"
 				>
 			</File>
 			<File
-				RelativePath="..\libcc\PathMatchSpec.h"
+				RelativePath="..\libcc\pathmatchspec.hpp"
 				>
 			</File>
 			<File
-				RelativePath="..\libcc\Registry.h"
+				RelativePath="..\libcc\registry.hpp"
 				>
 			</File>
 			<File
-				RelativePath="..\libcc\Result.h"
+				RelativePath="..\libcc\result.hpp"
 				>
 			</File>
 			<File
-				RelativePath="..\libcc\StringUtil.h"
+				RelativePath="..\libcc\stringutil.hpp"
 				>
 			</File>
 			<File
-				RelativePath="..\libcc\Timer.h"
+				RelativePath="..\libcc\timer.hpp"
 				>
 			</File>
 			<File
-				RelativePath="..\libcc\Winapi.h"
+				RelativePath="..\libcc\winapi.hpp"
 				>
 			</File>
 		</Filter>

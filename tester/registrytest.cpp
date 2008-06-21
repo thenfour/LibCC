@@ -1,6 +1,6 @@
 
 #include "test.h"
-#include "libcc\registry.h"
+#include "libcc\registry.hpp"
 using namespace LibCC;
 
 bool RegistryTest()

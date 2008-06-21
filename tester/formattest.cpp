@@ -1,11 +1,11 @@
 
 
 #include "test.h"
-#include "libcc\Log.h"
-#include "libcc\stringutil.h"
+#include "libcc\Log.hpp"
+#include "libcc\stringutil.hpp"
 #include "resource.h"
 using namespace LibCC;
-#include "libcc\AllocationTracker.h"
+#include "libcc\AllocationTracker.hpp"
 
 void FormatTestA(FormatA a)
 {

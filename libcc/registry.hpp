@@ -36,8 +36,8 @@
 
 #ifdef WIN32
 
-#include "blob.h"
-#include "Winapi.h"
+#include "blob.hpp"
+#include "Winapi.hpp"
 #include <vector>
 
 namespace LibCC

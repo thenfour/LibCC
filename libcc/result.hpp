@@ -32,7 +32,7 @@
 #ifdef WIN32
 
 #include <windows.h>
-#include "StringUtil.h"
+#include "StringUtil.hpp"
 
 namespace LibCC
 {
