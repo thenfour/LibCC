@@ -91,9 +91,9 @@ std::wstring GenerateString(UINT codepage)
 	}
 	// convert it to the codepage
 	std::string a;
-	LibCC::ConvertString(ws, a, codepage);
+	LibCC::StringConvert(ws, a, codepage);
 	// convert it back to unicode so it's easy to handle
-	LibCC::ConvertString(a, ws, codepage);
+	LibCC::StringConvert(a, ws, codepage);
 	CPINFOEX cpi;
 	GetCPInfoEx(codepage, 0, &cpi);
 	// extract all non-default chars. yes we will miss 1 character here, but that's ok.
@@ -114,10 +114,11 @@ BOOL CALLBACK EnumCodePagesProc(LPWSTR lpCodePageString)
 	UINT codepage = (UINT)wcstoul(lpCodePageString, 0, 10);
 	std::wstring ws = GenerateString(codepage);
 	TestMessage(LibCC::Format("Testing codepage: %, string length %")(lpCodePageString)((UINT)ws.length()).Str());
-	Blob<BYTE> blob;
-	TestAssert(SUCCEEDED(ConvertString(ws, blob, codepage)));
+	//Blob<BYTE> blob;
+	std::string blob;
+	TestAssert(SUCCEEDED(StringConvert(ws, blob, codepage)));
 	std::wstring w2;
-	TestAssert(SUCCEEDED(ConvertString(blob.GetBuffer(), blob.Size(), w2, codepage)));
+	TestAssert(SUCCEEDED(StringConvert(blob, w2, codepage)));
 	TestAssert(w2 == ws);
 	return TRUE;
 }
@@ -132,7 +133,7 @@ bool StringTest()
 		std::wstring w = L",a,b,,aoeu,";
 		std::wstring bw = L",";
 		std::vector<std::wstring> v;
-		StringSplit(w, bw, std::back_inserter(v));
+		StringSplitByString(w, bw, std::back_inserter(v));
 		TestAssert(v.size() == 6);
 		TestAssert(v[0].empty());
 		TestAssert(v[1] == L"a");
@@ -142,15 +143,15 @@ bool StringTest()
 		TestAssert(v[5].empty());
 
 		v.clear();
-		StringSplit(L",a,b,,aoeu,", bw, std::back_inserter(v));
+		StringSplitByString(L",a,b,,aoeu,", bw, std::back_inserter(v));
 		TestAssert(v.size() == 6);
 
 		v.clear();
-		StringSplit(w, L",", std::back_inserter(v));
+		StringSplitByString(w, L",", std::back_inserter(v));
 		TestAssert(v.size() == 6);
 
 		std::vector<std::string> va;
-		StringSplit("---a---b------", "---", std::back_inserter(va));
+		StringSplitByString("---a---b------", "---", std::back_inserter(va));
 		TestAssert(va.size() == 5);
 		TestAssert(va[0].empty());
 		TestAssert(va[1] == "a");
@@ -166,7 +167,7 @@ bool StringTest()
 		w[5] = 9674;
 		w[10] = 9674;
 		bw[0] = 9674;
-		StringSplit(w, bw, std::back_inserter(v));
+		StringSplitByString(w, bw, std::back_inserter(v));
 		TestAssert(v.size() == 6);
 		TestAssert(v[0].empty());
 		TestAssert(v[1] == L"a");
@@ -177,23 +178,23 @@ bool StringTest()
 		
 		// other random tests
 		v.clear();
-		StringSplit(L"carl", L"a", std::back_inserter(v));
+		StringSplitByString(L"carl", L"a", std::back_inserter(v));
 		TestAssert(v.size() == 2);
 		TestAssert(v[0] == L"c");
 		TestAssert(v[1] == L"rl");
 		
 		// other random tests
 		v.clear();
-		StringSplit(L"", L"", std::back_inserter(v));
+		StringSplitByString(L"", L"", std::back_inserter(v));
 		TestAssert(v.size() == 0);
 		v.clear();
-		StringSplit(L"", L"aoeu", std::back_inserter(v));
+		StringSplitByString(L"", L"aoeu", std::back_inserter(v));
 		TestAssert(v.size() == 0);
 		v.clear();
-		StringSplit(L"12345", L"", std::back_inserter(v));
+		StringSplitByString(L"12345", L"", std::back_inserter(v));
 		TestAssert(v.size() == 1);
 		v.clear();
-		StringSplit(L"12345", L"aoeu", std::back_inserter(v));
+		StringSplitByString(L"12345", L"aoeu", std::back_inserter(v));
 		TestAssert(v.size() == 1);
 	}
 
@@ -315,12 +316,12 @@ bool StringTest()
 		std::string srcA = "ABCDE123!@#abcdefghijklm˙·ÈÛÔ";
 		std::wstring srcW = L"ABCDE123!@#abcdefghijklm˙·ÈÛÔ";
 		std::basic_string<DWORD> srcX;
-		ConvertString(srcW, srcX);
+		StringConvert(srcW, srcX);
 		
 		std::string correctA = "ABCDE123!@#ABCDEFGHIJKLM⁄¡…”œ";
 		std::wstring correctW = L"ABCDE123!@#ABCDEFGHIJKLM⁄¡…”œ";
 		std::basic_string<DWORD> correctX;
-		ConvertString(correctW, correctX);
+		StringConvert(correctW, correctX);
 		
 		a1 = StringToUpper("ABCDE123!@#abcdefghijklm˙·ÈÛÔ");
 		TestAssert(a1 == correctA);
@@ -346,12 +347,12 @@ bool StringTest()
 		std::string srcA = "aeousnt234@#$//¡»‘œÁAEXL>I<TTT";
 		std::wstring srcW = L"aeousnt234@#$//¡»‘œÁAEXL>I<TTT";
 		std::basic_string<DWORD> srcX;
-		ConvertString(srcW, srcX);
+		StringConvert(srcW, srcX);
 		
 		std::string correctA = "aeousnt234@#$//·ËÙÔÁaexl>i<ttt";
 		std::wstring correctW = L"aeousnt234@#$//·ËÙÔÁaexl>i<ttt";
 		std::basic_string<DWORD> correctX;
-		ConvertString(correctW, correctX);
+		StringConvert(correctW, correctX);
 		
 		a1 = StringToLower("aeousnt234@#$//¡»‘œÁAEXL>I<TTT");
 		TestAssert(a1 == correctA);
@@ -373,6 +374,7 @@ bool StringTest()
 	{ // StringEquals
 		std::string a1, a2;
 		std::wstring w1, w2;
+		std::basic_string<int> x1, x2;
 
 		a1 = "aoeu";
 		a2 = "AOEU";
@@ -419,70 +421,70 @@ bool StringTest()
 		TestAssert(StringEquals(L"HI THERE", L"HI THERE"));
 	}
 	
-	{ // XStringEquals
+	{ // StringEquals
 		std::string a1;
 		std::wstring w1;
 		
 		a1 = "aoeu";
-		TestAssert(!XStringEquals(a1, "AOEU"));
+		TestAssert(!StringEquals(a1, "AOEU"));
 
 		a1 = "aoeu";
-		TestAssert(!XStringEquals(a1, "AOEUx"));
+		TestAssert(!StringEquals(a1, "AOEUx"));
 
 		w1 = L"aoeu";
-		TestAssert(XStringEquals(w1, "aoeu"));
+		TestAssert(StringEquals(w1, "aoeu"));
 
 		w1 = L"aoeu";
-		TestAssert(!XStringEquals(w1, "aoeux"));
+		TestAssert(!StringEquals(w1, "aoeux"));
 
 		w1 = L"aoeu";
-		TestAssert(!XStringEquals(w1, ""));
+		TestAssert(!StringEquals(w1, ""));
 
 		w1 = L"";
-		TestAssert(XStringEquals(w1, ""));
+		TestAssert(StringEquals(w1, ""));
 
 		a1 = "";
-		TestAssert(!XStringEquals(a1, "a"));
+		TestAssert(!StringEquals(a1, "a"));
 	}
 	
 	{ // XStringContains
-		TestAssert(XStringContains("aoeu", L'a'));
-		TestAssert(!XStringContains("aoeu", L'x'));
-		TestAssert(!XStringContains("aoeU", L'u'));
-		TestAssert(XStringContains("aoeU", L'U'));
-		TestAssert(!XStringContains("", L'a'));
-		TestAssert(!XStringContains("aoeu", (char)0));
-		TestAssert(!XStringContains("aoeu", (DWORD)0));
-		TestAssert(!XStringContains("", (DWORD)0));
+		TestAssert(StringContains("aoeu", L'a'));
+		TestAssert(!StringContains("aoeu", L'x'));
+		TestAssert(!StringContains("aoeU", L'u'));
+		TestAssert(StringContains("aoeU", L'U'));
+		TestAssert(!StringContains("", L'a'));
+		TestAssert(!StringContains("aoeu", (char)0));
+		TestAssert(!StringContains("aoeu", (DWORD)0));
+		TestAssert(!StringContains("", (DWORD)0));
 	}
 	
 	{ // XStringFindFirstOf
 		std::string a1 = "1aoeu555555aoeu57";
 		std::wstring w1 = L"1aoeu555555aoeu57";
-		TestAssert(1 == XStringFindFirstOf(a1, "ueoa"));
-		TestAssert(std::string::npos == XStringFindFirstOf(a1, "9342999"));
-		TestAssert(5 == XStringFindFirstOf(a1, "5"));
-		TestAssert(16 == XStringFindFirstOf(a1, "7"));
-		TestAssert(16 == XStringFindFirstOf(w1, "7"));
-		TestAssert(std::string::npos == XStringFindFirstOf(a1, ""));
+		TestAssert(1 == StringFindFirstOf(a1, "ueoa"));
+		TestAssert(std::string::npos == StringFindFirstOf(a1, "9342999"));
+		TestAssert(5 == StringFindFirstOf(a1, "5"));
+		TestAssert(16 == StringFindFirstOf(a1, "7"));
+		TestAssert(16 == StringFindFirstOf(w1, "7"));
+		TestAssert(std::string::npos == StringFindFirstOf(a1, ""));
 		a1.clear();
-		TestAssert(std::string::npos == XStringFindFirstOf(a1, "a"));
-		TestAssert(std::string::npos == XStringFindFirstOf(a1, ""));
+		TestAssert(std::string::npos == StringFindFirstOf(a1, "a"));
+		TestAssert(std::string::npos == StringFindFirstOf(a1, ""));
 	}
 	
 	{ // XStringFindLastOf
 		std::string a1 = "1aoeu555555aoeu57";
 		std::wstring w1 = L"1aoeu555555aoeu57";
-		TestAssert(14 == XStringFindLastOf(a1, "ueoa"));
-		TestAssert(std::string::npos == XStringFindLastOf(a1, "9342999"));
-		TestAssert(15 == XStringFindLastOf(a1, "5"));
-		TestAssert(16 == XStringFindLastOf(a1, "7"));
-		TestAssert(16 == XStringFindLastOf(w1, "7"));
-		TestAssert(0 == XStringFindLastOf(w1, "1"));
-		TestAssert(std::string::npos == XStringFindLastOf(a1, ""));
+		TestAssert(14 == StringFindLastOf(a1, "ueoa"));
+		TestAssert(std::string::npos == StringFindLastOf(a1, "9342999"));
+		TestAssert(15 == StringFindLastOf(a1, "5"));
+		TestAssert(16 == StringFindLastOf(a1, "7"));
+		TestAssert(16 == StringFindLastOf(w1, "7"));
+		TestAssert(0 == StringFindLastOf(w1, "1"));
+		TestAssert(std::string::npos == StringFindLastOf(a1, ""));
 		a1.clear();
-		TestAssert(std::string::npos == XStringFindLastOf(a1, "a"));
-		TestAssert(std::string::npos == XStringFindLastOf(a1, ""));
+		TestAssert(std::string::npos == StringFindLastOf(a1, "a"));
+		TestAssert(std::string::npos == StringFindLastOf(a1, ""));
 	}
 
 	{// StringConvert
@@ -516,372 +518,372 @@ bool StringTest()
 
 
 		// WCHAR -> BLOB
-		TestAssert(SUCCEEDED(ConvertString(L"hi there", b, 1252)));
-		TestAssert(b.Size() == 8);// it should not null-terminate.
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert(L"hi there", b, 1252)));
+		//TestAssert(b.Size() == 8);// it should not null-terminate.
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		TestAssert(SUCCEEDED(ConvertString(L"hi there", b)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert(L"hi there", b)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		w = L"hi there";
-		TestAssert(SUCCEEDED(ConvertString(w, b, 1252)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//w = L"hi there";
+		//TestAssert(SUCCEEDED(StringConvert(w, b, 1252)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		TestAssert(SUCCEEDED(ConvertString(w, b)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert(w, b)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
 		// WCHAR -> char
-		TestAssert(SUCCEEDED(ConvertString(L"hi there", a, 1252)));
+		TestAssert(SUCCEEDED(StringConvert(L"hi there", a, 1252)));
 		TestAssert(a == "hi there");
 
-		TestAssert(SUCCEEDED(ConvertString(L"hi there", a)));
+		TestAssert(SUCCEEDED(StringConvert(L"hi there", a)));
 		TestAssert(a == "hi there");
 
 		w = L"hi there";
-		TestAssert(SUCCEEDED(ConvertString(w, a, 1252)));
+		TestAssert(SUCCEEDED(StringConvert(w, a, 1252)));
 		TestAssert(a == "hi there");
 
-		TestAssert(SUCCEEDED(ConvertString(w, a)));
+		TestAssert(SUCCEEDED(StringConvert(w, a)));
 		TestAssert(a == "hi there");
 
 		// WCHAR -> WCHAR
-		TestAssert(SUCCEEDED(ConvertString(L"hi there", w2, 1252)));
+		TestAssert(SUCCEEDED(StringConvert(L"hi there", w2, 1252)));
 		TestAssert(w2 == L"hi there");
 
-		TestAssert(SUCCEEDED(ConvertString(L"hi there", w2)));
+		TestAssert(SUCCEEDED(StringConvert(L"hi there", w2)));
 		TestAssert(w2 == L"hi there");
 
 		w = L"hi there";
-		TestAssert(SUCCEEDED(ConvertString(w, w2, 1252)));
+		TestAssert(SUCCEEDED(StringConvert(w, w2, 1252)));
 		TestAssert(w2 == L"hi there");
 
-		TestAssert(SUCCEEDED(ConvertString(w, w2)));
+		TestAssert(SUCCEEDED(StringConvert(w, w2)));
 		TestAssert(w2 == L"hi there");
 
 		// WCHAR -> Xchar
-		TestAssert(SUCCEEDED(ConvertString(L"hi there", x, 1252)));
-		TestAssert(XStringEquals(x, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(L"hi there", x, 1252)));
+		TestAssert(StringEquals(x, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString(L"hi there", x)));
-		TestAssert(XStringEquals(x, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(L"hi there", x)));
+		TestAssert(StringEquals(x, "hi there"));
 
 		w = L"hi there";
-		TestAssert(SUCCEEDED(ConvertString(w, x, 1252)));
-		TestAssert(XStringEquals(x, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(w, x, 1252)));
+		TestAssert(StringEquals(x, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString(w, x)));
-		TestAssert(XStringEquals(x, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(w, x)));
+		TestAssert(StringEquals(x, "hi there"));
 
 		// char -> Blob
-		TestAssert(SUCCEEDED(ConvertString("hi there", b, 1252, 1250)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert("hi there", b, 1252, 1250)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		TestAssert(SUCCEEDED(ConvertString("hi there", b, 1252, 1251)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert("hi there", b, 1252, 1251)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		TestAssert(SUCCEEDED(ConvertString("hi there", b, 1252)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert("hi there", b, 1252)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		TestAssert(SUCCEEDED(ConvertString("hi there", b)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert("hi there", b)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		a = "hi there";
-		TestAssert(SUCCEEDED(ConvertString(a, b, 1252, 1250)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//a = "hi there";
+		//TestAssert(SUCCEEDED(StringConvert(a, b, 1252, 1250)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		TestAssert(SUCCEEDED(ConvertString(a, b, 1252, 1251)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert(a, b, 1252, 1251)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		TestAssert(SUCCEEDED(ConvertString(a, b, 1252)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert(a, b, 1252)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		TestAssert(SUCCEEDED(ConvertString(a, b)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert(a, b)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
 		// char -> char
-		TestAssert(SUCCEEDED(ConvertString("hi there", a2, 1252)));
-		TestAssert(XStringEquals(a2, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert("hi there", a2, 1252)));
+		TestAssert(StringEquals(a2, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString("hi there", a2)));
-		TestAssert(XStringEquals(a2, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert("hi there", a2)));
+		TestAssert(StringEquals(a2, "hi there"));
 
 		a = "hi there";
-		TestAssert(SUCCEEDED(ConvertString(a, a2, 1252)));
-		TestAssert(XStringEquals(a2, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(a, a2, 1252)));
+		TestAssert(StringEquals(a2, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString(a, a2)));
-		TestAssert(XStringEquals(a2, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(a, a2)));
+		TestAssert(StringEquals(a2, "hi there"));
 
 		// char -> wchar
-		TestAssert(SUCCEEDED(ConvertString("hi there", w, 1252)));
-		TestAssert(XStringEquals(w, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert("hi there", w, 1252)));
+		TestAssert(StringEquals(w, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString("hi there", w)));
-		TestAssert(XStringEquals(w, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert("hi there", w)));
+		TestAssert(StringEquals(w, "hi there"));
 
 		a = "hi there";
-		TestAssert(SUCCEEDED(ConvertString(a, w, 1252)));
-		TestAssert(XStringEquals(w, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(a, w, 1252)));
+		TestAssert(StringEquals(w, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString(a, w)));
-		TestAssert(XStringEquals(w, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(a, w)));
+		TestAssert(StringEquals(w, "hi there"));
 
 		// char -> xchar
-		TestAssert(SUCCEEDED(ConvertString("hi there", x, 1252)));
-		TestAssert(XStringEquals(x, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert("hi there", x, 1252)));
+		TestAssert(StringEquals(x, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString("hi there", x)));
-		TestAssert(XStringEquals(x, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert("hi there", x)));
+		TestAssert(StringEquals(x, "hi there"));
 
 		a = "hi there";
-		TestAssert(SUCCEEDED(ConvertString(a, x, 1252)));
-		TestAssert(XStringEquals(x, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(a, x, 1252)));
+		TestAssert(StringEquals(x, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString(a, x)));
-		TestAssert(XStringEquals(x, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(a, x)));
+		TestAssert(StringEquals(x, "hi there"));
 
-		// xchar -> blob
+		//// xchar -> blob
 		DWORD px[10];
-		XLastDitchStringCopy("hi there", px);
-		TestAssert(SUCCEEDED(ConvertString(px, b, 1252)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//XLastDitchStringCopy("hi there", px);
+		//TestAssert(SUCCEEDED(StringConvert(px, b, 1252)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		TestAssert(SUCCEEDED(ConvertString(px, b)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert(px, b)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		XLastDitchStringCopy("hi there", x);
-		TestAssert(SUCCEEDED(ConvertString(x, b, 1252)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//XLastDitchStringCopy("hi there", x);
+		//TestAssert(SUCCEEDED(StringConvert(x, b, 1252)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		TestAssert(SUCCEEDED(ConvertString(x, b)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert(x, b)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
 		// xchar -> char
 		XLastDitchStringCopy("hi there", px);
-		TestAssert(SUCCEEDED(ConvertString(px, a, 1252)));
-		TestAssert(XStringEquals(a, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(px, a, 1252)));
+		TestAssert(StringEquals(a, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString(px, a)));
-		TestAssert(XStringEquals(a, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(px, a)));
+		TestAssert(StringEquals(a, "hi there"));
 
 		XLastDitchStringCopy("hi there", x);
-		TestAssert(SUCCEEDED(ConvertString(x, a, 1252)));
-		TestAssert(XStringEquals(a, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(x, a, 1252)));
+		TestAssert(StringEquals(a, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString(x, a)));
-		TestAssert(XStringEquals(a, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(x, a)));
+		TestAssert(StringEquals(a, "hi there"));
 
 		// xchar -> wchar
 		XLastDitchStringCopy("hi there", px);
-		TestAssert(SUCCEEDED(ConvertString(px, w, 1252)));
-		TestAssert(XStringEquals(w, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(px, w, 1252)));
+		TestAssert(StringEquals(w, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString(px, w)));
-		TestAssert(XStringEquals(w, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(px, w)));
+		TestAssert(StringEquals(w, "hi there"));
 
 		XLastDitchStringCopy("hi there", x);
-		TestAssert(SUCCEEDED(ConvertString(x, w, 1252)));
-		TestAssert(XStringEquals(w, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(x, w, 1252)));
+		TestAssert(StringEquals(w, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString(x, w)));
-		TestAssert(XStringEquals(w, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(x, w)));
+		TestAssert(StringEquals(w, "hi there"));
 
 		// xchar -> xchar
 		XLastDitchStringCopy("hi there", px);
-		TestAssert(SUCCEEDED(ConvertString(px, x2, 1252)));
-		TestAssert(XStringEquals(x2, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(px, x2, 1252)));
+		TestAssert(StringEquals(x2, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString(px, x2)));
-		TestAssert(XStringEquals(x2, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(px, x2)));
+		TestAssert(StringEquals(x2, "hi there"));
 
 		XLastDitchStringCopy("hi there", x);
-		TestAssert(SUCCEEDED(ConvertString(x, x2, 1252)));
-		TestAssert(XStringEquals(x2, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(x, x2, 1252)));
+		TestAssert(StringEquals(x2, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString(x, x2)));
-		TestAssert(XStringEquals(x2, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(x, x2)));
+		TestAssert(StringEquals(x2, "hi there"));
 
 		// xchar -> ychar
 		std::basic_string<__int64> y;// whoa this is really getting crazy :P
 
 		XLastDitchStringCopy("hi there", px);
-		TestAssert(SUCCEEDED(ConvertString(px, y, 1252)));
-		TestAssert(XStringEquals(y, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(px, y, 1252)));
+		TestAssert(StringEquals(y, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString(px, y)));
-		TestAssert(XStringEquals(y, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(px, y)));
+		TestAssert(StringEquals(y, "hi there"));
 
 		XLastDitchStringCopy("hi there", x);
-		TestAssert(SUCCEEDED(ConvertString(x, y, 1252)));
-		TestAssert(XStringEquals(y, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(x, y, 1252)));
+		TestAssert(StringEquals(y, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString(x, y)));
-		TestAssert(XStringEquals(y, "hi there"));
+		TestAssert(SUCCEEDED(StringConvert(x, y)));
+		TestAssert(StringEquals(y, "hi there"));
 
-		// blob -> Blob
-		ConvertString("hi there", b, 1252);// get a blob of the string.
-		TestAssert(SUCCEEDED(ConvertString(b, b2, 1252, 1251)));
-		TestAssert(b2.Size() == 8);
-		TestAssert(0 == strncmp((char*)b2.GetBuffer(), "hi there", 8));
+		//// blob -> Blob
+		//StringConvert("hi there", b, 1252);// get a blob of the string.
+		//TestAssert(SUCCEEDED(StringConvert(b, b2, 1252, 1251)));
+		//TestAssert(b2.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b2.GetBuffer(), "hi there", 8));
 
-		TestAssert(SUCCEEDED(ConvertString(b, b2)));
-		TestAssert(b2.Size() == 8);
-		TestAssert(0 == strncmp((char*)b2.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert(b, b2)));
+		//TestAssert(b2.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b2.GetBuffer(), "hi there", 8));
 
-		// blob -> char
-		ConvertString("hi there", b, 1252);// get a blob of the string.
-		TestAssert(SUCCEEDED(ConvertString(b, a, 1252)));
-		TestAssert(a == "hi there");
+		//// blob -> char
+		//StringConvert("hi there", b, 1252);// get a blob of the string.
+		//TestAssert(SUCCEEDED(StringConvert(b, a, 1252)));
+		//TestAssert(a == "hi there");
 
-		TestAssert(SUCCEEDED(ConvertString(b, a)));
-		TestAssert(a == "hi there");
+		//TestAssert(SUCCEEDED(StringConvert(b, a)));
+		//TestAssert(a == "hi there");
 
-		// blob -> wchar
-		ConvertString("hi there", b, 1252);// get a blob of the string.
-		TestAssert(SUCCEEDED(ConvertString(b, w, 1252)));
-		TestAssert(w == L"hi there");
+		//// blob -> wchar
+		//StringConvert("hi there", b, 1252);// get a blob of the string.
+		//TestAssert(SUCCEEDED(StringConvert(b, w, 1252)));
+		//TestAssert(w == L"hi there");
 
-		TestAssert(SUCCEEDED(ConvertString(b, w)));
-		TestAssert(w == L"hi there");
+		//TestAssert(SUCCEEDED(StringConvert(b, w)));
+		//TestAssert(w == L"hi there");
 
-		// blob -> xchar
-		ConvertString("hi there", b, 1252);// get a blob of the string.
-		TestAssert(SUCCEEDED(ConvertString(b, x, 1252)));
-		TestAssert(XStringEquals(x, "hi there"));
+		//// blob -> xchar
+		//StringConvert("hi there", b, 1252);// get a blob of the string.
+		//TestAssert(SUCCEEDED(StringConvert(b, x, 1252)));
+		//TestAssert(StringEquals(x, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString(b, x)));
-		TestAssert(XStringEquals(x, "hi there"));
+		//TestAssert(SUCCEEDED(StringConvert(b, x)));
+		//TestAssert(StringEquals(x, "hi there"));
 
 		// BYTE* -> Blob
-		BYTE pb[10];
-		XLastDitchStringCopy("hi there", pb);
-		TestAssert(SUCCEEDED(ConvertString(pb, 8, b, 1252, 1252)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//BYTE pb[10];
+		//XLastDitchStringCopy("hi there", pb);
+		//TestAssert(SUCCEEDED(StringConvert(pb, 8, b, 1252, 1252)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		TestAssert(SUCCEEDED(ConvertString(pb, 8, b, 1252, 1251)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert(pb, 8, b, 1252, 1251)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		TestAssert(SUCCEEDED(ConvertString(pb, 8, b, 1252)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert(pb, 8, b, 1252)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
-		TestAssert(SUCCEEDED(ConvertString(pb, 8, b)));
-		TestAssert(b.Size() == 8);
-		TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
+		//TestAssert(SUCCEEDED(StringConvert(pb, 8, b)));
+		//TestAssert(b.Size() == 8);
+		//TestAssert(0 == strncmp((char*)b.GetBuffer(), "hi there", 8));
 
 		// BYTE* -> char
-		TestAssert(SUCCEEDED(ConvertString(pb, 8, a, 1252, 1252)));
-		TestAssert(a == "hi there");
+		//TestAssert(SUCCEEDED(StringConvert(pb, 8, a, 1252, 1252)));
+		//TestAssert(a == "hi there");
 
-		TestAssert(SUCCEEDED(ConvertString(pb, 8, a, 1252, 1251)));
-		TestAssert(a == "hi there");
+		//TestAssert(SUCCEEDED(StringConvert(pb, 8, a, 1252, 1251)));
+		//TestAssert(a == "hi there");
 
-		TestAssert(SUCCEEDED(ConvertString(pb, 8, a, 1252)));
-		TestAssert(a == "hi there");
+		//TestAssert(SUCCEEDED(StringConvert(pb, 8, a, 1252)));
+		//TestAssert(a == "hi there");
 
-		TestAssert(SUCCEEDED(ConvertString(pb, 8, a)));
-		TestAssert(a == "hi there");
+		//TestAssert(SUCCEEDED(StringConvert(pb, 8, a)));
+		//TestAssert(a == "hi there");
 
-		// BYTE* -> wchar
-		TestAssert(SUCCEEDED(ConvertString(pb, 8, w, 1252)));
-		TestAssert(w == L"hi there");
+		//// BYTE* -> wchar
+		//TestAssert(SUCCEEDED(StringConvert(pb, 8, w, 1252)));
+		//TestAssert(w == L"hi there");
 
-		TestAssert(SUCCEEDED(ConvertString(pb, 8, w)));
-		TestAssert(w == L"hi there");
+		//TestAssert(SUCCEEDED(StringConvert(pb, 8, w)));
+		//TestAssert(w == L"hi there");
 
-		// BYTE* -> xchar
-		TestAssert(SUCCEEDED(ConvertString(pb, 8, x, 1252)));
-		TestAssert(XStringEquals(x, "hi there"));
+		//// BYTE* -> xchar
+		//TestAssert(SUCCEEDED(StringConvert(pb, 8, x, 1252)));
+		//TestAssert(StringEquals(x, "hi there"));
 
-		TestAssert(SUCCEEDED(ConvertString(pb, 8, x)));
-		TestAssert(XStringEquals(x, "hi there"));
+		//TestAssert(SUCCEEDED(StringConvert(pb, 8, x)));
+		//TestAssert(StringEquals(x, "hi there"));
 	}
 
-	{// tounicode
+	{// ToUTF16
 		std::string a = "hi there";
 		std::wstring w = L"hi there";
 		std::basic_string<DWORD> x;
 		DWORD dw[10];
 		XLastDitchStringCopy("hi there", x);
 		XLastDitchStringCopy("hi there", dw);
-		Blob<BYTE> b;
-		ConvertString(L"hi there", b, 1252);
+		//Blob<BYTE> b;
+		//StringConvert(L"hi there", b, 1252);
 
-		TestAssert(ToUnicode("hi there", 1252) == L"hi there");
-		TestAssert(ToUnicode("hi there") == L"hi there");
-		TestAssert(ToUnicode(a, 1252) == L"hi there");
-		TestAssert(ToUnicode(a) == L"hi there");
-		TestAssert(ToUnicode(a.c_str(), 1252) == L"hi there");
-		TestAssert(ToUnicode(a.c_str()) == L"hi there");
+		TestAssert(ToUTF16("hi there", 1252) == L"hi there");
+		TestAssert(ToUTF16("hi there") == L"hi there");
+		TestAssert(ToUTF16(a, 1252) == L"hi there");
+		TestAssert(ToUTF16(a) == L"hi there");
+		TestAssert(ToUTF16(a.c_str(), 1252) == L"hi there");
+		TestAssert(ToUTF16(a.c_str()) == L"hi there");
 
-		TestAssert(ToUnicode(L"hi there", 1252) == L"hi there");
-		TestAssert(ToUnicode(L"hi there") == L"hi there");
-		TestAssert(ToUnicode(w, 1252) == L"hi there");
-		TestAssert(ToUnicode(w) == L"hi there");
-		TestAssert(ToUnicode(w.c_str(), 1252) == L"hi there");
-		TestAssert(ToUnicode(w.c_str()) == L"hi there");
+		TestAssert(ToUTF16(L"hi there", 1252) == L"hi there");
+		TestAssert(ToUTF16(L"hi there") == L"hi there");
+		TestAssert(ToUTF16(w, 1252) == L"hi there");
+		TestAssert(ToUTF16(w) == L"hi there");
+		TestAssert(ToUTF16(w.c_str(), 1252) == L"hi there");
+		TestAssert(ToUTF16(w.c_str()) == L"hi there");
 
-		TestAssert(ToUnicode(dw, 1252) == L"hi there");
-		TestAssert(ToUnicode(dw) == L"hi there");
-		TestAssert(ToUnicode(x, 1252) == L"hi there");
-		TestAssert(ToUnicode(x) == L"hi there");
+		TestAssert(ToUTF16(dw, 1252) == L"hi there");
+		TestAssert(ToUTF16(dw) == L"hi there");
+		TestAssert(ToUTF16(x, 1252) == L"hi there");
+		TestAssert(ToUTF16(x) == L"hi there");
 
-		TestAssert(ToUnicode(b.GetBuffer(), b.Size(), 1252) == L"hi there");
-		TestAssert(ToUnicode(b.GetBuffer(), b.Size()) == L"hi there");
-		TestAssert(ToUnicode(b, 1252) == L"hi there");
-		TestAssert(ToUnicode(b) == L"hi there");
+		//TestAssert(ToUTF16(b.GetBuffer(), b.Size(), 1252) == L"hi there");
+		//TestAssert(ToUTF16(b.GetBuffer(), b.Size()) == L"hi there");
+		//TestAssert(ToUTF16(b, 1252) == L"hi there");
+		//TestAssert(ToUTF16(b) == L"hi there");
 	}
 
-	{// tombcs
+	{// ToANSI
 		std::string a = "hi there";
 		std::wstring w = L"hi there";
 		std::basic_string<DWORD> x;
 		DWORD dw[10];
 		XLastDitchStringCopy("hi there", x);
 		XLastDitchStringCopy("hi there", dw);
-		Blob<BYTE> b;
-		ConvertString(L"hi there", b, 1252);
+		//Blob<BYTE> b;
+		//StringConvert(L"hi there", b, 1252);
 
-		TestAssert(ToMBCS("hi there", 1252) == "hi there");
-		TestAssert(ToMBCS("hi there") == "hi there");
-		TestAssert(ToMBCS(a, 1252) == "hi there");
-		TestAssert(ToMBCS(a) == "hi there");
-		TestAssert(ToMBCS(a.c_str(), 1252) == "hi there");
-		TestAssert(ToMBCS(a.c_str()) == "hi there");
+		TestAssert(ToANSI("hi there", 1252) == "hi there");
+		TestAssert(ToANSI("hi there") == "hi there");
+		TestAssert(ToANSI(a, 1252) == "hi there");
+		TestAssert(ToANSI(a) == "hi there");
+		TestAssert(ToANSI(a.c_str(), 1252) == "hi there");
+		TestAssert(ToANSI(a.c_str()) == "hi there");
 
-		TestAssert(ToMBCS(L"hi there", 1252) == "hi there");
-		TestAssert(ToMBCS(L"hi there") == "hi there");
-		TestAssert(ToMBCS(w, 1252) == "hi there");
-		TestAssert(ToMBCS(w) == "hi there");
-		TestAssert(ToMBCS(w.c_str(), 1252) == "hi there");
-		TestAssert(ToMBCS(w.c_str()) == "hi there");
+		TestAssert(ToANSI(L"hi there", 1252) == "hi there");
+		TestAssert(ToANSI(L"hi there") == "hi there");
+		TestAssert(ToANSI(w, 1252) == "hi there");
+		TestAssert(ToANSI(w) == "hi there");
+		TestAssert(ToANSI(w.c_str(), 1252) == "hi there");
+		TestAssert(ToANSI(w.c_str()) == "hi there");
 
-		TestAssert(ToMBCS(dw, 1252) == "hi there");
-		TestAssert(ToMBCS(dw) == "hi there");
-		TestAssert(ToMBCS(x, 1252) == "hi there");
-		TestAssert(ToMBCS(x) == "hi there");
+		TestAssert(ToANSI(dw, 1252) == "hi there");
+		TestAssert(ToANSI(dw) == "hi there");
+		TestAssert(ToANSI(x, 1252) == "hi there");
+		TestAssert(ToANSI(x) == "hi there");
 
-		TestAssert(ToMBCS(b.GetBuffer(), b.Size(), 1252) == "hi there");
-		TestAssert(ToMBCS(b.GetBuffer(), b.Size()) == "hi there");
-		TestAssert(ToMBCS(b, 1252) == "hi there");
-		TestAssert(ToMBCS(b) == "hi there");
+		//TestAssert(ToANSI(b.GetBuffer(), b.Size(), 1252) == "hi there");
+		//TestAssert(ToANSI(b.GetBuffer(), b.Size()) == "hi there");
+		//TestAssert(ToANSI(b, 1252) == "hi there");
+		//TestAssert(ToANSI(b) == "hi there");
 	}
 
 	{// toutf8
@@ -891,8 +893,8 @@ bool StringTest()
 		DWORD dw[10];
 		XLastDitchStringCopy("hi there", x);
 		XLastDitchStringCopy("hi there", dw);
-		Blob<BYTE> b;
-		ConvertString(L"hi there", b, 1252);
+		//Blob<BYTE> b;
+		//StringConvert(L"hi there", b, 1252);
 
 		TestAssert(ToUTF8("hi there") == "hi there");
 		TestAssert(ToUTF8(a) == "hi there");
@@ -905,8 +907,8 @@ bool StringTest()
 		TestAssert(ToUTF8(dw) == "hi there");
 		TestAssert(ToUTF8(x) == "hi there");
 
-		TestAssert(ToUTF8(b.GetBuffer(), b.Size()) == "hi there");
-		TestAssert(ToUTF8(b) == "hi there");
+		//TestAssert(ToUTF8(b.GetBuffer(), b.Size()) == "hi there");
+		//TestAssert(ToUTF8(b) == "hi there");
 	}
 
 	{// ToUTF8() (with HRESULT return val)
@@ -917,7 +919,7 @@ bool StringTest()
 		w = L"aoeu";
 		w[0] = 9674;
 		std::wstring w2 = w;// make a copy for comparing later
-		TestAssert(SUCCEEDED(ToUTF8(w, a2)));
+		a2 = ToUTF8(w);
 		// now that string in UTF8 is E2 97 8A 6F 65 75 (verified with Uedit32)
 		TestAssert(a2.length() == 6);
 		TestAssert((BYTE)a2[0] == 0xe2);
@@ -929,14 +931,14 @@ bool StringTest()
 
 		// convert back to unicode
 		w = L"12312312";// clean the palette
-		TestAssert(SUCCEEDED(ConvertString(a2, w, CP_UTF8)));
+		TestAssert(SUCCEEDED(StringConvert(a2, w, CP_UTF8)));
 		TestAssert(w2 == w);
 
 		// test other compile scenarios
-		ToUTF8(a, a);
-		ToUTF8("aoeu", a);
-		ToUTF8(w, a);
-		ToUTF8(L"aoeu", a);
+		//ToUTF8(a, a);
+		//ToUTF8("aoeu", a);
+		//ToUTF8(w, a);
+		//ToUTF8(L"aoeu", a);
 	}
 
   return true;

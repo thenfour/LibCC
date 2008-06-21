@@ -128,12 +128,12 @@ namespace LibCC
     ResultX(HRESULT hr, const Char* text) :
       m_hr(hr)
     {
-			ConvertString(text, m_String);
+			StringConvert(text, m_String);
     }
     ResultX(HRESULT hr, const String& text) :
       m_hr(hr)
     {
-			ConvertString(text, m_String);
+			StringConvert(text, m_String);
     }
 
     // --------------------------------- Assignment

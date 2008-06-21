@@ -69,7 +69,7 @@ inline void TestMessage(const std::basic_string<Char>& msg)
 {
   std::wstring indent(L"  ", g_runningTests.size());
 	std::wstring msgW;
-	LibCC::ConvertString(msg, msgW);
+	LibCC::StringConvert(msg, msgW);
 
 	std::wcout << indent.c_str() << msgW << std::endl;
   OutputDebugStringW(indent.c_str());

@@ -214,6 +214,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\stringcompilationtest.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\stringtest.cpp"
 				>
 			</File>

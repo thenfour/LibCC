@@ -70,7 +70,7 @@ namespace LibCC
   inline LONG RegCreateKeyExX(HKEY hKey, const Char* szSubKey, DWORD dwOptions, REGSAM Sam, PHKEY pResult, DWORD* pdwDisposition)
   {
     std::wstring buf;
-		ConvertString(szSubKey, buf);
+		StringConvert(szSubKey, buf);
     return RegCreateKeyExW(hKey, buf.c_str(), 0, 0, dwOptions, Sam, 0, pResult, pdwDisposition);
   }
 
@@ -83,7 +83,7 @@ namespace LibCC
   template<typename Char>
   inline LONG RegOpenKeyExX(HKEY hKey, const Char* szSubKey, DWORD dwOptions, REGSAM Sam, PHKEY pResult)
   {
-    std::wstring buf = ToUnicode(szSubKey);
+    std::wstring buf = ToUTF16(szSubKey);
     return RegOpenKeyExW(hKey, buf.c_str(), dwOptions, Sam, pResult);
   }
 
@@ -101,7 +101,7 @@ namespace LibCC
   template<typename Char>
   inline LONG RegDeleteValueX(HKEY hKey, const Char* lpValueName)
   {
-    std::wstring buf = ToUnicode(lpValueName);
+    std::wstring buf = ToUTF16(lpValueName);
     return RegDeleteValueW(hKey, buf.c_str());
   }
 
@@ -110,10 +110,10 @@ namespace LibCC
   inline LONG RegSetValueExStringX( HKEY hKey, const Char* lpValueName, DWORD Reserved, DWORD dwType, const Char* strX)
   {
     std::wstring valueName;
-		std::wstring strW = ToUnicode(strX);
+		std::wstring strW = ToUTF16(strX);
     if(lpValueName)
     {
-      ConvertString(lpValueName, valueName);
+      StringConvert(lpValueName, valueName);
     }
     return RegSetValueExW(hKey, lpValueName ? valueName.c_str() : 0, Reserved, REG_SZ, (const BYTE*)(strW.c_str()), (DWORD)(strW.size() + 1) * sizeof(wchar_t));
   }
@@ -132,7 +132,7 @@ namespace LibCC
     std::wstring valueName;
     if(lpValueName)
     {
-			valueName = ToUnicode(lpValueName);
+			valueName = ToUTF16(lpValueName);
     }
     return RegSetValueExX(hKey, lpValueName ? valueName.c_str() : 0, dwType, lpData, cbData);
   }
@@ -166,12 +166,12 @@ namespace LibCC
     std::wstring strW;
     if(lpValueName)
     {
-      ConvertString(lpValueName, valueName);
+      StringConvert(lpValueName, valueName);
     }
     LONG r;
     if(ERROR_SUCCESS == (r = RegQueryValueExStringX(hKey, lpValueName ? valueName.c_str() : 0, Reserved, REG_SZ, strW)))
     {
-      ConvertString(strW, strX);
+      StringConvert(strW, strX);
     }
     return r;
   }
@@ -187,7 +187,7 @@ namespace LibCC
     if(szValueName)
     {
       std::wstring strW;
-      ConvertString(szValueName, valueName);
+      StringConvert(szValueName, valueName);
     }
     return RegQueryValueExX(hKey, szValueName ? valueName.c_str() : 0, type, data, cbData);
   }
@@ -253,7 +253,7 @@ namespace LibCC
   {
     std::wstring outNameW;
     LONG ret = RegEnumKeyExX(hKey, dwIndex, outNameW, maxNameSize);
-		ConvertString(outNameW, outName);
+		StringConvert(outNameW, outName);
     return ret;
   }
   template<typename Char>
@@ -262,7 +262,7 @@ namespace LibCC
     std::wstring outNameW;
     DWORD maxNameSize = 0;
     LONG ret = RegEnumKeyExX(hKey, dwIndex, outNameW, maxNameSize);
-		ConvertString(outNameW, outName);
+		StringConvert(outNameW, outName);
     return ret;
   }
 
@@ -283,7 +283,7 @@ namespace LibCC
       if(path.length() >= 3)
       {
           std::basic_string<Char> sSearch = path.substr(1, 2);
-          if(XStringEquals(sSearch, ":/") || XStringEquals(sSearch, ":\\"))
+          if(StringEquals(sSearch, ":/") || StringEquals(sSearch, ":\\"))
           {
               r = true;
           }
@@ -295,7 +295,7 @@ namespace LibCC
   std::basic_string<Char> PathRemoveFilename(const std::basic_string<Char>& path)
   {
       std::basic_string<Char>::size_type nLastSlash = 0;
-      nLastSlash = XStringFindLastOf(path, "\\/");
+      nLastSlash = StringFindLastOf(path, "\\/");
       if(nLastSlash == std::string::npos) return path;
 
       return path.substr(0, nLastSlash);
@@ -430,11 +430,11 @@ namespace LibCC
 	inline std::basic_string<Char> PathAppendX(IN const std::basic_string<Char>& lhs, const std::basic_string<Char>& rhs)
   {
 		std::basic_string<wchar_t> lhsW, rhsW, retW;
-		ConvertString<Char, wchar_t>(lhs, lhsW);
-		ConvertString<Char, wchar_t>(rhs, rhsW);
+		StringConvert<Char, wchar_t>(lhs, lhsW);
+		StringConvert<Char, wchar_t>(rhs, rhsW);
 		retW = PathAppendX(lhsW, rhsW);
 		std::basic_string<Char> ret;
-		ConvertString<wchar_t, Char>(retW, ret);
+		StringConvert<wchar_t, Char>(retW, ret);
 		return ret;
   }
 
@@ -591,14 +591,14 @@ namespace LibCC
 	inline void StdOutPrint(const std::string& s)
 	{
 		DWORD bw;
-		WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), s.c_str(), s.size(), &bw, 0);
+		WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), s.c_str(), (DWORD)s.size(), &bw, 0);
 	}
 
 	template<typename Char>
 	inline void StdOutPrint(const std::basic_string<Char>& s)
 	{
 		std::string A;
-		LibCC::ConvertString(s, A);
+		LibCC::StringConvert(s, A);
 		StdOutPrint(A);
 	}
 }

@@ -56,7 +56,7 @@ namespace LibCC
     typedef std::basic_string<Char> String;
     HKEY r = 0;
     String sKey;
-    String::size_type nSep = XStringFindFirstOf(s, "\\/");
+    String::size_type nSep = StringFindFirstOf(s, "\\/");
     if(nSep == String::npos)
     {
         // no separator... maybe the whole thing is the hive name
@@ -71,19 +71,19 @@ namespace LibCC
 
     sKey = StringToLower(sKey);
 
-    if(XStringEquals(sKey, "hklm") || XStringEquals(sKey, "hkey_local_machine"))
+    if(StringEquals(sKey, "hklm") || StringEquals(sKey, "hkey_local_machine"))
     {
         r = HKEY_LOCAL_MACHINE;
     }
-    else if(XStringEquals(sKey, "hkcu") || XStringEquals(sKey, "hkey_current_user"))
+    else if(StringEquals(sKey, "hkcu") || StringEquals(sKey, "hkey_current_user"))
     {
         r = HKEY_CURRENT_USER;
     }
-    else if(XStringEquals(sKey, "hkcr") || XStringEquals(sKey, "hkey_classes_root"))
+    else if(StringEquals(sKey, "hkcr") || StringEquals(sKey, "hkey_classes_root"))
     {
         r = HKEY_CLASSES_ROOT;
     }
-    else if(XStringEquals(sKey, "hku") || XStringEquals(sKey, "hkey_users"))
+    else if(StringEquals(sKey, "hku") || StringEquals(sKey, "hkey_users"))
     {
         r = HKEY_CLASSES_ROOT;
     }

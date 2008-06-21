@@ -5,6 +5,7 @@
 using namespace LibCC;
 
 #include <sstream>
+#pragma warning(disable:4996)// warning C4996: 'wcscpy' was declared deprecated  -- uh, i know how to use this function just fine, thanks.
 
 
 bool FormatBenchmark()
@@ -19,7 +20,7 @@ bool FormatBenchmark()
   t.Tick();
   for(int n = 0; n < MaxNum; n ++)
   {
-    DoNotOptimize(itoa(n, crap, 16));
+    DoNotOptimize(_itoa(n, crap, 16));
   }
   t.Tick();
   std::cout << "itoa    : " << t.GetLastDelta() << std::endl;

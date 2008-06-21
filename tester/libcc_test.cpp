@@ -12,7 +12,7 @@ extern bool FormatBenchmark();
 extern void LogTest();
 extern bool BlobTest();
 extern bool AllocationTrackerTest();
-
+extern bool StringCompilationTest();
 
 LONG WINAPI CCUnhandledExceptionFilter(_EXCEPTION_POINTERS* ExceptionInfo)
 {
@@ -66,14 +66,15 @@ bool RunTest__(Fn f, const char* sz)
 void TestCollection()
 {
 	//RunTest(BlobTest);
-	//RunTest(LogTest);
-	RunTest(AllocationTrackerTest);
+	RunTest(LogTest);
+	//RunTest(AllocationTrackerTest);
 	RunTest(FormatTest);
-  RunTest(FormatBenchmark);
+  //RunTest(FormatBenchmark);
 	//RunTest(RegistryTest); // careful with this of course.
-  //RunTest(StatusTest);
+  RunTest(StatusTest);
   //RunTest(PathMatchSpecTest);
-  //RunTest(StringTest);
+  RunTest(StringTest);
+	RunTest(StringCompilationTest);
 }
 
 int _tmain(int argc, _TCHAR* argv[])

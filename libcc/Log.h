@@ -150,7 +150,7 @@ namespace LibCC
 			m_writeHeader = writeHeader;
 			if(EnabledAtAll())
 			{			
-				ConvertString(fileName, m_fileName);
+				StringConvert(fileName, m_fileName);
 				m_hInstance = hInstance;
 				m_hInitialized = CreateEvent(0, FALSE, FALSE, 0);
 				m_hThread = (HANDLE)_beginthread(Log::ThreadProc, 0, this);
@@ -207,7 +207,7 @@ namespace LibCC
 		{
 			if(EnabledAtAll())
 			{
-				return SendMessageW(m_hMain, WM_GetIndentLevel, 0, GetCurrentThreadId());
+				return (int)SendMessageW(m_hMain, WM_GetIndentLevel, 0, GetCurrentThreadId());
 			}
 			return 0;
 		}
@@ -229,8 +229,8 @@ namespace LibCC
 			{
 				MessageInfo* pNew = new MessageInfo();
 				GetLocalTime(&pNew->localTime);
-				ConvertString(s1, pNew->s1);
-				ConvertString(s2, pNew->s2);
+				StringConvert(s1, pNew->s1);
+				StringConvert(s2, pNew->s2);
 				pNew->threadID = GetCurrentThreadId();
 
 				SendMessage(m_hMain, WM_LogMessage, 0, reinterpret_cast<LPARAM>(pNew));// doesnt return until it's done.
@@ -244,8 +244,8 @@ namespace LibCC
 			{
 				_String s1;
 				_String s2;
-				ConvertString(x, s1);
-				ConvertString(y, s2);
+				StringConvert(x, s1);
+				StringConvert(y, s2);
 				Message(s1, s2);
 			}
     }
@@ -457,7 +457,7 @@ namespace LibCC
 							else
 							{
 								std::string a;
-								ConvertString(file, a);
+								StringConvert(file, a);
 								WriteFile(h, a.c_str(), (DWORD)a.size(), &br, 0);
 							}
 							CloseHandle(h);
