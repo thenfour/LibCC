@@ -5,6 +5,8 @@
   Documentation: http://wiki.winprog.org/wiki/LibCC
 	Official source code: http://svn.winprog.org/personal/carl/LibCC
 
+	Original version: Nov 15, 2004
+
 	== License:
 
   All software on this site is provided 'as-is', without any express or
