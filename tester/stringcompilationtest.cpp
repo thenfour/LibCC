@@ -12,46 +12,47 @@ bool StringCompilationTest()
 		std::wstring w1, w2;
 		std::basic_string<int> x1, x2;
 
-		// just test that shit compiles without ambiguities and stuff
-		//StringEquals(a1.c_str(), a1.c_str());
-		//StringEquals(a1.c_str(), w1.c_str());
-		//StringEquals(a1.c_str(), x1.c_str());
-		//StringEquals(w1.c_str(), a1.c_str());
-		//StringEquals(w1.c_str(), w1.c_str());
-		//StringEquals(w1.c_str(), x1.c_str());
-		//StringEquals(x1.c_str(), a1.c_str());
-		//StringEquals(x1.c_str(), w1.c_str());
-		//StringEquals(x1.c_str(), x1.c_str());
+		// just test that shit compiles without ambiguities and warnings
 
-		//StringEquals(a1.c_str(), a1);
-		//StringEquals(a1.c_str(), w1);
-		//StringEquals(a1.c_str(), x1);
-		//StringEquals(w1.c_str(), a1);
-		//StringEquals(w1.c_str(), w1);
-		//StringEquals(w1.c_str(), x1);
-		//StringEquals(x1.c_str(), a1);
-		//StringEquals(x1.c_str(), w1);
-		//StringEquals(x1.c_str(), x1);
+		StringEquals(a1.c_str(), a1.c_str());
+		StringEquals(a1.c_str(), w1.c_str());
+		StringEquals(a1.c_str(), x1.c_str());
+		StringEquals(w1.c_str(), a1.c_str());
+		StringEquals(w1.c_str(), w1.c_str());
+		StringEquals(w1.c_str(), x1.c_str());
+		StringEquals(x1.c_str(), a1.c_str());
+		StringEquals(x1.c_str(), w1.c_str());
+		StringEquals(x1.c_str(), x1.c_str());
 
-		//StringEquals(a1, a1.c_str());
-		//StringEquals(a1, w1.c_str());
-		//StringEquals(a1, x1.c_str());
-		//StringEquals(w1, a1.c_str());
-		//StringEquals(w1, w1.c_str());
-		//StringEquals(w1, x1.c_str());
-		//StringEquals(x1, a1.c_str());
-		//StringEquals(x1, w1.c_str());
-		//StringEquals(x1, x1.c_str());
+		StringEquals(a1.c_str(), a1);
+		StringEquals(a1.c_str(), w1);
+		StringEquals(a1.c_str(), x1);
+		StringEquals(w1.c_str(), a1);
+		StringEquals(w1.c_str(), w1);
+		StringEquals(w1.c_str(), x1);
+		StringEquals(x1.c_str(), a1);
+		StringEquals(x1.c_str(), w1);
+		StringEquals(x1.c_str(), x1);
 
-		//StringEquals(a1, a1);
-		//StringEquals(a1, w1);
-		//StringEquals(a1, x1);
-		//StringEquals(w1, a1);
-		//StringEquals(w1, w1);
-		//StringEquals(w1, x1);
-		//StringEquals(x1, a1);
-		//StringEquals(x1, w1);
-		//StringEquals(x1, x1);
+		StringEquals(a1, a1.c_str());
+		StringEquals(a1, w1.c_str());
+		StringEquals(a1, x1.c_str());
+		StringEquals(w1, a1.c_str());
+		StringEquals(w1, w1.c_str());
+		StringEquals(w1, x1.c_str());
+		StringEquals(x1, a1.c_str());
+		StringEquals(x1, w1.c_str());
+		StringEquals(x1, x1.c_str());
+
+		StringEquals(a1, a1);
+		StringEquals(a1, w1);
+		StringEquals(a1, x1);
+		StringEquals(w1, a1);
+		StringEquals(w1, w1);
+		StringEquals(w1, x1);
+		StringEquals(x1, a1);
+		StringEquals(x1, w1);
+		StringEquals(x1, x1);
 
 		StringFindLastOf(a1.c_str(), a1.c_str());
 		StringFindLastOf(a1.c_str(), w1.c_str());
@@ -216,8 +217,68 @@ bool StringCompilationTest()
 		StringSplitByString(x1, w1, std::back_inserter(vx));
 		StringSplitByString(x1, x1, std::back_inserter(vx));
 
+		a1 = StringJoin(va.begin(), va.end(), a1);
+		a1 = StringJoin<char>(va.begin(), va.end(), w1);
+		a1 = StringJoin<char>(va.begin(), va.end(), x1);
+		a1 = StringJoin(va.begin(), va.end(), a1.c_str());
+		a1 = StringJoin<char>(va.begin(), va.end(), w1.c_str());
+		a1 = StringJoin<char>(va.begin(), va.end(), x1.c_str());
 
-  return true;
+		w1 = StringJoin<wchar_t>(va.begin(), va.end(), a1);
+		w1 = StringJoin(va.begin(), va.end(), w1);
+		w1 = StringJoin<wchar_t>(va.begin(), va.end(), x1);
+		w1 = StringJoin<wchar_t>(va.begin(), va.end(), a1.c_str());
+		w1 = StringJoin(va.begin(), va.end(), w1.c_str());
+		w1 = StringJoin<wchar_t>(va.begin(), va.end(), x1.c_str());
+
+		x1 = StringJoin<__int32>(va.begin(), va.end(), a1);
+		x1 = StringJoin<__int32>(va.begin(), va.end(), w1);
+		x1 = StringJoin(va.begin(), va.end(), x1);
+		x1 = StringJoin<__int32>(va.begin(), va.end(), a1.c_str());
+		x1 = StringJoin<__int32>(va.begin(), va.end(), w1.c_str());
+		x1 = StringJoin(va.begin(), va.end(), x1.c_str());
+
+		a1 = StringTrim(a1, a1);
+		a1 = StringTrim(a1, w1);
+		a1 = StringTrim(a1, x1);
+		w1 = StringTrim(w1, a1);
+		w1 = StringTrim(w1, w1);
+		w1 = StringTrim(w1, x1);
+		x1 = StringTrim(x1, a1);
+		x1 = StringTrim(x1, w1);
+		x1 = StringTrim(x1, x1);
+
+		a1 = StringTrim(a1, a1.c_str());
+		a1 = StringTrim(a1, w1.c_str());
+		a1 = StringTrim(a1, x1.c_str());
+		w1 = StringTrim(w1, a1.c_str());
+		w1 = StringTrim(w1, w1.c_str());
+		w1 = StringTrim(w1, x1.c_str());
+		x1 = StringTrim(x1, a1.c_str());
+		x1 = StringTrim(x1, w1.c_str());
+		x1 = StringTrim(x1, x1.c_str());
+
+		a1 = StringTrim(a1.c_str(), a1);
+		a1 = StringTrim(a1.c_str(), w1);
+		a1 = StringTrim(a1.c_str(), x1);
+		w1 = StringTrim(w1.c_str(), a1);
+		w1 = StringTrim(w1.c_str(), w1);
+		w1 = StringTrim(w1.c_str(), x1);
+		x1 = StringTrim(x1.c_str(), a1);
+		x1 = StringTrim(x1.c_str(), w1);
+		x1 = StringTrim(x1.c_str(), x1);
+
+		a1 = StringTrim(a1.c_str(), a1.c_str());
+		a1 = StringTrim(a1.c_str(), w1.c_str());
+		a1 = StringTrim(a1.c_str(), x1.c_str());
+		w1 = StringTrim(w1.c_str(), a1.c_str());
+		w1 = StringTrim(w1.c_str(), w1.c_str());
+		w1 = StringTrim(w1.c_str(), x1.c_str());
+		x1 = StringTrim(x1.c_str(), a1.c_str());
+		x1 = StringTrim(x1.c_str(), w1.c_str());
+		x1 = StringTrim(x1.c_str(), x1.c_str());
+
+		return true;
 }
 
 

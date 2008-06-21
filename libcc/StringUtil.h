@@ -29,14 +29,68 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
+
+/*
+	THE GOALS of the string API:
+	1) operate on either std::basic_string<xchar> or xchar* types freely
+	2) will do automatic conversions to the largest string type (prefer wchar_t over char, no matter which order they were passed into the API)
+	3) NO conversion if the strings have the same character types
+	4) no unnecessary intermediate conversions to std::basic_strings<>
+
+	... within reason. there are cases when it's impossible to follow all these rules.
+
+	If you pass in a string<__int32> and a string<wchar_t> in the same function, conversion will happen to __int32.
+
+	NOTE: ansi codepages are only supported in conversion functions. shit like StringEquals i'm not going to bother writing support for
+	      converting ANSI codepages. Do it yourself dammit. In those cases, CP_ACP is assumed.
+
+	NOTE: some linguistic features outlined by Unicode is just not supported. for example
+	      - some characters are considered linguistically equal, but StringEquals() will still consider them different.
+				- StringToUpper / StringToLower are probably not correct for all scripts
+
+	TODO:
+		Audit remaining APIs that don't follow the rules above. this includes:
+		- StringReplace
+		- StringToUpper
+		- StringToLower
+		- StringEquals
+
+		New APIs:
+		- StringEqualsI
+
+
+
+	API SUMMARY CONTAINED IN THIS FILE:
+	
+	DigitToChar
+	StringBegin
+	StringIsEnd
+	ConvertChar
+	XLastDitchStringCopy
+	StringLength
+	StringConvert
+	ToUTF16
+	ToANSI
+	ToUTF8
+	StringContains
+	StringFindFirstOf
+	StringFindLastOf
+	StringSplitByString
+	StringJoin
+	StringTrim
+	StringReplace
+	StringToLower
+	StringToUpper
+	StringEquals
+
+*/
+
 #pragma once
 
 #include <string>
 #include <tchar.h>
 #include <malloc.h>// for alloca()
 #include <math.h>// for fmod()
-#include <locale>
-#include <algorithm>
 
 #include "Blob.h"
 
@@ -339,17 +393,6 @@ namespace LibCC
 
 
 
-/*
-	Overloads exist that:
-	1) can take either std::basic_string<> or xchar* types
-	2) will do automatic conversions to the largest string type (usually wchar_t, possibly __int32 or something for true Unicode)for accuracy
-	3) do no conversions if the strings are of the same types, and no unnecessary intermediate conversions to std::basic_strings<>
-
-	If you pass in a string<__int32> and a string<wchar_t> in the same function, conversion will happen to __int32.
-
-	NOTE: ansi codepages are only supported in conversion functions. shit like StringEquals i'm not going to bother writing support for
-	converting ANSI codepages. Do it yourself dammit. In those cases, CP_ACP is assumed.
-*/
 namespace LibCC
 {
   inline char DigitToChar(unsigned char d)
@@ -1045,13 +1088,18 @@ namespace LibCC
 
 
 	// StringJoin --------------------------------------------------------------------------------------
-  template<typename InIt, typename Char>
-  inline std::basic_string<Char> StringJoin(InIt start, InIt end, const std::basic_string<Char>& sep)
+	// ability to join from / to mismatching strings, with appropriate conversion.
+  template<typename Char, typename TSep, typename InIt>
+  inline std::basic_string<Char> InternalStringJoin(InIt start, InIt end, TSep sep_)
   {
     std::basic_string<Char> r;
+		std::basic_string<Char> temp;
+		std::basic_string<Char> sep;
+		StringConvert(sep_, sep);
     while(start != end)
     {
-      r.append(*start);
+			StringConvert(*start, temp);
+      r.append(temp);
       ++ start;
       if(start != end)
       {
@@ -1060,39 +1108,116 @@ namespace LibCC
     }
     return r;
   }
+	// no-conversion cases
+  template<typename InIt, typename Char>
+  inline std::basic_string<Char> StringJoin(InIt start, InIt end, const std::basic_string<Char>& sep)
+  {
+		return InternalStringJoin<Char>(start, end, sep);
+	}
   template<typename InIt, typename Char>
   inline std::basic_string<Char> StringJoin(InIt start, InIt end, const Char* sep)
   {
-		return StringJoin(start, end, std::basic_string<Char>(sep));
-  }
+		return InternalStringJoin<Char>(start, end, sep);
+	}
+	// conversion cases... probably not that usable
+  template<typename CharRet, typename CharSep, typename InIt>
+  inline std::basic_string<CharRet> StringJoin(InIt start, InIt end, const std::basic_string<CharSep>& sep)
+  {
+		return InternalStringJoin<CharRet>(start, end, sep);
+	}
+  template<typename CharRet, typename CharSep, typename InIt>
+  inline std::basic_string<CharRet> StringJoin(InIt start, InIt end, const CharSep* sep)
+  {
+		return InternalStringJoin<CharRet>(start, end, sep);
+	}
   
 	// StringTrim --------------------------------------------------------------------------------------
+  template<typename Char, typename Titer, typename TStrIn, typename TStrChars>
+  inline std::basic_string<Char> InternalStringTrim(TStrIn s, TStrChars chars)
+  {
+		std::basic_string<Char> ret;
+		ret.reserve(StringLength(s));
+		// first skip.
+		Titer it = StringBegin(s);
+		while(true)
+		{
+			if(StringIsEnd(it, s))// hit the end of the string during skipping; it only contains trim chars!
+				return ret;
+			if(!StringContains(chars, *it))
+				break;
+			++ it;
+		}
+		// it points to the first non trim char. now find the last one
+		Titer itTemp = it;
+		Titer lastNonTrimChar = it;
+		while(true)
+		{
+			if(StringIsEnd(itTemp, s))
+				break;
+			if(!StringContains(chars, *itTemp))
+				lastNonTrimChar = itTemp;
+			++ itTemp;
+		}
+		// append chars between it and lastNonTrimChar
+		while(true)
+		{
+			ret.push_back(*it);
+			if(it == lastNonTrimChar)
+				return ret;
+			++ it;
+		}
+  }
+	// no-conversion cases
   template<typename Char>
   inline std::basic_string<Char> StringTrim(const std::basic_string<Char>& s, const std::basic_string<Char>& chars)
   {
-    std::basic_string<Char>::size_type left = s.find_first_not_of(chars);
-    std::basic_string<Char>::size_type right = s.find_last_not_of(chars);
-    if((right == std::basic_string<Char>::npos) || (left == std::basic_string<Char>::npos))
-    {
-      return std::basic_string<Char>();
-    }
-    return std::basic_string<Char>(s, left, 1 + right - left);
-  }
-  template<typename Char>
-  inline std::basic_string<Char> StringTrim(const std::basic_string<Char>& s, const Char* chars)
-  {
-		return StringTrim(s, std::basic_string<Char>(chars));
+		return InternalStringTrim<Char, std::basic_string<Char>::const_iterator>(s, chars);
   }
   template<typename Char>
   inline std::basic_string<Char> StringTrim(const Char* s, const std::basic_string<Char>& chars)
   {
-		return StringTrim(std::basic_string<Char>(s), chars);
+		return InternalStringTrim<Char, const Char*>(s, chars);
+  }
+  template<typename Char>
+  inline std::basic_string<Char> StringTrim(const std::basic_string<Char>& s, const Char* chars)
+  {
+		return InternalStringTrim<Char, std::basic_string<Char>::const_iterator>(s, chars);
   }
   template<typename Char>
   inline std::basic_string<Char> StringTrim(const Char* s, const Char* chars)
   {
-		return StringTrim(std::basic_string<Char>(s), std::basic_string<Char>(chars));
+		return InternalStringTrim<Char, const Char*>(s, chars);
   }
+	// conversion cases
+  template<typename CharLeft, typename CharRight>
+  inline std::basic_string<CharLeft> StringTrim(const std::basic_string<CharLeft>& s, const std::basic_string<CharRight>& chars)
+  {
+		std::basic_string<CharLeft> temp;
+		StringConvert(chars, temp);
+		return InternalStringTrim<CharLeft, std::basic_string<CharLeft>::const_iterator>(s, temp);
+  }
+  template<typename CharLeft, typename CharRight>
+  inline std::basic_string<CharLeft> StringTrim(const CharLeft* s, const std::basic_string<CharRight>& chars)
+  {
+		std::basic_string<CharLeft> temp;
+		StringConvert(chars, temp);
+		return InternalStringTrim<CharLeft, const CharLeft*>(s, temp);
+  }
+  template<typename CharLeft, typename CharRight>
+  inline std::basic_string<CharLeft> StringTrim(const std::basic_string<CharLeft>& s, const CharRight* chars)
+  {
+		std::basic_string<CharLeft> temp;
+		StringConvert(chars, temp);
+		return InternalStringTrim<CharLeft, std::basic_string<CharLeft>::const_iterator>(s, temp);
+  }
+  template<typename CharLeft, typename CharRight>
+  inline std::basic_string<CharLeft> StringTrim(const CharLeft* s, const CharRight* chars)
+  {
+		std::basic_string<CharLeft> temp;
+		StringConvert(chars, temp);
+		return InternalStringTrim<CharLeft, const CharLeft*>(s, temp);
+  }
+
 
 	// StringReplace --------------------------------------------------------------------------------------
   template<typename Char>
@@ -1152,6 +1277,7 @@ namespace LibCC
 		return StringReplace(std::basic_string<Char>(src), std::basic_string<Char>(searchString), std::basic_string<Char>(replaceString));
 	}
 
+	// StringToUpper --------------------------------------------------------------------------------------
 	// NOTE: the stdlib toupper functions do not handle unicode very well, so this will have to do.
 	inline std::wstring StringToUpper(const std::wstring& s)
 	{
@@ -1193,6 +1319,7 @@ namespace LibCC
   }
 
 
+	// StringToLower --------------------------------------------------------------------------------------
 	inline std::wstring StringToLower(const std::wstring& s)
 	{
 		Blob<wchar_t> buf(s.length() + 1);
