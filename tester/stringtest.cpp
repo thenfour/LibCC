@@ -116,7 +116,7 @@ BOOL CALLBACK EnumCodePagesProc(LPWSTR lpCodePageString)
 	TestMessage(LibCC::Format("Testing codepage: %, string length %")(lpCodePageString)((UINT)ws.length()).Str());
 	//Blob<BYTE> blob;
 	std::string blob;
-	TestAssert(SUCCEEDED(StringConvert(ws, blob, codepage)));
+	TestAssert(SUCCEEDED(StringConvert(ws, blob, 0, codepage)));
 	std::wstring w2;
 	TestAssert(SUCCEEDED(StringConvert(blob, w2, codepage)));
 	TestAssert(w2 == ws);

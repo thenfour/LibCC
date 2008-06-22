@@ -54,6 +54,47 @@ bool StringCompilationTest()
 		StringEquals(x1, w1);
 		StringEquals(x1, x1);
 
+		StringEqualsI(a1.c_str(), a1.c_str());
+		StringEqualsI(a1.c_str(), w1.c_str());
+		StringEqualsI(a1.c_str(), x1.c_str());
+		StringEqualsI(w1.c_str(), a1.c_str());
+		StringEqualsI(w1.c_str(), w1.c_str());
+		StringEqualsI(w1.c_str(), x1.c_str());
+		StringEqualsI(x1.c_str(), a1.c_str());
+		StringEqualsI(x1.c_str(), w1.c_str());
+		StringEqualsI(x1.c_str(), x1.c_str());
+
+		StringEqualsI(a1.c_str(), a1);
+		StringEqualsI(a1.c_str(), w1);
+		StringEqualsI(a1.c_str(), x1);
+		StringEqualsI(w1.c_str(), a1);
+		StringEqualsI(w1.c_str(), w1);
+		StringEqualsI(w1.c_str(), x1);
+		StringEqualsI(x1.c_str(), a1);
+		StringEqualsI(x1.c_str(), w1);
+		StringEqualsI(x1.c_str(), x1);
+
+		StringEqualsI(a1, a1.c_str());
+		StringEqualsI(a1, w1.c_str());
+		StringEqualsI(a1, x1.c_str());
+		StringEqualsI(w1, a1.c_str());
+		StringEqualsI(w1, w1.c_str());
+		StringEqualsI(w1, x1.c_str());
+		StringEqualsI(x1, a1.c_str());
+		StringEqualsI(x1, w1.c_str());
+		StringEqualsI(x1, x1.c_str());
+
+		StringEqualsI(a1, a1);
+		StringEqualsI(a1, w1);
+		StringEqualsI(a1, x1);
+		StringEqualsI(w1, a1);
+		StringEqualsI(w1, w1);
+		StringEqualsI(w1, x1);
+		StringEqualsI(x1, a1);
+		StringEqualsI(x1, w1);
+		StringEqualsI(x1, x1);
+
+
 		StringFindLastOf(a1.c_str(), a1.c_str());
 		StringFindLastOf(a1.c_str(), w1.c_str());
 		StringFindLastOf(a1.c_str(), x1.c_str());
@@ -153,25 +194,6 @@ bool StringCompilationTest()
 		StringContains(x1, a1[0]);
 		StringContains(x1, w1[0]);
 		StringContains(x1, x1[0]);
-
-		StringConvert(a1.c_str(), a1);
-		StringConvert(a1.c_str(), w1);
-		StringConvert(a1.c_str(), x1);
-		StringConvert(w1.c_str(), a1);
-		StringConvert(w1.c_str(), w1);
-		StringConvert(w1.c_str(), x1);
-		StringConvert(x1.c_str(), a1);
-		StringConvert(x1.c_str(), w1);
-		StringConvert(x1.c_str(), x1);
-		StringConvert(a1, a1);
-		StringConvert(a1, w1);
-		StringConvert(a1, x1);
-		StringConvert(w1, a1);
-		StringConvert(w1, w1);
-		StringConvert(w1, x1);
-		StringConvert(x1, a1);
-		StringConvert(x1, w1);
-		StringConvert(x1, x1);
 
 		std::vector<std::string> va;
 		std::vector<std::wstring> vw;
@@ -277,6 +299,207 @@ bool StringCompilationTest()
 		x1 = StringTrim(x1.c_str(), a1.c_str());
 		x1 = StringTrim(x1.c_str(), w1.c_str());
 		x1 = StringTrim(x1.c_str(), x1.c_str());
+
+		StringConvert(a1.c_str(), a1);
+		StringConvert(a1.c_str(), w1);
+		StringConvert(a1.c_str(), x1);
+		StringConvert(w1.c_str(), a1);
+		StringConvert(w1.c_str(), w1);
+		StringConvert(w1.c_str(), x1);
+		StringConvert(x1.c_str(), a1);
+		StringConvert(x1.c_str(), w1);
+		StringConvert(x1.c_str(), x1);
+		StringConvert(a1, a1);
+		StringConvert(a1, w1);
+		StringConvert(a1, x1);
+		StringConvert(w1, a1);
+		StringConvert(w1, w1);
+		StringConvert(w1, x1);
+		StringConvert(x1, a1);
+		StringConvert(x1, w1);
+		StringConvert(x1, x1);
+
+		StringConvert(a1.c_str(), a1, 0);
+		StringConvert(a1.c_str(), w1, 0);
+		StringConvert(a1.c_str(), x1, 0);
+		StringConvert(w1.c_str(), a1, 0);
+		StringConvert(w1.c_str(), w1, 0);
+		StringConvert(w1.c_str(), x1, 0);
+		StringConvert(x1.c_str(), a1, 0);
+		StringConvert(x1.c_str(), w1, 0);
+		StringConvert(x1.c_str(), x1, 0);
+		StringConvert(a1, a1, 0);
+		StringConvert(a1, w1, 0);
+		StringConvert(a1, x1, 0);
+		StringConvert(w1, a1, 0);
+		StringConvert(w1, w1, 0);
+		StringConvert(w1, x1, 0);
+		StringConvert(x1, a1, 0);
+		StringConvert(x1, w1, 0);
+		StringConvert(x1, x1, 0);
+
+		StringConvert(a1.c_str(), a1, 0);
+		StringConvert(a1.c_str(), w1, 0);
+		StringConvert(a1.c_str(), x1, 0);
+		StringConvert(w1.c_str(), a1, 0);
+		StringConvert(w1.c_str(), w1, 0);
+		StringConvert(w1.c_str(), x1, 0);
+		StringConvert(x1.c_str(), a1, 0);
+		StringConvert(x1.c_str(), w1, 0);
+		StringConvert(x1.c_str(), x1, 0);
+		StringConvert(a1, a1, 0);
+		StringConvert(a1, w1, 0);
+		StringConvert(a1, x1, 0);
+		StringConvert(w1, a1, 0);
+		StringConvert(w1, w1, 0);
+		StringConvert(w1, x1, 0);
+		StringConvert(x1, a1, 0);
+		StringConvert(x1, w1, 0);
+		StringConvert(x1, x1, 0);
+
+		StringConvert(a1.c_str(), a1, 0, 0);
+		StringConvert(a1.c_str(), w1, 0, 0);
+		StringConvert(a1.c_str(), x1, 0, 0);
+		StringConvert(w1.c_str(), a1, 0, 0);
+		StringConvert(w1.c_str(), w1, 0, 0);
+		StringConvert(w1.c_str(), x1, 0, 0);
+		StringConvert(x1.c_str(), a1, 0, 0);
+		StringConvert(x1.c_str(), w1, 0, 0);
+		StringConvert(x1.c_str(), x1, 0, 0);
+		StringConvert(a1, a1, 0, 0);
+		StringConvert(a1, w1, 0, 0);
+		StringConvert(a1, x1, 0, 0);
+		StringConvert(w1, a1, 0, 0);
+		StringConvert(w1, w1, 0, 0);
+		StringConvert(w1, x1, 0, 0);
+		StringConvert(x1, a1, 0, 0);
+		StringConvert(x1, w1, 0, 0);
+		StringConvert(x1, x1, 0, 0);
+
+		StringConvert(a1.c_str(), a1, 0, 0);
+		StringConvert(a1.c_str(), w1, 0, 0);
+		StringConvert(a1.c_str(), x1, 0, 0);
+		StringConvert(w1.c_str(), a1, 0, 0);
+		StringConvert(w1.c_str(), w1, 0, 0);
+		StringConvert(w1.c_str(), x1, 0, 0);
+		StringConvert(x1.c_str(), a1, 0, 0);
+		StringConvert(x1.c_str(), w1, 0, 0);
+		StringConvert(x1.c_str(), x1, 0, 0);
+		StringConvert(a1, a1, 0, 0);
+		StringConvert(a1, w1, 0, 0);
+		StringConvert(a1, x1, 0, 0);
+		StringConvert(w1, a1, 0, 0);
+		StringConvert(w1, w1, 0, 0);
+		StringConvert(w1, x1, 0, 0);
+		StringConvert(x1, a1, 0, 0);
+		StringConvert(x1, w1, 0, 0);
+		StringConvert(x1, x1, 0, 0);
+
+		a1 = ToANSI(a1);
+		a1 = ToANSI(w1);
+		a1 = ToANSI(x1);
+		a1 = ToANSI(a1.c_str());
+		a1 = ToANSI(w1.c_str());
+		a1 = ToANSI(x1.c_str());
+
+		a1 = ToANSI(a1, 0);
+		a1 = ToANSI(w1, 0);
+		a1 = ToANSI(x1, 0);
+		a1 = ToANSI(a1.c_str(), 0);
+		a1 = ToANSI(w1.c_str(), 0);
+		a1 = ToANSI(x1.c_str(), 0);
+
+		a1 = ToANSI(a1, 0, 0);
+		a1 = ToANSI(w1, 0, 0);
+		a1 = ToANSI(x1, 0, 0);
+		a1 = ToANSI(a1.c_str(), 0, 0);
+		a1 = ToANSI(w1.c_str(), 0, 0);
+		a1 = ToANSI(x1.c_str(), 0, 0);
+
+		w1 = ToUTF16(a1);
+		w1 = ToUTF16(w1);
+		w1 = ToUTF16(x1);
+		w1 = ToUTF16(a1.c_str());
+		w1 = ToUTF16(w1.c_str());
+		w1 = ToUTF16(x1.c_str());
+
+		w1 = ToUTF16(a1, 0);
+		w1 = ToUTF16(w1, 0);
+		w1 = ToUTF16(x1, 0);
+		w1 = ToUTF16(a1.c_str(), 0);
+		w1 = ToUTF16(w1.c_str(), 0);
+		w1 = ToUTF16(x1.c_str(), 0);
+
+		a1 = ToUTF8(a1);
+		a1 = ToUTF8(w1);
+		a1 = ToUTF8(x1);
+		a1 = ToUTF8(a1.c_str());
+		a1 = ToUTF8(w1.c_str());
+		a1 = ToUTF8(x1.c_str());
+
+		a1 = ToUTF8(a1, 0);
+		a1 = ToUTF8(w1, 0);
+		a1 = ToUTF8(x1, 0);
+		a1 = ToUTF8(a1.c_str(), 0);
+		a1 = ToUTF8(w1.c_str(), 0);
+		a1 = ToUTF8(x1.c_str(), 0);
+
+		a1 = StringConvert<char>(a1);
+		a1 = StringConvert<char>(w1);
+		a1 = StringConvert<char>(x1);
+		a1 = StringConvert<char>(a1.c_str());
+		a1 = StringConvert<char>(w1.c_str());
+		a1 = StringConvert<char>(x1.c_str());
+		a1 = StringConvert<char>(a1, 0);
+		a1 = StringConvert<char>(w1, 0);
+		a1 = StringConvert<char>(x1, 0);
+		a1 = StringConvert<char>(a1.c_str(), 0);
+		a1 = StringConvert<char>(w1.c_str(), 0);
+		a1 = StringConvert<char>(x1.c_str(), 0);
+		a1 = StringConvert<char>(a1, 0, 0);
+		a1 = StringConvert<char>(w1, 0, 0);
+		a1 = StringConvert<char>(x1, 0, 0);
+		a1 = StringConvert<char>(a1.c_str(), 0, 0);
+		a1 = StringConvert<char>(w1.c_str(), 0, 0);
+		a1 = StringConvert<char>(x1.c_str(), 0, 0);
+
+		w1 = StringConvert<wchar_t>(a1);
+		w1 = StringConvert<wchar_t>(w1);
+		w1 = StringConvert<wchar_t>(x1);
+		w1 = StringConvert<wchar_t>(a1.c_str());
+		w1 = StringConvert<wchar_t>(w1.c_str());
+		w1 = StringConvert<wchar_t>(x1.c_str());
+		w1 = StringConvert<wchar_t>(a1, 0);
+		w1 = StringConvert<wchar_t>(w1, 0);
+		w1 = StringConvert<wchar_t>(x1, 0);
+		w1 = StringConvert<wchar_t>(a1.c_str(), 0);
+		w1 = StringConvert<wchar_t>(w1.c_str(), 0);
+		w1 = StringConvert<wchar_t>(x1.c_str(), 0);
+		w1 = StringConvert<wchar_t>(a1, 0, 0);
+		w1 = StringConvert<wchar_t>(w1, 0, 0);
+		w1 = StringConvert<wchar_t>(x1, 0, 0);
+		w1 = StringConvert<wchar_t>(a1.c_str(), 0, 0);
+		w1 = StringConvert<wchar_t>(w1.c_str(), 0, 0);
+		w1 = StringConvert<wchar_t>(x1.c_str(), 0, 0);
+
+		x1 = StringConvert<__int32>(a1);
+		x1 = StringConvert<__int32>(w1);
+		x1 = StringConvert<__int32>(x1);
+		x1 = StringConvert<__int32>(a1.c_str());
+		x1 = StringConvert<__int32>(w1.c_str());
+		x1 = StringConvert<__int32>(x1.c_str());
+		x1 = StringConvert<__int32>(a1, 0);
+		x1 = StringConvert<__int32>(w1, 0);
+		x1 = StringConvert<__int32>(x1, 0);
+		x1 = StringConvert<__int32>(a1.c_str(), 0);
+		x1 = StringConvert<__int32>(w1.c_str(), 0);
+		x1 = StringConvert<__int32>(x1.c_str(), 0);
+		x1 = StringConvert<__int32>(a1, 0, 0);
+		x1 = StringConvert<__int32>(w1, 0, 0);
+		x1 = StringConvert<__int32>(x1, 0, 0);
+		x1 = StringConvert<__int32>(a1.c_str(), 0, 0);
+		x1 = StringConvert<__int32>(w1.c_str(), 0, 0);
+		x1 = StringConvert<__int32>(x1.c_str(), 0, 0);
 
 		return true;
 }

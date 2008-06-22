@@ -53,11 +53,6 @@
 		- StringReplace
 		- StringToUpper
 		- StringToLower
-		- StringEquals
-
-		New APIs:
-		- StringEqualsI
-
 
 
 	API SUMMARY CONTAINED IN THIS FILE:
@@ -65,7 +60,9 @@
 	DigitToChar
 	StringBegin
 	StringIsEnd
-	ConvertChar
+	CharConvert
+	CharToLower
+	CharToUpper
 	XLastDitchStringCopy
 	StringLength
 	StringConvert
@@ -82,6 +79,7 @@
 	StringToLower
 	StringToUpper
 	StringEquals
+	StringEqualsI
 
 */
 
@@ -443,12 +441,50 @@ namespace LibCC
 	}
 
 
-	// ConvertChar. --------------------------------------------------------------------------------------
+	// CharConvert. --------------------------------------------------------------------------------------
 	// TODO. for now conversion of single characters is always just a cast.
 	template<typename CharOut, typename CharIn>
-	inline CharOut ConvertChar(CharIn i, UINT inCP = CP_ACP, UINT outCP = CP_ACP)
+	inline CharOut CharConvert(CharIn i, UINT inCP = CP_ACP, UINT outCP = CP_ACP)
 	{
 		return (CharOut)i;
+	}
+
+
+	// CharToLower. --------------------------------------------------------------------------------------
+	// TODO: um, 
+	inline wchar_t CharToLower(wchar_t c)
+	{
+		return (wchar_t)CharLowerW((PWSTR)c);
+	}
+
+	inline char CharToLower(char c)
+	{
+		return (char)CharLowerA((PSTR)c);
+	}
+
+	template<typename Char>
+	inline Char CharToLower(Char c)
+	{
+		return (Char)CharToLower((wchar_t)c);// TODO: make this work for 32-bit unicode scalars
+	}
+
+
+	// CharToLower. --------------------------------------------------------------------------------------
+	// TODO: um, 
+	inline wchar_t CharToUpper(wchar_t c)
+	{
+		return (wchar_t)CharUpperW((PWSTR)c);
+	}
+
+	inline char CharToUpper(char c)
+	{
+		return (char)CharUpperA((PSTR)c);
+	}
+
+	template<typename Char>
+	inline Char CharToUpper(Char c)
+	{
+		return (Char)CharToUpper((wchar_t)c);// TODO: make this work for 32-bit unicode scalars
 	}
 
 
@@ -462,7 +498,7 @@ namespace LibCC
 		out.reserve(in.size());
 		for(std::basic_string<InChar>::const_iterator it = in.begin(); it != in.end(); ++ it)
 		{
-			out.push_back(ConvertChar<OutChar>(*it));
+			out.push_back(CharConvert<OutChar>(*it));
 		}
 	}
   template<typename InChar, typename OutChar>
@@ -473,7 +509,7 @@ namespace LibCC
 		out.reserve(StringLength(in));
 		for(; *in != 0; ++ in)
 		{
-			out.push_back(ConvertChar<OutChar>(*in));
+			out.push_back(CharConvert<OutChar>(*in));
 		}
 	}
   template<typename InChar, typename OutChar>
@@ -609,53 +645,49 @@ namespace LibCC
 		
 		here are the conversion cases to write functions for. it ends up being 5 functions to handle all cases:
 
-		#1: ansi str -> ansi str        (no conversion)
-		#2: utf16 str -> utf16 str      (no conversion)
-		#3: unknown str -> unknown str  (no conversion)
+		#1: ansi cp1 str -> ansi cp1 str    (no conversion)
+		#2: utf16 str -> utf16 str          (no conversion)
+		#3: unknown str -> unknown str      (no conversion)
 
-		#4: ansi str -> utf16 str       (known conversion)
-		#5: utf16 str -> ansi str       (known conversion)
-		#6: ansi str -> other ansi str  (known conversion)
+		#4: ansi str -> utf16 str           (known conversion)
+		#5: utf16 str -> ansi str           (known conversion)
+		#6: ansi str -> other ansi str      (known conversion)
 
-		#7: ansi str -> unknown str     (unknown conversion)
-		#8: utf16 str -> unknown str    (unknown conversion)
-		#9: unknown str -> utf16 str    (unknown conversion)
-		#10: unknown str -> ansi str     (unknown conversion)
+		#7: ansi str -> unknown str         (unknown conversion)
+		#8: utf16 str -> unknown str        (unknown conversion)
+		#9: unknown str -> utf16 str        (unknown conversion)
+		#10: unknown str -> ansi str        (unknown conversion)
 
 		TODO:
-		#11: utf32 str -> utf32 str
-		#14: utf32 str -> utf16 str
-		#15: utf16 str -> utf32 str
-		#16: ansi str -> utf32 str
-		#17: utf32 str -> ansi str
-		#12: utf32 str -> unknown str
-		#13: unknown str -> utf32 str
+		#12: utf32 str -> utf32 str
+		#13: utf32 str -> utf16 str
+		#14: utf16 str -> utf32 str
+		#15: ansi str -> utf32 str
+		#16: utf32 str -> ansi str
+		#17: utf32 str -> unknown str
+		#18: unknown str -> utf32 str
+
+		NOTE:
+			- many functions take codepage arguments even though they will be ignored. this is to unify how they are called; more generic.
+			  for an ignored codepage, just use 0.
 	*/
 
 	// basic_string -> basic_string --------------------------------------------------------------------------------------
-	// cases #1, #2, #3:
-	template<typename Char>
-	inline HRESULT StringConvert(const std::basic_string<Char>& in, std::basic_string<Char>& out, UINT /*codepage = CP_ACP*/)
+	inline HRESULT StringConvert(const std::string& in, std::wstring& out, UINT fromcodepage = CP_ACP, UINT tocodepage = CP_ACP)
 	{
-		out = in;
-		return S_OK;
-	}
-	// case #4:
-	inline HRESULT StringConvert(const std::string& in, std::wstring& out, UINT codepage = CP_ACP)
-	{
-		return ToUTF16((const BYTE*)in.c_str(), in.length(), out, codepage);
+		return ToUTF16((const BYTE*)in.c_str(), in.length(), out, fromcodepage);
 	}
 	// case #5:
-	inline HRESULT StringConvert(const std::wstring& in, std::string& out, UINT codepage = CP_ACP)
+	inline HRESULT StringConvert(const std::wstring& in, std::string& out, UINT fromcodepage = CP_ACP, UINT tocodepage = CP_ACP)
 	{
 		Blob<BYTE> b;
-		HRESULT hr = ToANSI(in.c_str(), in.length(), b, codepage);
+		HRESULT hr = ToANSI(in.c_str(), in.length(), b, tocodepage);
 		if(FAILED(hr)) return hr;
 		out.assign((const char*)b.GetBuffer(), b.Size());
 		return hr;
 	}
-	// case #6:
-	inline HRESULT StringConvert(const std::string& in, std::string& out, UINT fromCodepage = CP_ACP, UINT toCodepage = CP_ACP)// from 'char' string to 'char' string, the codepage is ignored.
+	// case #1, #2, #3, #6:
+	inline HRESULT StringConvert(const std::string& in, std::string& out, UINT fromCodepage = CP_ACP, UINT toCodepage = CP_ACP)
 	{
 		if(fromCodepage == toCodepage)
 		{
@@ -669,36 +701,28 @@ namespace LibCC
 	}
 	// case #7, #8, #9, #10:
 	template<typename CharIn, typename CharOut>
-	inline HRESULT StringConvert(const std::basic_string<CharIn>& in, std::basic_string<CharOut>& out, UINT codepage = CP_ACP)
+	inline HRESULT StringConvert(const std::basic_string<CharIn>& in, std::basic_string<CharOut>& out, UINT fromcodepage = CP_ACP, UINT tocodepage = CP_ACP)
 	{
 		XLastDitchStringCopy(in, out);
 		return S_OK;
 	}
 
 	// xchar* -> basic_string --------------------------------------------------------------------------------------
-	// cases #1, #2, #3:
-	template<typename Char>
-	inline HRESULT StringConvert(const Char* in, std::basic_string<Char>& out, UINT codepage = CP_ACP)
+	inline HRESULT StringConvert(const char* in, std::wstring& out, UINT fromcodepage = CP_ACP, UINT tocodepage = CP_ACP)
 	{
-		out = in;
-		return S_OK;
-	}
-	// case #4:
-	inline HRESULT StringConvert(const char* in, std::wstring& out, UINT codepage = CP_ACP)
-	{
-		return ToUTF16((const BYTE*)in, StringLength(in), out, codepage);
+		return ToUTF16((const BYTE*)in, StringLength(in), out, fromcodepage);
 	}
 	// case #5:
-	inline HRESULT StringConvert(const wchar_t* in, std::string& out, UINT codepage = CP_ACP)
+	inline HRESULT StringConvert(const wchar_t* in, std::string& out, UINT fromcodepage = CP_ACP, UINT tocodepage = CP_ACP)
 	{
 		Blob<BYTE> b;
-		HRESULT hr = ToANSI(in, StringLength(in), b, codepage);
+		HRESULT hr = ToANSI(in, StringLength(in), b, tocodepage);
 		if(FAILED(hr)) return hr;
 		out.assign((const char*)b.GetBuffer(), b.Size());
 		return hr;
 	}
-	// case #6:
-	inline HRESULT StringConvert(const char* in, std::string& out, UINT fromCodepage = CP_ACP, UINT toCodepage = CP_ACP)// from 'char' string to 'char' string, the codepage is ignored.
+	// case #1, #2, #3, #6:
+	inline HRESULT StringConvert(const char* in, std::string& out, UINT fromCodepage = CP_ACP, UINT toCodepage = CP_ACP)
 	{
 		if(fromCodepage == toCodepage)
 		{
@@ -712,7 +736,7 @@ namespace LibCC
 	}
 	// case #7, #8, #9, #10:
 	template<typename CharIn, typename CharOut>
-	inline HRESULT StringConvert(const CharIn* in, std::basic_string<CharOut>& out, UINT codepage = CP_ACP)
+	inline HRESULT StringConvert(const CharIn* in, std::basic_string<CharOut>& out, UINT fromcodepage = CP_ACP, UINT tocodepage = CP_ACP)
 	{
 		XLastDitchStringCopy(in, out);
 		return S_OK;
@@ -721,48 +745,188 @@ namespace LibCC
 
 	// ToUTF16. --------------------------------------------------------------------------------------
 	template<typename Char>
-	inline std::wstring ToUTF16(const Char* sz, UINT codepage = CP_ACP)
+	inline std::wstring ToUTF16(const Char* sz, UINT fromcodepage = CP_ACP)
 	{
 		std::wstring ret;
-		StringConvert(sz, ret, codepage);
+		StringConvert(sz, ret, fromcodepage);
 		return ret;
 	}
 	template<typename Char>
-	inline std::wstring ToUTF16(const std::basic_string<Char>& s, UINT codepage = CP_ACP)
+	inline std::wstring ToUTF16(const std::basic_string<Char>& s, UINT fromcodepage = CP_ACP)
 	{
 		std::wstring ret;
-		StringConvert(s, ret, codepage);
+		StringConvert(s, ret, fromcodepage);
 		return ret;
 	}
 	
 
 	// ToANSI. --------------------------------------------------------------------------------------
 	template<typename Char>
-	inline std::string ToANSI(const Char* sz, UINT codepage = CP_ACP)
+	inline std::string ToANSI(const Char* sz, UINT fromcodepage = CP_ACP, UINT tocodepage = CP_ACP)
 	{
 		std::string ret;
-		StringConvert(sz, ret, codepage);
+		StringConvert(sz, ret, fromcodepage, tocodepage);
 		return ret;
 	}
 	template<typename Char>
-	inline std::string ToANSI(const std::basic_string<Char>& s, UINT codepage = CP_ACP)
+	inline std::string ToANSI(const std::basic_string<Char>& s, UINT fromcodepage = CP_ACP, UINT tocodepage = CP_ACP)
 	{
 		std::string ret;
-		StringConvert(s, ret, codepage);
+		StringConvert(s, ret, fromcodepage, tocodepage);
 		return ret;
 	}
 
 
 	// ToUTF8. --------------------------------------------------------------------------------------
 	template<typename Char>
-	inline std::string ToUTF8(const Char* sz)
+	inline std::string ToUTF8(const Char* sz, UINT fromcodepage = CP_ACP)
 	{
-		return ToANSI(sz, CP_UTF8);
+		return ToANSI(sz, fromcodepage, CP_UTF8);
 	}
 	template<typename Char>
-	inline std::string ToUTF8(const std::basic_string<Char>& s)
+	inline std::string ToUTF8(const std::basic_string<Char>& s, UINT fromcodepage = CP_ACP)
 	{
-		return ToANSI(s, CP_UTF8);
+		return ToANSI(s, fromcodepage, CP_UTF8);
+	}
+
+
+	// --------------------------------------------------------------------------------------------------------------------
+	// DUPLICATES OF ALL THE StringConvert APIs, but returning the string instead of the 2nd arg, throwing away the HRESULT 
+	// basic_string -> basic_string --------------------------------------------------------------------------------------
+	// case #7, #8, #9, #10:
+	template<typename CharOut, typename CharIn>
+	inline std::basic_string<CharOut> StringConvert(const std::basic_string<CharIn>& in, UINT fromcodepage, UINT tocodepage)
+	{
+		std::basic_string<CharOut> ret;
+		XLastDitchStringCopy(in, ret);
+		return ret;
+	}
+	template<typename CharOut, typename CharIn>
+	inline std::basic_string<CharOut> StringConvert(const std::basic_string<CharIn>& in, UINT fromcodepage)
+	{
+		return StringConvert<CharOut, CharIn>(in, fromcodepage, CP_ACP);
+	}
+	template<typename CharOut, typename CharIn>
+	inline std::basic_string<CharOut> StringConvert(const std::basic_string<CharIn>& in)
+	{
+		return StringConvert<CharOut, CharIn>(in, CP_ACP, CP_ACP);
+	}
+	// case #4:
+	// note: error C2765: 'LibCC::StringConvertX' : an explicit specialization of a function template cannot have any default arguments
+	template<>
+	inline std::wstring StringConvert<wchar_t, char>(const std::string& in, UINT fromcodepage, UINT tocodepage)
+	{
+		return ToUTF16(in, fromcodepage);
+	}
+	template<>
+	inline std::wstring StringConvert<wchar_t, char>(const std::string& in, UINT fromcodepage)
+	{
+		return ToUTF16(in, fromcodepage);
+	}
+	template<>
+	inline std::wstring StringConvert<wchar_t, char>(const std::string& in)
+	{
+		return ToUTF16(in);
+	}
+	template<>
+	inline std::string StringConvert<char, wchar_t>(const std::wstring& in, UINT fromcodepage, UINT tocodepage)
+	{
+		return ToANSI(in, fromcodepage, tocodepage);
+	}
+	template<>
+	inline std::string StringConvert<char, wchar_t>(const std::wstring& in, UINT fromcodepage)
+	{
+		return ToANSI(in, fromcodepage);
+	}
+	template<>
+	inline std::string StringConvert<char, wchar_t>(const std::wstring& in)
+	{
+		return ToANSI(in);
+	}
+	// case #1, #2, #3, #6:
+	template<>
+	inline std::string StringConvert<char, char>(const std::string& in, UINT fromcodepage, UINT tocodepage)
+	{
+		return ToANSI(in, fromcodepage, tocodepage);
+	}
+	template<>
+	inline std::string StringConvert<char, char>(const std::string& in, UINT fromcodepage)
+	{
+		return ToANSI(in, fromcodepage);
+	}
+	template<>
+	inline std::string StringConvert<char, char>(const std::string& in)
+	{
+		return ToANSI(in);
+	}
+
+
+	// xchar* -> basic_string --------------------------------------------------------------------------------------
+	// case #7, #8, #9, #10:
+	template<typename CharOut, typename CharIn>
+	inline std::basic_string<CharOut> StringConvert(const CharIn* in, UINT fromcodepage, UINT tocodepage)
+	{
+		std::basic_string<CharOut> ret;
+		XLastDitchStringCopy(in, ret);
+		return ret;
+	}
+	template<typename CharOut, typename CharIn>
+	inline std::basic_string<CharOut> StringConvert(const CharIn* in, UINT fromcodepage)
+	{
+		return StringConvert<CharOut, CharIn>(in, fromcodepage, CP_ACP);
+	}
+	template<typename CharOut, typename CharIn>
+	inline std::basic_string<CharOut> StringConvert(const CharIn* in)
+	{
+		return StringConvert<CharOut, CharIn>(in, CP_ACP, CP_ACP);
+	}
+	// case #4:
+	// note: error C2765: 'LibCC::StringConvertX' : an explicit specialization of a function template cannot have any default arguments
+	template<>
+	inline std::wstring StringConvert<wchar_t, char>(const char* in, UINT fromcodepage, UINT tocodepage)
+	{
+		return ToUTF16(in, fromcodepage);
+	}
+	template<>
+	inline std::wstring StringConvert<wchar_t, char>(const char* in, UINT fromcodepage)
+	{
+		return ToUTF16(in, fromcodepage);
+	}
+	template<>
+	inline std::wstring StringConvert<wchar_t, char>(const char* in)
+	{
+		return ToUTF16(in);
+	}
+	template<>
+	inline std::string StringConvert<char, wchar_t>(const wchar_t* in, UINT fromcodepage, UINT tocodepage)
+	{
+		return ToANSI(in, fromcodepage, tocodepage);
+	}
+	template<>
+	inline std::string StringConvert<char, wchar_t>(const wchar_t* in, UINT fromcodepage)
+	{
+		return ToANSI(in, fromcodepage);
+	}
+	template<>
+	inline std::string StringConvert<char, wchar_t>(const wchar_t* in)
+	{
+		return ToANSI(in);
+	}
+	// case #1, #2, #3, #6:
+	template<>
+	inline std::string StringConvert<char, char>(const char* in, UINT fromcodepage, UINT tocodepage)
+	{
+		return ToANSI(in, fromcodepage, tocodepage);
+	}
+	template<>
+	inline std::string StringConvert<char, char>(const char* in, UINT fromcodepage)
+	{
+		return ToANSI(in, fromcodepage);
+	}
+	template<>
+	inline std::string StringConvert<char, char>(const char* in)
+	{
+		return ToANSI(in);
 	}
 
 
@@ -793,7 +957,7 @@ namespace LibCC
   {
 		if(sizeof(CharL) > sizeof(CharR))
 		{
-			return StringContains(source, ConvertChar<CharL>(x));
+			return StringContains(source, CharConvert<CharL>(x));
 		}
 		else
 		{
@@ -807,7 +971,7 @@ namespace LibCC
   {
 		if(sizeof(CharL) > sizeof(CharR))
 		{
-			return StringContains(source, ConvertChar<CharL>(x));
+			return StringContains(source, CharConvert<CharL>(x));
 		}
 		else
 		{
@@ -1362,95 +1526,159 @@ namespace LibCC
 
 
 	// StringEquals. --------------------------------------------------------------------------------------
-	// xchar* -> xchar*
-	inline bool StringEquals(const wchar_t* lhs, const wchar_t* rhs)
+	template<typename TiterL, typename TiterR, typename TstrL, typename TstrR>
+	inline bool InternalStringEquals1(TstrL lhs, TstrR rhs)
   {
-		while(*lhs != 0 || *rhs != 0)
+		TiterL itl = StringBegin(lhs);
+		TiterR itr = StringBegin(rhs);
+		while(true)
 		{
-			if(*lhs != *rhs)
+			bool lend = StringIsEnd(itl, lhs);
+			bool rend = StringIsEnd(itr, rhs);
+			if(lend && rend)
+				return true;// hit the end
+			if(lend || rend)
+				return false;// one hit the end
+			if(*itl != *itr)
 				return false;
-			++ lhs;
-			++ rhs;
+			++ itl;
+			++ itr;
 		}
 		return true;
   }
-  template<typename CharL>
-  inline bool StringEquals(const CharL* lhs, const wchar_t* rhs, int codepageLeft = CP_UTF8)
+	// no-conversion cases
+	template<typename Char>
+  inline bool StringEquals(const Char* lhs, const Char* rhs)
+	{
+		return InternalStringEquals1<const Char*, const Char*>(lhs, rhs);
+	}
+	template<typename Char>
+	inline bool StringEquals(const Char* lhs, const std::basic_string<Char>& rhs)
+	{
+		return InternalStringEquals1<const Char*, std::basic_string<Char>::const_iterator>(lhs, rhs);
+	}
+	template<typename Char>
+  inline bool StringEquals(const std::basic_string<Char>& lhs, const Char* rhs)
+	{
+		return InternalStringEquals1<std::basic_string<Char>::const_iterator, const Char*>(lhs, rhs);
+	}
+	template<typename Char>
+	inline bool StringEquals(const std::basic_string<Char>& lhs, const std::basic_string<Char>& rhs)
+	{
+		return InternalStringEquals1<std::basic_string<Char>::const_iterator, std::basic_string<Char>::const_iterator>(lhs, rhs);
+	}
+	// conversion cases
+  template<typename CharL, typename CharR, typename Tleft, typename Tright>
+	inline bool InternalStringEquals2(Tleft lhs, Tright rhs)
   {
-		return ToUTF16(lhs, codepageLeft) == rhs;
-  }
-  template<typename CharR>
-  inline bool StringEquals(const wchar_t* lhs, const CharR* rhs, int codepageRight = CP_UTF8)
-  {
-		return StringEquals(rhs, lhs, codepageRight);
+		if(sizeof(CharL) > sizeof(CharR))
+		{
+			std::basic_string<CharL> temp;
+			StringConvert(rhs, temp);
+			return StringEquals(lhs, temp);
+		}
+		else
+		{
+			std::basic_string<CharR> temp;
+			StringConvert(lhs, temp);
+			return StringEquals(temp, rhs);
+		}
   }
   template<typename CharL, typename CharR>
-  inline bool StringEquals(const CharL* lhs, const CharR* rhs, int codepageLeft = CP_UTF8, int codepageRight = CP_UTF8)
+	inline bool StringEquals(const CharL* lhs, const CharR* rhs)
   {
-		return ToUTF16(lhs, codepageLeft) == ToUTF16(rhs, codepageRight);
+		return InternalStringEquals2<CharL, CharR>(lhs, rhs);
+  }
+  template<typename CharL, typename CharR>
+	inline bool StringEquals(const CharL* lhs, const std::basic_string<CharR>& rhs)
+  {
+		return InternalStringEquals2<CharL, CharR>(lhs, rhs);
+  }
+  template<typename CharL, typename CharR>
+	inline bool StringEquals(const std::basic_string<CharL>& lhs, const CharR* rhs)
+  {
+		return InternalStringEquals2<CharL, CharR>(lhs, rhs);
+  }
+  template<typename CharL, typename CharR>
+	inline bool StringEquals(const std::basic_string<CharL>& lhs, const std::basic_string<CharR>& rhs)
+  {
+		return InternalStringEquals2<CharL, CharR>(lhs, rhs);
   }
 
-	// basic_string -> basic_string
-	inline bool StringEquals(const std::wstring& lhs, const std::wstring& rhs)
-  {
-		return lhs == rhs;
-  }
-  template<typename CharL>
-	inline bool StringEquals(const std::basic_string<CharL>& lhs, const std::wstring& rhs, int codepageLeft = CP_UTF8)
-  {
-		return ToUTF16(lhs, codepageLeft) == rhs;
-  }
-  template<typename CharR>
-	inline bool StringEquals(const std::wstring& lhs, const std::basic_string<CharR>& rhs, int codepageRight = CP_UTF8)
-  {
-		return StringEquals(rhs, lhs, codepageRight);
-  }
-  template<typename CharL, typename CharR>
-  inline bool StringEquals(const std::basic_string<CharL>& lhs, const std::basic_string<CharR>& rhs, int codepageLeft = CP_UTF8, int codepageRight = CP_UTF8)
-  {
-		return ToUTF16(lhs, codepageLeft) == ToUTF16(rhs, codepageRight);
-  }
 
-	// basic_string -> xchar*
-	inline bool StringEquals(const std::wstring& lhs, const wchar_t* rhs)
-  {
-		return lhs == rhs;
-  }
-  template<typename CharL>
-	inline bool StringEquals(const std::basic_string<CharL>& lhs, const wchar_t* rhs, int codepageLeft = CP_UTF8)
-  {
-		return ToUTF16(lhs, codepageLeft) == rhs;
-  }
-  template<typename CharR>
-	inline bool StringEquals(const std::wstring& lhs, const CharR* rhs, int codepageRight = CP_UTF8)
-  {
-		return StringEquals(rhs, lhs, codepageRight);
-  }
-  template<typename CharL, typename CharR>
-  inline bool StringEquals(const std::basic_string<CharL>& lhs, const CharR* rhs, int codepageLeft = CP_UTF8, int codepageRight = CP_UTF8)
-  {
-		return ToUTF16(lhs, codepageLeft) == ToUTF16(rhs, codepageRight);
-  }
 
-	// xchar* -> basic_string
-	inline bool StringEquals(const wchar_t*& lhs, const std::wstring& rhs)
+	// StringEqualsI --------------------------------------------------------------------------------------
+	template<typename TiterL, typename TiterR, typename TstrL, typename TstrR>
+	inline bool InternalStringEqualsI1(TstrL lhs, TstrR rhs)
   {
-		return lhs == rhs;
+		TiterL itl = StringBegin(lhs);
+		TiterR itr = StringBegin(rhs);
+		while(!StringIsEnd(itl, lhs) || !StringIsEnd(itr, rhs))
+		{
+			if(CharToLower(*itl) != CharToLower(*itr))
+				return false;
+			++ itl;
+			++ itr;
+		}
+		return true;
   }
-  template<typename CharL>
-	inline bool StringEquals(const CharL* lhs, const std::wstring& rhs, int codepageLeft = CP_UTF8)
+	// no-conversion cases
+	template<typename Char>
+  inline bool StringEqualsI(const Char* lhs, const Char* rhs)
+	{
+		return InternalStringEqualsI1<const Char*, const Char*>(lhs, rhs);
+	}
+	template<typename Char>
+	inline bool StringEqualsI(const Char* lhs, const std::basic_string<Char>& rhs)
+	{
+		return InternalStringEqualsI1<const Char*, std::basic_string<Char>::const_iterator>(lhs, rhs);
+	}
+	template<typename Char>
+  inline bool StringEqualsI(const std::basic_string<Char>& lhs, const Char* rhs)
+	{
+		return InternalStringEqualsI1<std::basic_string<Char>::const_iterator, const Char*>(lhs, rhs);
+	}
+	template<typename Char>
+	inline bool StringEqualsI(const std::basic_string<Char>& lhs, const std::basic_string<Char>& rhs)
+	{
+		return InternalStringEqualsI1<std::basic_string<Char>::const_iterator, std::basic_string<Char>::const_iterator>(lhs, rhs);
+	}
+	// conversion cases
+  template<typename CharL, typename CharR, typename Tleft, typename Tright>
+	inline bool InternalStringEqualsI2(Tleft lhs, Tright rhs)
   {
-		return ToUTF16(lhs, codepageLeft) == rhs;
-  }
-  template<typename CharR>
-	inline bool StringEquals(const wchar_t*& lhs, const std::basic_string<CharR>& rhs, int codepageRight = CP_UTF8)
-  {
-		return StringEquals(rhs, lhs, codepageRight);
+		if(sizeof(CharL) > sizeof(CharR))
+		{
+			std::basic_string<CharL> temp;
+			StringConvert(rhs, temp);
+			return StringEqualsI(lhs, temp);
+		}
+		else
+		{
+			std::basic_string<CharR> temp;
+			StringConvert(lhs, temp);
+			return StringEqualsI(temp, rhs);
+		}
   }
   template<typename CharL, typename CharR>
-  inline bool StringEquals(const CharL* lhs, const std::basic_string<CharR>& rhs, int codepageLeft = CP_UTF8, int codepageRight = CP_UTF8)
+	inline bool StringEqualsI(const CharL* lhs, const CharR* rhs)
   {
-		return ToUTF16(lhs, codepageLeft) == ToUTF16(rhs, codepageRight);
+		return InternalStringEqualsI2<CharL, CharR>(lhs, rhs);
+  }
+  template<typename CharL, typename CharR>
+	inline bool StringEqualsI(const CharL* lhs, const std::basic_string<CharR>& rhs)
+  {
+		return InternalStringEqualsI2<CharL, CharR>(lhs, rhs);
+  }
+  template<typename CharL, typename CharR>
+	inline bool StringEqualsI(const std::basic_string<CharL>& lhs, const CharR* rhs)
+  {
+		return InternalStringEqualsI2<CharL, CharR>(lhs, rhs);
+  }
+  template<typename CharL, typename CharR>
+	inline bool StringEqualsI(const std::basic_string<CharL>& lhs, const std::basic_string<CharR>& rhs)
+  {
+		return InternalStringEqualsI2<CharL, CharR>(lhs, rhs);
   }
 
 
