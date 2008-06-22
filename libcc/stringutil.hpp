@@ -2656,7 +2656,7 @@ namespace LibCC
 			_Char buf[BufferSize];
 			_Char* p = buf + BufferSize - 1;
 			*p = 0;
-			return s(_UnsignedNumberToString<Base, Width, PadChar>(p, n));
+			return s(_UnsignedNumberToString<_Char, Base, Width, PadChar>(p, n));
 		}
 
     template<size_t Base, size_t Width>
