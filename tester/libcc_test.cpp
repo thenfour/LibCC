@@ -73,7 +73,7 @@ void TestCollection()
 	//RunTest(RegistryTest); // careful with this of course.
   RunTest(StatusTest);
   //RunTest(PathMatchSpecTest);
-  RunTest(StringTest);
+  //RunTest(StringTest);
 	RunTest(StringCompilationTest);
 }
 

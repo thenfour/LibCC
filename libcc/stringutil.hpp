@@ -90,7 +90,8 @@
 #include <malloc.h>// for alloca()
 #include <math.h>// for fmod()
 
-#include "Blob.hpp"
+#include "blob.hpp"
+#include "float.hpp"
 
 #ifdef WIN32
 # include <windows.h>// for GetLastError() / LoadStrin / FormatMessage...
@@ -123,272 +124,6 @@
 #else
 # define LIBCC_INLINE inline
 #endif
-
-namespace LibCC
-{
-  // this simple class just "attaches" to a float and provides a window into it's inner workings.
-  // based on information from http://www.duke.edu/~twf/cps104/floating.html
-  // ... and http://stevehollasch.com/cgindex/coding/ieeefloat.html
-  // e notation:    d.dd...En
-  // 1 bit = sign
-  // 8 bits = exp
-  // 23 bits = mantissa
-  /*
-    What are denormalized numbers?  they are normal numbers but without the leading 1 and assumed exp of -126
-  */
-  template<typename _BasicType,
-    typename _InternalType,
-    typename _Exponent,
-    typename _Mantissa,
-    long _ExponentBits,
-    long _MantissaBits>
-  class IEEEFloat
-  {
-  public:
-    typedef _BasicType BasicType;
-    typedef _InternalType InternalType;
-    typedef _Exponent Exponent;
-    typedef _Mantissa Mantissa;
-    typedef IEEEFloat<BasicType, InternalType, Exponent, Mantissa, _ExponentBits, _MantissaBits> This;
-
-    static const long ExponentBits = _ExponentBits;// 0x08 / 0x0b
-    static const long MantissaBits = _MantissaBits;// 0x17 / 0x34
-    static const _InternalType SignMask = (InternalType)1 << (ExponentBits + MantissaBits);// 0x80000000 / 0x8000000000000000
-    static const _InternalType MantissaMask = ((InternalType)1 << MantissaBits) - 1;// 0x007fffff / 0x000fffffffffffff
-    static const _InternalType MantissaHighBit = MantissaMask ^ (MantissaMask >> 1);// 0x00400000 / 0x0008000000000000
-    static const _InternalType ExponentMask = ((((InternalType)1 << ExponentBits) - 1) << MantissaBits);// 0x7f800000 / 0x7ff0000000000000
-    static const _InternalType PositiveInfinity = ExponentMask;// 0x7f800000 / 0x7ff0000000000000
-    static const _InternalType NegativeInfinity = SignMask | ExponentMask;// 0xff800000 / 0xfff0000000000000
-    static const Exponent ExponentBias = (((InternalType)1 << (ExponentBits-1)) - 1);// 0x7f / 0x3ff
-
-    IEEEFloat(BasicType f) :
-      m_val(reinterpret_cast<InternalType&>(m_BasicVal)),
-      m_BasicVal(f)
-    {
-    }
-
-    IEEEFloat(const This& r) :
-      m_val(reinterpret_cast<InternalType&>(m_BasicVal)),
-      m_BasicVal(r.m_BasicVal)
-    {
-    }
-
-    IEEEFloat(_InternalType r) :
-      m_val(reinterpret_cast<InternalType&>(m_BasicVal))
-    {
-      m_val = r;
-    }
-
-    bool IsPositive() const
-    {
-      return m_val & SignMask ? false : true;
-    }
-    bool IsNegative() const
-    {
-      return !IsPositive();
-    }
-    bool IsZero() const// exponent == 0  &&  mantissa == 0
-    {
-      return m_val & (MantissaMask | ExponentMask) ? false : true;
-    }
-    bool IsDenormalized() const// exponent = 0  &&  mantissa != 0
-    {
-      return (!(m_val & ExponentMask)) && (m_val & MantissaMask);
-    }
-    bool IsPositiveInfinity() const// exponent == MAX
-    {
-      return m_val == PositiveInfinity;
-    }
-    bool IsNegativeInfinity() const// exponent == MAX
-    {
-      return m_val == NegativeInfinity;
-    }
-    bool IsInfinity() const// exponent == MAX  &&  mantissa == MAX
-    {
-      return (m_val & (MantissaMask | ExponentMask)) == (MantissaMask | ExponentMask);
-    }
-    bool IsNaN() const// exponent == MAX  && mantissa != 0
-    {
-      return ((m_val & ExponentMask) == ExponentMask) && (m_val & MantissaMask);
-    }
-    bool IsQNaN() const// exponent == MAX  && mantissa high bit set
-    {
-      return ((m_val & ExponentMask) == ExponentMask) && (m_val & MantissaHighBit);
-    }
-    bool IsSNaN() const// exponent == MAX  && mantissa != 0  && mantissa high bit 0
-    {
-      return ((m_val & ExponentMask) == ExponentMask) && (m_val & MantissaMask) && !(m_val & MantissaHighBit);
-    }
-    Exponent GetExponent() const
-    {
-      return static_cast<Exponent>(((m_val & ExponentMask) >> MantissaBits) - ExponentBias);
-    }
-
-    Mantissa GetMantissa() const
-    {
-      return static_cast<Mantissa>(m_val & MantissaMask | (static_cast<Mantissa>(1) << MantissaBits));// add the implied 1
-    }
-
-    void CopyValue(BasicType& out) const
-    {
-      memcpy(&out, &m_val, sizeof(m_val));
-    }
-
-    static This Build(bool Sign, Exponent ex, Mantissa m)
-    {
-      InternalType r;
-      r = Sign ? SignMask : 0;// sign
-      r |= (ex + ExponentShift) << MantissaBits;// exponent
-      r |= m & MantissaMask;// mantissa
-      return *(reinterpret_cast<BasicType*>(&r));
-    }
-
-    /*
-      Infinity
-      The values +infinity and -infinity are denoted with an exponent of all 1s and a
-      fraction of all 0s. The sign bit distinguishes between negative infinity and positive
-      infinity.
-    */
-    static This BuildPositiveInfinity()
-    {
-      InternalType r;
-      r = ExponentMask;
-      return *(reinterpret_cast<BasicType*>(&r));
-    }
-
-    static This BuildNegativeInfinity()
-    {
-      InternalType r;
-      r = SignMask | ExponentMask;
-      return *(reinterpret_cast<BasicType*>(&r));
-    }
-
-    // The value NaN (Not a Number) is used to represent a value that does not represent a real number.
-    // NaN's are represented by a bit pattern with an exponent of all 1s and a non-zero fraction.
-    // There are two categories of NaN: QNaN (Quiet NaN) and SNaN (Signalling NaN).
-    // A QNaN is a NaN with the most significant fraction bit set.
-    // QNaN's propagate freely through most arithmetic operations. These values pop out of an operation when the result is not mathematically defined.
-    static This BuildQNaN()
-    {
-      InternalType r;
-      r = ExponentMask | MantissaMask;
-      return *(reinterpret_cast<BasicType*>(&r));
-    }
-
-    // An SNaN is a NaN with the most significant fraction bit clear. It is used to signal an exception when used in operations. SNaN's can be handy to assign to uninitialized variables to trap premature usage. 
-    static This BuildSNaN()
-    {
-      InternalType r;
-      r = ExponentMask | (MantissaMask >> 1);
-      return *(reinterpret_cast<BasicType*>(&r));
-    }
-
-    void AbsoluteValue()
-    {
-      m_val &= ~SignMask;
-    }
-
-    /*
-      say you have a mantissa:
-      1.0101101 with exponent 3.
-      that's: 1010.1101
-      to remove the decimal, it would be:
-      that's: 1010.0
-      or, 1.01, exponent 3
-      In the case of a negative exponent, set the float to zero.
-
-      So the idea is simply to mask out the bits that are right of
-      the decimal point.
-    */
-    void RemoveDecimal()
-    {
-      InternalType e = (m_val & ExponentMask) >> MantissaBits;
-      Mantissa m = static_cast<Mantissa>(m_val & MantissaMask);
-
-      //if(m)
-      {
-        if(e >= ExponentBias)
-        {
-          e -= ExponentBias;
-          if(e < MantissaBits)// if we did this when e is greater than the mantissa bits, it would get all screwy.
-          {
-            // positive exponent.  mask out the decimal part.
-            InternalType mask = 1;
-            mask <<= (MantissaBits - e);// bits
-            mask -= 1;// mask
-            m_val &= ~mask;
-          }
-        }
-        else
-        {
-          // negative exponent; set this float to zero, retaining the current sign.
-          m_val &= ~(ExponentMask | MantissaMask);
-        }
-      }
-    }
-
-    InternalType& m_val;
-    BasicType m_BasicVal;
-
-    private:
-      This& operator =(const This& rhs) { return *this; }// do not allow assignment.  this is also to prevent warning C4512 "'class' : assignment operator could not be generated"
-
-  };
-  typedef IEEEFloat<float, unsigned __int32, signed __int8, unsigned __int32, 8, 23> SinglePrecisionFloat;
-  typedef IEEEFloat<double, unsigned __int64, signed __int16, unsigned __int64, 11, 52> DoublePrecisionFloat;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// string utility functions
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 namespace LibCC
@@ -1707,6 +1442,385 @@ namespace LibCC
 
 
 
+// LibCC::Format uses the following number -> string conversion routines
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+namespace LibCC
+{
+	template<typename Tlhs, typename Trhs>
+	inline void __StringAppend(std::basic_string<Tlhs>& lhs, Trhs* rhs)
+	{
+		lhs.append(StringConvert<Tlhs>(rhs));
+	}
+
+    template<typename _Char>
+		inline void _RuntimeAppendZeroFloat(size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, std::basic_string<_Char>& m_Composite)
+		{
+			// zero.
+			// pre-decimal part.
+			// "-----0"
+			if(IntegralWidthMin > 0)
+			{
+				// append padding
+				m_Composite.reserve(m_Composite.size() + IntegralWidthMin);
+				for(size_t i = 1; i < IntegralWidthMin; ++ i)
+				{
+					m_Composite.push_back(static_cast<_Char>(PaddingChar));
+				}
+				// append the integral zero
+				m_Composite.push_back('0');
+			}
+			if(DecimalWidthMax)
+			{
+				// if there are any decimal digits to set, then just append ".0"
+				m_Composite.reserve(m_Composite.size() + 2);
+				m_Composite.push_back('.');
+				m_Composite.push_back('0');
+			}
+			//BuildCompositeChunk();
+		}
+
+    template<typename FloatType, typename _Char>
+    inline void _RuntimeAppendNormalizedFloat(FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, std::basic_string<_Char>& m_Composite)
+		{
+			// how do we know how many chars we will use?  we don't right now.
+			_Char* buf = reinterpret_cast<_Char*>(_alloca(sizeof(_Char) * (2200 + IntegralWidthMin + DecimalWidthMax)));
+			long IntegralWidthLeft = static_cast<long>(IntegralWidthMin);
+			_Char* middle = buf + 2100 - DecimalWidthMax;
+			_Char* sIntPart = middle;
+			_Char* sDecPart = middle;
+			FloatType::Mantissa _int;// integer part raw value
+			FloatType::Mantissa _dec;// decimal part raw value
+			FloatType::Exponent exp = _f.GetExponent();// exponent raw value
+			FloatType::Mantissa m = _f.GetMantissa();
+			size_t DecBits;// how many bits out of the mantissa are used by the decimal part?
+
+			const size_t BasicTypeBits = sizeof(FloatType::BasicType)*8;
+			if((exp < FloatType::MantissaBits) && (exp > (FloatType::MantissaBits - BasicTypeBits)))
+			{
+				// write the integral (before decimal point) part.
+				DecBits = _f.MantissaBits - exp;
+				_int = m >> DecBits;// the integer part.
+				_dec = m & (((FloatType::Mantissa)1 << DecBits) - 1);
+				do
+				{
+					--IntegralWidthLeft;
+					*(-- sIntPart) = DigitToChar(static_cast<unsigned char>(_int % Base));
+					_int = _int / static_cast<FloatType::Mantissa>(Base);
+				}
+				while(_int);
+
+				while(IntegralWidthLeft > 0)
+				{
+					*(-- sIntPart) = static_cast<_Char>(PaddingChar);
+					IntegralWidthLeft --;
+				}
+
+				// write the after-decimal part.  here we basically do long division!
+				// the decimal part is basically a fraction that we convert bases on.
+				// since we need to deal with a number as large as the denominator, this will only work
+				// when DecBits is less than 32 (for single precsion)
+				if(DecimalWidthMax)
+				{
+					size_t DecimalWidthLeft = DecimalWidthMax;
+					middle[0] = '.';
+					FloatType::Mantissa denominator = (FloatType::Mantissa)1 << DecBits;// same as 'capacity'.
+					FloatType::Mantissa& numerator(_dec);
+					numerator *= static_cast<FloatType::Mantissa>(Base);
+					FloatType::Mantissa digit;
+					while(numerator && DecimalWidthLeft)
+					{
+						digit = numerator / denominator;// integer division
+						// add the digit, and drill down into the remainder.
+						*(++ sDecPart) = DigitToChar(static_cast<unsigned char>(digit % Base));
+						numerator -= digit * denominator;
+						numerator *= static_cast<FloatType::Mantissa>(Base);
+						-- DecimalWidthLeft;
+					}
+				}
+				else
+				{
+					middle[0] = 0;
+				}
+			}
+			else
+			{
+				// We are here because doing conversions would take large numbers - too large to hold in
+				// a InternalType integral.  So until i can come up with a cooler way to do it, i will
+				// just do floating point divides and 
+
+				// do the integral part just like a normal int.
+				FloatType::This integerPart(_f);
+				integerPart.RemoveDecimal();
+				integerPart.AbsoluteValue();
+				FloatType::BasicType fBase = static_cast<FloatType::BasicType>(Base);
+				do
+				{
+					IntegralWidthLeft --;
+					// at this point integerPart has no decimal and Base of course doesnt.
+					*(-- sIntPart) = DigitToChar(static_cast<unsigned char>(fmod(integerPart.m_BasicVal, fBase)));
+					integerPart.m_BasicVal /= Base;
+					integerPart.RemoveDecimal();
+				}
+				while(integerPart.m_BasicVal > 0);
+
+				while(IntegralWidthLeft > 0)
+				{
+					*(-- sIntPart) = static_cast<_Char>(PaddingChar);
+					IntegralWidthLeft --;
+				}
+
+				// now the decimal part.
+				if(DecimalWidthMax)
+				{
+					size_t DecimalWidthLeft = DecimalWidthMax;
+					middle[0] = '.';
+					FloatType::This val(_f);
+					val.AbsoluteValue();
+					// remove integer part.
+					FloatType::This integerPart(val);
+					integerPart.RemoveDecimal();
+					val.m_BasicVal -= integerPart.m_BasicVal;
+					do
+					{
+						DecimalWidthLeft --;
+						val.m_BasicVal *= Base;
+						// isolate the integral part
+						integerPart.m_BasicVal = val.m_BasicVal;
+						integerPart.RemoveDecimal();
+						*(++ sDecPart) = DigitToChar(static_cast<unsigned char>(fmod(integerPart.m_BasicVal, fBase)));
+						// use the integral part to leave only the decimal part.
+						val.m_BasicVal -= integerPart.m_BasicVal;
+					}
+					while((val.m_BasicVal > 0) && DecimalWidthLeft);
+				}
+				else
+				{
+					middle[0] = 0;
+				}
+			}
+
+			// display the sign
+			if(_f.IsNegative())
+			{
+				*(-- sIntPart) = '-';
+			}
+			else if(ForceSign)
+			{
+				*(-- sIntPart) = '+';
+			}
+
+			// null terminate
+			*(++ sDecPart) = 0;
+
+			__StringAppend(m_Composite, sIntPart);
+		}
+
+    /*
+      Converts any floating point (LibCC::IEEEFloat<>) number to a string, and appends it just like any other string.
+    */
+    template<typename FloatType, typename _Char>
+		inline void _RuntimeAppendFloat(const FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, std::basic_string<_Char>& m_Composite)
+		{
+			if(!(_f.m_val & _f.ExponentMask))
+			{
+				// exponont = 0.  that means its either zero or denormalized.
+				if(_f.m_val & _f.MantissaMask)
+				{
+					// denormalized
+					__StringAppend(m_Composite, "Unsupported denormalized number");
+				}
+				else
+				{
+					// zero
+					return _RuntimeAppendZeroFloat(DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, m_Composite);
+				}
+			}
+			else if((_f.m_val & _f.ExponentMask) == _f.ExponentMask)
+			{
+				// exponent = MAX.  either infinity or NAN.
+				if(_f.IsPositiveInfinity())
+				{
+					__StringAppend(m_Composite, "+Inf");
+				}
+				else if(_f.IsNegativeInfinity())
+				{
+					__StringAppend(m_Composite, "-Inf");
+				}
+				else if(_f.IsQNaN())
+				{
+					__StringAppend(m_Composite, "QNaN");
+				}
+				else if(_f.IsSNaN())
+				{
+					__StringAppend(m_Composite, "SNaN");
+				}
+			}
+
+			// normalized number.
+			_RuntimeAppendNormalizedFloat(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, m_Composite);
+		}
+
+    template<typename _Char, typename FloatType, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign>
+    inline void _AppendFloat(const FloatType& _f, std::basic_string<_Char>& m_Composite)
+		{
+	    return _RuntimeAppendFloat<FloatType>(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, m_Composite);
+		}
+
+    template<size_t Width, typename T>
+    struct _BufferSizeNeededInteger
+    {
+      // sizeof(T) * 8 == how many bits to store the value.  considering
+      // the smallest base supported is base 2 (binary), thats exactly how
+      // many digits maximum for an integer type.  +1 for null terminator
+      // this is basically max(size based on width, size based on sizeof())
+      // and +1 for the sign.
+      static const long Value = (sizeof(T) * 8) + 2 > (Width + 1) ? (sizeof(T) * 8) + 2 : (Width + 1);
+    };
+
+    template<typename T>
+    inline long _RuntimeBufferSizeNeededInteger(size_t Width)
+		{
+	    return (long)((sizeof(T) * 8) + 2 > (Width + 1) ? (sizeof(T) * 8) + 2 : (Width + 1));
+		}
+
+    // buf must point to a null terminator.  It is "pulled back" and the result is returned.
+    // its simply faster to build the string in reverse order.
+    template<typename T, typename _Char>
+    inline _Char* _RuntimeUnsignedNumberToString(_Char* buf, T num, size_t Base, size_t Width, _Char PaddingChar)
+		{
+			long PadRemaining = static_cast<long>(Width);
+			_Char _PadChar = PaddingChar;
+			do
+			{
+				PadRemaining --;
+				*(--buf) = static_cast<_Char>(DigitToChar(static_cast<unsigned char>(num % Base)));
+				num = num / static_cast<T>(Base);
+			}
+			while(num);
+
+			while(PadRemaining-- > 0)
+			{
+				*(--buf) = _PadChar;
+			}
+			return buf;
+		}
+
+    template<typename _Char, size_t Base, size_t Width, _Char PaddingChar, typename T>
+    inline static _Char* _UnsignedNumberToString(_Char* buf, T num)
+		{
+			if(Base < 2)
+			{
+				static _Char x[] = { 0 };
+				return x;
+			}
+			long PadRemaining = static_cast<long>(Width);
+			_Char _PadChar = PaddingChar;
+			do
+			{
+				PadRemaining --;
+				*(--buf) = static_cast<_Char>(DigitToChar(static_cast<unsigned char>(num % Base)));
+				num = num / static_cast<T>(Base);
+			}
+			while(num);
+
+			while(PadRemaining-- > 0)
+			{
+				*(--buf) = _PadChar;
+			}
+			return buf;
+		}
+
+    // same thing, but params can be set at runtime
+    template<typename T, typename _Char>
+    inline static _Char* _RuntimeSignedNumberToString(_Char* buf, T num, size_t Base, size_t Width, _Char PaddingChar, bool ForceSign)
+		{
+			if(Base < 2)
+			{
+				static _Char x[] = { 0 };
+				return x;
+			}
+			if(num < 0)
+			{
+				buf = _RuntimeUnsignedNumberToString(buf, -num, Base, Width-1, PaddingChar);
+				*(--buf) = '-';
+			}
+			else
+			{
+				if(ForceSign)
+				{
+					buf = _RuntimeUnsignedNumberToString(buf, num, Base, Width-1, PaddingChar);
+					*(--buf) = '+';
+				}
+				else
+				{
+					buf = _RuntimeUnsignedNumberToString(buf, num, Base, Width, PaddingChar);
+				}
+			}
+			return buf;
+		}
+
+    template<typename _Char, size_t Base, size_t Width, _Char PaddingChar, bool ForceSign, typename T>
+    inline static _Char* _SignedNumberToString(_Char* buf, T num)
+		{
+			if(num < 0)
+			{
+				buf = _UnsignedNumberToString<_Char, Base, Width-1, PaddingChar, T>(buf, -num);
+				*(--buf) = '-';
+			}
+			else
+			{
+				if(ForceSign)
+				{
+					buf = _UnsignedNumberToString<_Char, Base, Width-1, PaddingChar, T>(buf, num);
+					*(--buf) = '+';
+				}
+				else
+				{
+					buf = _UnsignedNumberToString<_Char, Base, Width, PaddingChar, T>(buf, num);
+				}
+			}
+			return buf;
+		}
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2316,7 +2430,7 @@ namespace LibCC
 			_Char buf[BufferSize];
 			_Char* p = buf + BufferSize - 1;
 			*p = 0;
-			return s(_UnsignedNumberToString<Base, Width, PadChar>(p, n));
+			return s(_UnsignedNumberToString<_Char, Base, Width, PadChar>(p, n));
 		}
 
     template<size_t Base, size_t Width>
@@ -2353,7 +2467,7 @@ namespace LibCC
 			_Char buf[BufferSize];
 			_Char* p = buf + BufferSize - 1;
 			*p = 0;
-			return s(_SignedNumberToString<Base, Width, PadChar, ForceShowSign>(p, n));
+			return s(_SignedNumberToString<_Char, Base, Width, PadChar, ForceShowSign>(p, n));
 		}
 
     template<size_t Base, size_t Width, _Char PadChar>
@@ -2448,7 +2562,9 @@ namespace LibCC
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, size_t Base>
     LIBCC_INLINE _This& f(float val)
 		{
-	    return _AppendFloat<SinglePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val);
+	    _AppendFloat<SinglePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val);
+			BuildCompositeChunk();
+			return *this;
 		}
 
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign>
@@ -2482,14 +2598,18 @@ namespace LibCC
 
     LIBCC_INLINE _This& f(float val, size_t DecimalWidthMax, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
 		{
-	    return _RuntimeAppendFloat<SinglePrecisionFloat>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
+	    _RuntimeAppendFloat<SinglePrecisionFloat>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
+			BuildCompositeChunk();
+			return *this;
 		}
 
     // DOUBLE -----------------------------
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, size_t Base>
     LIBCC_INLINE _This& d(double val)
 		{
-	    return _AppendFloat<DoublePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val);
+	    _AppendFloat<_Char, DoublePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val, m_Composite);
+			BuildCompositeChunk();
+			return *this;
 		}
 
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign>
@@ -2523,7 +2643,9 @@ namespace LibCC
 
     LIBCC_INLINE _This& d(double val, size_t DecimalWidthMax = 3, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
 		{
-	    return _RuntimeAppendFloat<DoublePrecisionFloat>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
+	    _RuntimeAppendFloat<DoublePrecisionFloat, _Char>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, m_Composite);
+			BuildCompositeChunk();
+			return *this;
 		}
 
     // UNSIGNED INT 64 -----------------------------
@@ -2664,335 +2786,6 @@ namespace LibCC
     }
 
   private:
-    LIBCC_INLINE _This& _RuntimeAppendZeroFloat(size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign)
-		{
-			// zero.
-			// pre-decimal part.
-			// "-----0"
-			if(IntegralWidthMin > 0)
-			{
-				// append padding
-				m_Composite.reserve(m_Composite.size() + IntegralWidthMin);
-				for(size_t i = 1; i < IntegralWidthMin; ++ i)
-				{
-					m_Composite.push_back(static_cast<_Char>(PaddingChar));
-				}
-				// append the integral zero
-				m_Composite.push_back('0');
-			}
-			if(DecimalWidthMax)
-			{
-				// if there are any decimal digits to set, then just append ".0"
-				m_Composite.reserve(m_Composite.size() + 2);
-				m_Composite.push_back('.');
-				m_Composite.push_back('0');
-			}
-			BuildCompositeChunk();
-			return *this;
-		}
-
-    template<typename FloatType>
-    LIBCC_INLINE _This& _RuntimeAppendNormalizedFloat(FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign)
-		{
-			// how do we know how many chars we will use?  we don't right now.
-			_Char* buf = reinterpret_cast<_Char*>(_alloca(sizeof(_Char) * (2200 + IntegralWidthMin + DecimalWidthMax)));
-			long IntegralWidthLeft = static_cast<long>(IntegralWidthMin);
-			_Char* middle = buf + 2100 - DecimalWidthMax;
-			_Char* sIntPart = middle;
-			_Char* sDecPart = middle;
-			FloatType::Mantissa _int;// integer part raw value
-			FloatType::Mantissa _dec;// decimal part raw value
-			FloatType::Exponent exp = _f.GetExponent();// exponent raw value
-			FloatType::Mantissa m = _f.GetMantissa();
-			size_t DecBits;// how many bits out of the mantissa are used by the decimal part?
-
-			const size_t BasicTypeBits = sizeof(FloatType::BasicType)*8;
-			if((exp < FloatType::MantissaBits) && (exp > (FloatType::MantissaBits - BasicTypeBits)))
-			{
-				// write the integral (before decimal point) part.
-				DecBits = _f.MantissaBits - exp;
-				_int = m >> DecBits;// the integer part.
-				_dec = m & (((FloatType::Mantissa)1 << DecBits) - 1);
-				do
-				{
-					--IntegralWidthLeft;
-					*(-- sIntPart) = DigitToChar(static_cast<unsigned char>(_int % Base));
-					_int = _int / static_cast<FloatType::Mantissa>(Base);
-				}
-				while(_int);
-
-				while(IntegralWidthLeft > 0)
-				{
-					*(-- sIntPart) = static_cast<_Char>(PaddingChar);
-					IntegralWidthLeft --;
-				}
-
-				// write the after-decimal part.  here we basically do long division!
-				// the decimal part is basically a fraction that we convert bases on.
-				// since we need to deal with a number as large as the denominator, this will only work
-				// when DecBits is less than 32 (for single precsion)
-				if(DecimalWidthMax)
-				{
-					size_t DecimalWidthLeft = DecimalWidthMax;
-					middle[0] = '.';
-					FloatType::Mantissa denominator = (FloatType::Mantissa)1 << DecBits;// same as 'capacity'.
-					FloatType::Mantissa& numerator(_dec);
-					numerator *= static_cast<FloatType::Mantissa>(Base);
-					FloatType::Mantissa digit;
-					while(numerator && DecimalWidthLeft)
-					{
-						digit = numerator / denominator;// integer division
-						// add the digit, and drill down into the remainder.
-						*(++ sDecPart) = DigitToChar(static_cast<unsigned char>(digit % Base));
-						numerator -= digit * denominator;
-						numerator *= static_cast<FloatType::Mantissa>(Base);
-						-- DecimalWidthLeft;
-					}
-				}
-				else
-				{
-					middle[0] = 0;
-				}
-			}
-			else
-			{
-				// We are here because doing conversions would take large numbers - too large to hold in
-				// a InternalType integral.  So until i can come up with a cooler way to do it, i will
-				// just do floating point divides and 
-
-				// do the integral part just like a normal int.
-				FloatType::This integerPart(_f);
-				integerPart.RemoveDecimal();
-				integerPart.AbsoluteValue();
-				FloatType::BasicType fBase = static_cast<FloatType::BasicType>(Base);
-				do
-				{
-					IntegralWidthLeft --;
-					// at this point integerPart has no decimal and Base of course doesnt.
-					*(-- sIntPart) = DigitToChar(static_cast<unsigned char>(fmod(integerPart.m_BasicVal, fBase)));
-					integerPart.m_BasicVal /= Base;
-					integerPart.RemoveDecimal();
-				}
-				while(integerPart.m_BasicVal > 0);
-
-				while(IntegralWidthLeft > 0)
-				{
-					*(-- sIntPart) = static_cast<_Char>(PaddingChar);
-					IntegralWidthLeft --;
-				}
-
-				// now the decimal part.
-				if(DecimalWidthMax)
-				{
-					size_t DecimalWidthLeft = DecimalWidthMax;
-					middle[0] = '.';
-					FloatType::This val(_f);
-					val.AbsoluteValue();
-					// remove integer part.
-					FloatType::This integerPart(val);
-					integerPart.RemoveDecimal();
-					val.m_BasicVal -= integerPart.m_BasicVal;
-					do
-					{
-						DecimalWidthLeft --;
-						val.m_BasicVal *= Base;
-						// isolate the integral part
-						integerPart.m_BasicVal = val.m_BasicVal;
-						integerPart.RemoveDecimal();
-						*(++ sDecPart) = DigitToChar(static_cast<unsigned char>(fmod(integerPart.m_BasicVal, fBase)));
-						// use the integral part to leave only the decimal part.
-						val.m_BasicVal -= integerPart.m_BasicVal;
-					}
-					while((val.m_BasicVal > 0) && DecimalWidthLeft);
-				}
-				else
-				{
-					middle[0] = 0;
-				}
-			}
-
-			// display the sign
-			if(_f.IsNegative())
-			{
-				*(-- sIntPart) = '-';
-			}
-			else if(ForceSign)
-			{
-				*(-- sIntPart) = '+';
-			}
-
-			// null terminate
-			*(++ sDecPart) = 0;
-
-			return s(sIntPart);
-		}
-
-    /*
-      Converts any floating point (LibCC::IEEEFloat<>) number to a string, and appends it just like any other string.
-    */
-    template<typename FloatType>
-    LIBCC_INLINE _This& _RuntimeAppendFloat(const FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign)
-		{
-			if(!(_f.m_val & _f.ExponentMask))
-			{
-				// exponont = 0.  that means its either zero or denormalized.
-				if(_f.m_val & _f.MantissaMask)
-				{
-					// denormalized
-					return s("Unsupported denormalized number");
-				}
-				else
-				{
-					// zero
-					return _RuntimeAppendZeroFloat(DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
-				}
-			}
-			else if((_f.m_val & _f.ExponentMask) == _f.ExponentMask)
-			{
-				// exponent = MAX.  either infinity or NAN.
-				if(_f.IsPositiveInfinity())
-				{
-					return s("+Inf");
-				}
-				else if(_f.IsNegativeInfinity())
-				{
-					return s("-Inf");
-				}
-				else if(_f.IsQNaN())
-				{
-					return s("QNaN");
-				}
-				else if(_f.IsSNaN())
-				{
-					return s("SNaN");
-				}
-			}
-
-			// normalized number.
-			return _RuntimeAppendNormalizedFloat(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
-		}
-
-    template<typename FloatType, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign>
-    LIBCC_INLINE _This& _AppendFloat(const FloatType& _f)
-		{
-	    return _RuntimeAppendFloat<FloatType>(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign);
-		}
-
-    template<size_t Width, typename T>
-    struct _BufferSizeNeededInteger
-    {
-      // sizeof(T) * 8 == how many bits to store the value.  considering
-      // the smallest base supported is base 2 (binary), thats exactly how
-      // many digits maximum for an integer type.  +1 for null terminator
-      // this is basically max(size based on width, size based on sizeof())
-      // and +1 for the sign.
-      static const long Value = (sizeof(T) * 8) + 2 > (Width + 1) ? (sizeof(T) * 8) + 2 : (Width + 1);
-    };
-
-    template<typename T>
-    LIBCC_INLINE long _RuntimeBufferSizeNeededInteger(size_t Width)
-		{
-	    return (long)((sizeof(T) * 8) + 2 > (Width + 1) ? (sizeof(T) * 8) + 2 : (Width + 1));
-		}
-
-    // buf must point to a null terminator.  It is "pulled back" and the result is returned.
-    // its simply faster to build the string in reverse order.
-    template<typename T>
-    LIBCC_INLINE static _Char* _RuntimeUnsignedNumberToString(_Char* buf, T num, size_t Base, size_t Width, _Char PaddingChar)
-		{
-			long PadRemaining = static_cast<long>(Width);
-			_Char _PadChar = PaddingChar;
-			do
-			{
-				PadRemaining --;
-				*(--buf) = static_cast<_Char>(DigitToChar(static_cast<unsigned char>(num % Base)));
-				num = num / static_cast<T>(Base);
-			}
-			while(num);
-
-			while(PadRemaining-- > 0)
-			{
-				*(--buf) = _PadChar;
-			}
-			return buf;
-		}
-
-    template<size_t Base, size_t Width, _Char PaddingChar, typename T>
-    LIBCC_INLINE static _Char* _UnsignedNumberToString(_Char* buf, T num)
-		{
-			if(Base < 2)
-			{
-				static _Char x[] = { 0 };
-				return x;
-			}
-			long PadRemaining = static_cast<long>(Width);
-			_Char _PadChar = PaddingChar;
-			do
-			{
-				PadRemaining --;
-				*(--buf) = static_cast<_Char>(DigitToChar(static_cast<unsigned char>(num % Base)));
-				num = num / static_cast<T>(Base);
-			}
-			while(num);
-
-			while(PadRemaining-- > 0)
-			{
-				*(--buf) = _PadChar;
-			}
-			return buf;
-		}
-
-    // same thing, but params can be set at runtime
-    template<typename T>
-    LIBCC_INLINE static _Char* _RuntimeSignedNumberToString(_Char* buf, T num, size_t Base, size_t Width, _Char PaddingChar, bool ForceSign)
-		{
-			if(Base < 2)
-			{
-				static _Char x[] = { 0 };
-				return x;
-			}
-			if(num < 0)
-			{
-				buf = _RuntimeUnsignedNumberToString(buf, -num, Base, Width-1, PaddingChar);
-				*(--buf) = '-';
-			}
-			else
-			{
-				if(ForceSign)
-				{
-					buf = _RuntimeUnsignedNumberToString(buf, num, Base, Width-1, PaddingChar);
-					*(--buf) = '+';
-				}
-				else
-				{
-					buf = _RuntimeUnsignedNumberToString(buf, num, Base, Width, PaddingChar);
-				}
-			}
-			return buf;
-		}
-
-    template<size_t Base, size_t Width, _Char PaddingChar, bool ForceSign, typename T>
-    LIBCC_INLINE static _Char* _SignedNumberToString(_Char* buf, T num)
-		{
-			if(num < 0)
-			{
-				buf = _UnsignedNumberToString<Base, Width-1, PaddingChar, T>(buf, -num);
-				*(--buf) = '-';
-			}
-			else
-			{
-				if(ForceSign)
-				{
-					buf = _UnsignedNumberToString<Base, Width-1, PaddingChar, T>(buf, num);
-					*(--buf) = '+';
-				}
-				else
-				{
-					buf = _UnsignedNumberToString<Base, Width, PaddingChar, T>(buf, num);
-				}
-			}
-			return buf;
-		}
 
     // build composite as much as we can (until a replace-char)
     LIBCC_INLINE void BuildCompositeChunk()

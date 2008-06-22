@@ -572,6 +572,14 @@ bool FormatTest()
 
 	{
 		// during float operations, make sure to test 0.5. and other combinations of oddball shit
+		std::wstring w;
+		TestAssert((w = FormatW().d<2>(1.0).Str()) == L"1.0");
+		TestAssert((w = FormatW().d<2>(1.12).Str()) == L"1.12");
+		TestAssert((w = FormatW().d<2>(1.124).Str()) == L"1.12");
+		TestAssert((w = FormatW().d<3>(1.124).Str()) == L"1.124");
+		TestAssert((w = FormatW().d<3,2>(1.124).Str()) == L"01.124");
+		TestAssert((w = FormatW().d<3,2,' '>(1.124).Str()) == L" 1.124");
+		w.empty();
 	}
 
 	return true;

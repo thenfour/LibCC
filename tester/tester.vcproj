@@ -248,6 +248,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\libcc\float.hpp"
+				>
+			</File>
+			<File
 				RelativePath="..\libcc\log.hpp"
 				>
 			</File>
