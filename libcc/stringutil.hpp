@@ -160,7 +160,7 @@ namespace LibCC
 
 	// StringIsEnd. --------------------------------------------------------------------------------------
 	template<typename Char>
-	inline bool StringIsEnd(const Char* it, const Char* str)
+	inline bool StringIsEnd(const Char* it, const Char*)
 	{
 		return *it == 0;
 	}
@@ -292,12 +292,12 @@ namespace LibCC
 #ifdef WIN32
 
 	// TODO: http://www.unicode.org/Public/PROGRAMS/CVTUTF/ConvertUTF.c
-	inline HRESULT UTF16ToUTF32(const wchar_t* in, size_t inLength, Blob<__int32>& out)
+	inline HRESULT UTF16ToUTF32(const wchar_t*, size_t, Blob<__int32>&)
 	{
 		return E_NOTIMPL;
 	}
 
-	inline HRESULT UTF32ToUTF16(const wchar_t* in, size_t inLength, Blob<__int32>& out)
+	inline HRESULT UTF32ToUTF16(const wchar_t*, size_t, Blob<__int32>&)
 	{
 		return E_NOTIMPL;
 	}
@@ -408,12 +408,12 @@ namespace LibCC
 	*/
 
 	// basic_string -> basic_string --------------------------------------------------------------------------------------
-	inline HRESULT StringConvert(const std::string& in, std::wstring& out, UINT fromcodepage = CP_ACP, UINT tocodepage = CP_ACP)
+	inline HRESULT StringConvert(const std::string& in, std::wstring& out, UINT fromcodepage = CP_ACP, UINT = CP_ACP)
 	{
 		return ToUTF16((const BYTE*)in.c_str(), in.length(), out, fromcodepage);
 	}
 	// case #5:
-	inline HRESULT StringConvert(const std::wstring& in, std::string& out, UINT fromcodepage = CP_ACP, UINT tocodepage = CP_ACP)
+	inline HRESULT StringConvert(const std::wstring& in, std::string& out, UINT = CP_ACP, UINT tocodepage = CP_ACP)
 	{
 		Blob<BYTE> b;
 		HRESULT hr = ToANSI(in.c_str(), in.length(), b, tocodepage);
@@ -443,12 +443,12 @@ namespace LibCC
 	}
 
 	// xchar* -> basic_string --------------------------------------------------------------------------------------
-	inline HRESULT StringConvert(const char* in, std::wstring& out, UINT fromcodepage = CP_ACP, UINT tocodepage = CP_ACP)
+	inline HRESULT StringConvert(const char* in, std::wstring& out, UINT fromcodepage = CP_ACP, UINT = CP_ACP)
 	{
 		return ToUTF16((const BYTE*)in, StringLength(in), out, fromcodepage);
 	}
 	// case #5:
-	inline HRESULT StringConvert(const wchar_t* in, std::string& out, UINT fromcodepage = CP_ACP, UINT tocodepage = CP_ACP)
+	inline HRESULT StringConvert(const wchar_t* in, std::string& out, UINT = CP_ACP, UINT tocodepage = CP_ACP)
 	{
 		Blob<BYTE> b;
 		HRESULT hr = ToANSI(in, StringLength(in), b, tocodepage);
@@ -549,7 +549,7 @@ namespace LibCC
 	// case #4:
 	// note: error C2765: 'LibCC::StringConvertX' : an explicit specialization of a function template cannot have any default arguments
 	template<>
-	inline std::wstring StringConvert<wchar_t, char>(const std::string& in, UINT fromcodepage, UINT tocodepage)
+	inline std::wstring StringConvert<wchar_t, char>(const std::string& in, UINT fromcodepage, UINT)
 	{
 		return ToUTF16(in, fromcodepage);
 	}
@@ -618,7 +618,7 @@ namespace LibCC
 	// case #4:
 	// note: error C2765: 'LibCC::StringConvertX' : an explicit specialization of a function template cannot have any default arguments
 	template<>
-	inline std::wstring StringConvert<wchar_t, char>(const char* in, UINT fromcodepage, UINT tocodepage)
+	inline std::wstring StringConvert<wchar_t, char>(const char* in, UINT fromcodepage, UINT)
 	{
 		return ToUTF16(in, fromcodepage);
 	}
@@ -1739,7 +1739,7 @@ namespace LibCC
 				static _Char x[] = { 0 };
 				return x;
 			}
-			long PadRemaining = static_cast<long>(Width);
+			ptrdiff_t PadRemaining = static_cast<ptrdiff_t>(Width);
 			_Char _PadChar = PaddingChar;
 			do
 			{
@@ -2858,6 +2858,7 @@ namespace LibCC
 		{
 			std::wstring s;
 			FormatMessageGLE(s, code);
+
 			StringConvert(s, out);
 			return;
 		}
