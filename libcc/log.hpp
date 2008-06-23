@@ -67,8 +67,11 @@
 
 namespace LibCC
 {
+
   class Log
   {
+		friend struct LogReference;
+
 		bool m_unicodeFileFormat;
 		bool m_writeHeader;
 		bool m_enableWindow;
@@ -79,6 +82,23 @@ namespace LibCC
 		static const DWORD m_height = LIBCC_LOG_WINDOW_HEIGHT;
 
 		static const size_t IndentSize = 2;
+
+		// ref count stuff only used by LogReference
+		int m_refcount;
+		int AddRef()
+		{
+			return ++ m_refcount;
+		}
+		int Release()
+		{
+			m_refcount --;
+			if(!m_refcount)
+			{
+				delete this;
+				return 0;
+			}
+			return m_refcount;
+		}
 
 		inline bool WindowEnabled() const
 		{
@@ -131,6 +151,11 @@ namespace LibCC
 		~Log()
 		{
 			Destroy();
+		}
+
+		bool IsCreated() const
+		{
+			return m_hThread != 0;
 		}
 
 		// filename
@@ -716,6 +741,58 @@ namespace LibCC
 
     Log* m_pLog;
   };
+
+	// stick one of these in a class if it needs to use a Log during its lifetime. use it similar to how you use Log
+	// the idea is that the global log (LibCC::g_pLog) may be used throughout lots of stuff in an application. if something shuts down and
+	// just deletes it, it may cause problems for everything else. it needs to be ref-counted in a simple way, and i don't feel like depending
+	// on shared_ptr for this.
+	struct LogReference
+	{
+		Log*& m_p;
+
+		Log* operator ->()
+		{
+			return m_p;
+		}
+
+		Log& operator *()
+		{
+			return *m_p;
+		}
+
+		LogReference(Log*& p = g_pLog) :
+			m_p(p)
+		{
+			if(!m_p)
+			{
+				m_p = new Log();
+			}
+			else
+			{
+				m_p->AddRef();
+			}
+		}
+		~LogReference()
+		{
+			if(!m_p->Release())
+				m_p = 0;
+		}
+
+		template<typename XChar>
+    void Create(const std::basic_string<XChar>& fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false, bool writeHeader = true)
+		{
+			if(!m_p->IsCreated())
+				m_p->Create(fileName, hInstance, enableDebug, enableWindow, enableFile, unicodeFileFormat, enableStdOut, writeHeader);
+		}
+
+		template<typename XChar>
+    void Create(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false, bool writeHeader = true)
+		{
+			if(!m_p->IsCreated())
+				m_p->Create(fileName, hInstance, enableDebug, enableWindow, enableFile, unicodeFileFormat, enableStdOut, writeHeader);
+		}
+
+	};
 }
 #include "timer.hpp"
 namespace LibCC

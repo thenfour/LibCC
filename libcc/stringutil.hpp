@@ -1270,10 +1270,10 @@ namespace LibCC
 		{
 			bool lend = StringIsEnd(itl, lhs);
 			bool rend = StringIsEnd(itr, rhs);
-			if(lend && rend)
-				return true;// hit the end
-			if(lend || rend)
-				return false;// one hit the end
+			if(lend)
+				return rend;
+			if(rend)
+				return lend;
 			if(*itl != *itr)
 				return false;
 			++ itl;
@@ -1348,8 +1348,14 @@ namespace LibCC
   {
 		TiterL itl = StringBegin(lhs);
 		TiterR itr = StringBegin(rhs);
-		while(!StringIsEnd(itl, lhs) || !StringIsEnd(itr, rhs))
+		while(true)
 		{
+			bool lend = StringIsEnd(itl, lhs);
+			bool rend = StringIsEnd(itr, rhs);
+			if(lend)
+				return rend;
+			if(rend)
+				return lend;
 			if(CharToLower(*itl) != CharToLower(*itr))
 				return false;
 			++ itl;

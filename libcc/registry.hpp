@@ -249,7 +249,7 @@ namespace LibCC
     _RegistryKey SubKey(const _String& subkey)
     {
       _String subkeyCopy(m_subKey);
-      PathAppendX(subkeyCopy, subkey);
+      subkeyCopy = PathAppendX(subkeyCopy, subkey);
       return _RegistryKey(m_hRoot, subkeyCopy, m_bNeedWriteAccess);
     }
 
@@ -444,7 +444,7 @@ namespace LibCC
         while(ERROR_NO_MORE_ITEMS != RegEnumKeyExX(m_hKey, i, justKey, maxNameSize))
         {
           subkey = m_subKey;
-          PathAppendX(subkey, justKey);
+          subkey = PathAppendX(subkey, justKey);
           m_subKeys.push_back(_RegistryKey(m_hRoot, subkey, m_bNeedWriteAccess));
           i ++;
         }
