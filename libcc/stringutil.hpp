@@ -128,6 +128,13 @@
 
 namespace LibCC
 {
+	// random utility function
+	template<typename T, size_t N>
+	size_t SizeofStaticArray(const T (&x)[N])
+	{
+		return N;
+	}
+
   inline char DigitToChar(unsigned char d)
   {
     static const char Digits [] = "0123456789abcdefghijklmnopqrstuvwxyz";

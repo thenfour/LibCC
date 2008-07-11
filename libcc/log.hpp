@@ -774,6 +774,8 @@ namespace LibCC
 		}
 		~LogReference()
 		{
+			if(!m_p)// because we're mixing ref-counted ptrs with potentially-not-ref-counted, do a check here to see if it's already been deleted.
+				return;
 			if(!m_p->Release())
 				m_p = 0;
 		}
@@ -805,6 +807,8 @@ namespace LibCC
       m_pLog(pLog)
     {
 			t.Tick();
+			if(!m_pLog)
+				return;
       m_pLog->Message(std::wstring(L"{ "), std::basic_string<XChar>(op));
       m_pLog->Indent();
     }
@@ -813,6 +817,8 @@ namespace LibCC
       m_pLog(pLog)
     {
 			t.Tick();
+			if(!m_pLog)
+				return;
       m_pLog->Message(std::wstring(L"{ "), op);
       m_pLog->Indent();
     }
