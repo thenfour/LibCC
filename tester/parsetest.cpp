@@ -32,7 +32,7 @@ struct AttributeParser : public ParserWithOutput<std::vector<Attribute>, Attribu
 	virtual bool Parse(ScriptResult& result, ScriptReader& input)
 	{
 		output.push_back(Attribute());
-		return (*CharOf<1>(L"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_", output.back().lhs)).ParseRetainingStateOnError(result, input);
+		return (+CharOf<1>(L"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_", output.back().lhs)).ParseRetainingStateOnError(result, input);
 	}
 };
 
@@ -44,7 +44,7 @@ struct TagParser : public ParserWithOutput<Element, TagParser>
 
 	virtual bool Parse(ScriptResult& result, ScriptReader& input)
 	{
-		return (*CharOf<1>(L"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_", output.tagName)).ParseRetainingStateOnError(result, input);
+		return (+CharOf<1>(L"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_", output.tagName)).ParseRetainingStateOnError(result, input);
 	}
 };
 
@@ -60,8 +60,8 @@ struct ElementParser : public ParserWithOutput<ElementList, ElementParser>
 		Parser p =
 			Char('<')
 			+ TagParser(output.elements.back())
-			+ (*(Space<1>() + AttributeParser(output.elements.back().attributes)))
-			+ Space<0>()
+			+ (*(+Space() + AttributeParser(output.elements.back().attributes)))
+			+ *Space()
 			+ Str(L"/>");
 		return p.ParseRetainingStateOnError(result, input);
 	}
@@ -70,7 +70,6 @@ struct ElementParser : public ParserWithOutput<ElementList, ElementParser>
 bool ParseTest()
 {
 	ScriptReader reader(L" <hi/> <lol /> <omg a b/>");
-	//ScriptReader reader(L"<a  b/>");
 	ScriptResult result;
 	ElementList els;
 	Parser p = Space<0>() + (*(ElementParser(els) + Space<0>()));
@@ -95,5 +94,3 @@ bool ParseTest()
 	}
   return true;
 }
-
-

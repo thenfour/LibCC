@@ -389,6 +389,7 @@ namespace LibCC
 							return true;
 						}
 					}
+					count ++;
 					// if it succeeded but the cursor is in the same place, then we're headed for an endless loop.
 					if(oldCursor == input.GetCursorCopy().pos)
 					{
