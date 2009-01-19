@@ -32,6 +32,8 @@
 
 TODO:
 - convenience parsing of numbers
+o convenience parsing of strings
+- better diagnostic stuff (output a sample input string or EBNF string, set breakpoints in the parse process)
 - other ScriptReaders that:
 	 - could work on binary, not just text?
 	 - provide more options and don't force you to use C++-style comments
@@ -531,37 +533,56 @@ namespace LibCC
 
 		struct Char : public ParserBase
 		{
-			wchar_t dummy;
-			wchar_t& output;
-			wchar_t outputBackup;
 			wchar_t match;
 
-			Char(wchar_t match, wchar_t& out) :
-				dummy(0),
-				output(out),
-				match(match)
-			{
-			}
+			wchar_t chDummy;
+			wchar_t& chOutput;
+			wchar_t chOutputBackup;
+
+			std::wstring strDummy;
+			std::wstring& strOutput;
+			std::wstring strOutputBackup;
 
 			Char() :
-				dummy(0),
-				output(dummy),
-				match(0)
+				match(0),
+				chOutput(chDummy),
+				strOutput(strDummy)
 			{
 			}
 
-			Char(wchar_t match) :
-				dummy(0),
-				output(dummy),
-				match(match)
+			Char(wchar_t match_) :
+				match(match_),
+				chOutput(chDummy),
+				strOutput(strDummy)
+			{
+			}
+
+			Char(wchar_t match_, wchar_t& out) :
+				match(match_),
+				chOutput(out),
+				strOutput(strDummy)
+			{
+			}
+
+			Char(wchar_t match_, std::wstring& out) :
+				match(match_),
+				chOutput(chDummy),
+				strOutput(out)
 			{
 			}
 
 			virtual ParserBase* NewClone() const { return new Char(*this); }
 
-			virtual void SaveOutputState() { outputBackup = output; }
-
-			virtual void RestoreOutputState() { output = outputBackup; }
+			virtual void SaveOutputState()
+			{
+				chOutputBackup = chOutput;
+				strOutputBackup = strOutput;
+			}
+			virtual void RestoreOutputState()
+			{
+				chOutput = chOutputBackup;
+				strOutput = strOutputBackup;
+			}
 
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
@@ -571,7 +592,9 @@ namespace LibCC
 					return false;
 				}
 
-				output = input.CurrentChar();
+				wchar_t ch = input.CurrentChar();
+				chOutput = ch;
+				strOutput.push_back(ch);
 				input.Advance();
 
 				if(match == 0)
@@ -579,7 +602,7 @@ namespace LibCC
 					return true;
 				}
 
-				if(match != output)
+				if(match != ch)
 				{
 					//result.Message(L"Unexpected character");
 					return false;
@@ -718,6 +741,12 @@ namespace LibCC
 			return Sequence(lhs, rhs);
 		}
 
+		// same as operator+(), but in certain contexts this mkes more sense. like (!Char('}') && CharRange('etc'))
+		Sequence operator && (const ParserBase& lhs, const ParserBase& rhs)
+		{
+			return Sequence(lhs, rhs);
+		}
+
 		struct Or : public ParserBase
 		{
 			ParserPtr lhs;
@@ -829,11 +858,11 @@ namespace LibCC
 
 		///////////////////////////////////////////////////////////////////////////////////////////////////
 		// matches exactly 1 whitespace char
-		struct SpaceChar : public ParserBase
+		struct Space : public ParserBase
 		{
 			std::wstring chars;
 
-			SpaceChar()
+			Space()
 			{
 				chars = L"\r\n \t";
 				chars.push_back(0x0085);// NEL (control character next line)
@@ -859,7 +888,7 @@ namespace LibCC
 				chars.push_back(0xFEFF);// ZERO WIDTH NO-BREAK SPACE
 			}
 
-			virtual ParserBase* NewClone() const { return new SpaceChar(); }
+			virtual ParserBase* NewClone() const { return new Space(); }
 			virtual void SaveOutputState() { }
 			virtual void RestoreOutputState() { }
 
@@ -878,54 +907,76 @@ namespace LibCC
 			virtual std::wstring Dump(int indentLevel)
 			{
 				std::wstring ret;
-				ret += std::wstring(indentLevel, ' ') + L"SpaceChar\r\n";
+				ret += std::wstring(indentLevel, ' ') + L"Space\r\n";
 				return ret;
 			}
 		};
 
-		template<int minimumOccurrences>
 		struct CharOf : public ParserBase
 		{
 			std::wstring chars;
-			std::wstring dummy;
-			std::wstring& output;
-			std::wstring outputBackup;
+
+			wchar_t chDummy;
+			wchar_t& chOutput;
+			wchar_t chOutputBackup;
+
+			std::wstring strDummy;
+			std::wstring& strOutput;
+			std::wstring strOutputBackup;
 
 			CharOf(const std::wstring& chars_) :
 				chars(chars_),
-				output(dummy)
+				chOutput(chDummy),
+				strOutput(strDummy)
 			{
 			}
 
+			CharOf(const std::wstring& chars_, wchar_t& output_) :
+				chars(chars_),
+				chOutput(output_),
+				strOutput(strDummy)
+			{
+			}
+
+			// this appends the char to the output. for convenience.
 			CharOf(const std::wstring& chars_, std::wstring& output_) :
 				chars(chars_),
-				output(output_)
+				chOutput(chDummy),
+				strOutput(output_)
 			{
 			}
 
 			virtual ParserBase* NewClone() const
 			{
-				return new CharOf<minimumOccurrences>(*this);
+				return new CharOf(*this);
 			}
-			virtual void SaveOutputState() { outputBackup = output; }
-			virtual void RestoreOutputState() { output = outputBackup; }
+			virtual void SaveOutputState()
+			{
+				chOutputBackup = chOutput;
+				strOutputBackup = strOutput;
+			}
+			virtual void RestoreOutputState()
+			{
+				chOutput = chOutputBackup;
+				strOutput = strOutputBackup;
+			}
 
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
-				int count = 0;
-
-				while(true)
+				if(input.IsEOF())
 				{
-					if(input.IsEOF() || (std::wstring::npos == chars.find(input.CurrentChar())))
-					{
-						// non-matching char
-						return count >= minimumOccurrences;
-					}
-
-					output.push_back(input.CurrentChar());
-					input.Advance();
-					++ count;
+					return false;
 				}
+				wchar_t ch = input.CurrentChar();
+				if(std::wstring::npos == chars.find(input.CurrentChar()))
+				{
+					return false;
+				}
+
+				chOutput = ch;
+				strOutput.push_back(ch);
+				input.Advance();
+				return true;
 			}
 
 			virtual std::wstring Dump(int indentLevel)
@@ -936,31 +987,84 @@ namespace LibCC
 			}
 		};
 
-		template<int MinimumOccurrences>
-		struct Space : public ParserBase
+		struct CharRange : public ParserBase
 		{
+			wchar_t lower;
+			wchar_t upper;
+
+			wchar_t chDummy;
+			wchar_t& chOutput;
+			wchar_t chOutputBackup;
+
+			std::wstring strDummy;
+			std::wstring& strOutput;
+			std::wstring strOutputBackup;
+
+			CharRange(wchar_t lower_, wchar_t upper_) :
+				lower(lower_),
+				upper(upper_),
+				chOutput(chDummy),
+				strOutput(strDummy)
+			{
+			}
+
+			CharRange(wchar_t lower_, wchar_t upper_, wchar_t& output_) :
+				lower(lower_),
+				upper(upper_),
+				chOutput(output_),
+				strOutput(strDummy)
+			{
+			}
+
+			// this appends the char to the output. for convenience.
+			CharRange(wchar_t lower_, wchar_t upper_, std::wstring& output_) :
+				lower(lower_),
+				upper(upper_),
+				chOutput(chDummy),
+				strOutput(output_)
+			{
+			}
+
 			virtual ParserBase* NewClone() const
 			{
-				return new Space<MinimumOccurrences>(*this);
+				return new CharRange(*this);
 			}
-			virtual void SaveOutputState() { }
-			virtual void RestoreOutputState() { }
+			virtual void SaveOutputState()
+			{
+				chOutputBackup = chOutput;
+				strOutputBackup = strOutput;
+			}
+			virtual void RestoreOutputState()
+			{
+				chOutput = chOutputBackup;
+				strOutput = strOutputBackup;
+			}
+
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
-				return Occurrences<MinimumOccurrences>(SpaceChar()).ParseRetainingStateOnError(result, input);
+				if(input.IsEOF())
+				{
+					return false;
+				}
+				wchar_t ch = input.CurrentChar();
+				if((ch < lower) || (ch > upper))
+				{
+					return false;
+				}
+
+				chOutput = ch;
+				strOutput.push_back(ch);
+				input.Advance();
+				return true;
 			}
 
 			virtual std::wstring Dump(int indentLevel)
 			{
 				std::wstring ret;
-				ret += std::wstring(indentLevel, ' ') + L"Space<>\r\n";
+				ret += std::wstring(indentLevel, ' ') + L"CharRange('" + std::wstring(1, lower) + L"'-'" + std::wstring(1,upper) + L"')\r\n";
 				return ret;
 			}
 		};
-
-		typedef Space<0> Space0;
-		typedef Space<1> Space1;
-
 
 		struct Eol : public ParserBase
 		{
@@ -989,5 +1093,63 @@ namespace LibCC
 			}
 		};
 
+		// parses C++-style escape sequences
+		struct StringEscapeParser : public ParserWithOutput<std::wstring, StringEscapeParser>
+		{
+			StringEscapeParser(std::wstring& output) : ParserWithOutput<std::wstring, StringEscapeParser>(output) { }
+			StringEscapeParser(StringEscapeParser& rhs) : ParserWithOutput<std::wstring, StringEscapeParser>(rhs.output) { }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"StringEscapeParser\r\n"; }
+
+			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			{
+				wchar_t escapeChar = 0;
+				if(!(Char('\\') + Char(0, escapeChar)).ParseRetainingStateOnError(result, input))
+					return false;
+				switch(escapeChar)
+				{
+				case 'r':
+					output.push_back('\r');
+					return true;
+				case 'n':
+					output.push_back('\n');
+					return true;
+				case 't':
+					output.push_back('\t');
+					return true;
+				case '\"':
+					output.push_back('\"');
+					return true;
+				case '\\':
+					output.push_back('\\');
+					return true;
+				case '\'':
+					output.push_back('\'');
+					return true;
+				// TODO: handle other escape sequences
+				default:
+					// unrecognized escape
+					return false;
+				}
+			}
+		};
+		// helps parsing C++-style strings
+		struct StringParser : public ParserWithOutput<std::wstring, StringParser>
+		{
+			StringParser(std::wstring& output) : ParserWithOutput<std::wstring, StringParser>(output) { }
+			StringParser(StringParser& rhs) : ParserWithOutput<std::wstring, StringParser>(rhs.output) { }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"StringParser\r\n"; }
+
+			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			{
+				Parser noQuotes = +(!Space() && Char(0, output));
+				Parser singleQuotes = Char('\'') + *(!CharOf(L"\'\r\n") && (StringEscapeParser(output) || Char(0, output))) + Char('\'');
+				Parser doubleQuotes = Char('\"') + *(!CharOf(L"\"\r\n") && (StringEscapeParser(output) || Char(0, output))) + Char('\"');
+				Parser p = singleQuotes || doubleQuotes || noQuotes;
+				//std::wstring d = p.Dump(0);
+				//std::wcout << d;
+				bool ret = p.ParseRetainingStateOnError(result, input);
+				return ret;
+			}
+		};
 	}
 }

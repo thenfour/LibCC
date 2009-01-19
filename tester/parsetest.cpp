@@ -32,7 +32,8 @@ struct AttributeParser : public ParserWithOutput<std::vector<Attribute>, Attribu
 	virtual bool Parse(ScriptResult& result, ScriptReader& input)
 	{
 		output.push_back(Attribute());
-		return (+CharOf<1>(L"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_", output.back().lhs)).ParseRetainingStateOnError(result, input);
+		Parser attributeWithoutEquals = ;
+		Parser attributeWithEquals = ;
 	}
 };
 
@@ -44,7 +45,6 @@ struct TagParser : public ParserWithOutput<Element, TagParser>
 
 	virtual bool Parse(ScriptResult& result, ScriptReader& input)
 	{
-		return (+CharOf<1>(L"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_", output.tagName)).ParseRetainingStateOnError(result, input);
 	}
 };
 
@@ -67,30 +67,47 @@ struct ElementParser : public ParserWithOutput<ElementList, ElementParser>
 	}
 };
 
+struct UnsignedIntegerParser
+{
+}
+
+struct SignedIntegerParser
+{
+}
+
 bool ParseTest()
 {
-	ScriptReader reader(L" <hi/> <lol /> <omg a b/>");
+	//ScriptReader reader(L" <hi/> <lol /> <omg a b/>");
+	//ScriptResult result;
+	//ElementList els;
+	//Parser p = *Space() + (*(ElementParser(els) + *Space()));
+	//std::wstring d = p.Dump(0);
+	//std::wcout << d;
+	//p.ParseRetainingStateOnError(result, reader);
+	//TestAssert(els.elements.size() == 3);
+	//if(els.elements.size() > 0)
+	//{
+	//	TestAssert(els.elements[0].tagName == L"hi");
+	//	TestAssert(els.elements[0].attributes.size() == 0);
+	//}
+	//if(els.elements.size() > 1)
+	//{
+	//	TestAssert(els.elements[1].tagName == L"lol");
+	//	TestAssert(els.elements[1].attributes.size() == 0);
+	//}
+	//if(els.elements.size() > 2)
+	//{
+	//	TestAssert(els.elements[2].tagName == L"omg");
+	//	TestAssert(els.elements[2].attributes.size() == 2);
+	//}
+
+	ScriptReader reader(L"    g   \'re\' \"at O'connor\" y e a h!");
 	ScriptResult result;
 	ElementList els;
-	Parser p = Space<0>() + (*(ElementParser(els) + Space<0>()));
-	std::wstring d = p.Dump(0);
-	std::wcout << d;
+	std::wstring output;
+	Parser p = *(*Space() + StringParser(output) + *Space());
+	//Parser p = StringParser(output);
 	p.ParseRetainingStateOnError(result, reader);
-	TestAssert(els.elements.size() == 3);
-	if(els.elements.size() > 0)
-	{
-		TestAssert(els.elements[0].tagName == L"hi");
-		TestAssert(els.elements[0].attributes.size() == 0);
-	}
-	if(els.elements.size() > 1)
-	{
-		TestAssert(els.elements[1].tagName == L"lol");
-		TestAssert(els.elements[1].attributes.size() == 0);
-	}
-	if(els.elements.size() > 2)
-	{
-		TestAssert(els.elements[2].tagName == L"omg");
-		TestAssert(els.elements[2].attributes.size() == 2);
-	}
+
   return true;
 }
