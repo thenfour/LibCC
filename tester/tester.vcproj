@@ -202,6 +202,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\parsetest.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\pathmatchspectest.cpp"
 				>
 			</File>
@@ -253,6 +257,10 @@
 			</File>
 			<File
 				RelativePath="..\libcc\log.hpp"
+				>
+			</File>
+			<File
+				RelativePath="..\libcc\parse.hpp"
 				>
 			</File>
 			<File
