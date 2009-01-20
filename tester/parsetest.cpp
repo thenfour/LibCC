@@ -136,6 +136,8 @@ bool ParseTest()
 	//reader.SetCursor(cur);
 	//(*Char(0, CharToStringOutput(ws))).ParseRetainingStateOnError(result, reader);
 
+	int i;
+	CInteger(i).ParseSimple(L"0x68");
 
   return true;
 }

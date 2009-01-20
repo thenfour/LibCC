@@ -84,6 +84,93 @@ namespace LibCC
 			virtual void SetCursor(const ScriptCursor& c) = 0;
 		};
 
+		struct BasicStringReader :
+			public ScriptReader
+		{
+		public:
+			BasicStringReader()
+			{
+			}
+
+			BasicStringReader(const std::wstring& s) :
+				m_script(s)
+			{
+			}
+
+			wchar_t CurrentChar() const
+			{
+				return m_script[m_cursor.pos];
+			}
+
+			void Advance()
+			{
+				InternalAdvance();
+			}
+
+			bool IsEOF() const
+			{
+				return m_cursor.pos >= (int)m_script.size();
+			}
+
+			int GetLine() const
+			{
+				return m_cursor.line;
+			}
+
+			int GetColumn() const
+			{
+				return m_cursor.column;
+			}
+
+			ScriptCursor GetCursorCopy() const
+			{
+				return m_cursor;
+			}
+
+			void SetCursor(const ScriptCursor& c)
+			{
+				m_cursor = c;
+			}
+
+		private:
+			void InternalAdvance()
+			{
+				if(IsEOF())
+					return;
+
+				if(CurrentChar() == L'\n')
+				{
+					m_cursor.line ++;
+					m_cursor.column = 1;
+					m_cursor.pos ++;
+
+					if(CurrentChar() == L'\r')// skip a \r character following \n.
+					{
+						m_cursor.pos ++;
+					}
+				}
+				else if(CurrentChar() == L'\r')
+				{
+					m_cursor.line ++;
+					m_cursor.column = 1;
+					m_cursor.pos ++;
+
+					if(CurrentChar() == L'\n')// skip a \n character following \r.
+					{
+						m_cursor.pos ++;
+					}
+				}
+				else
+				{
+					m_cursor.column ++;
+					m_cursor.pos ++;
+				}
+			}
+
+			ScriptCursor m_cursor;
+			std::wstring m_script;
+		};
+
 		// basic framework parsers ///////////////////////////////////////////////////////////////////////////////////////
 		struct ScriptResult
 		{
@@ -96,7 +183,7 @@ namespace LibCC
 
 		struct ParserBase
 		{
-			bool ParseRetainingStateOnError(ScriptResult& result, ScriptReader& input)
+			virtual bool ParseRetainingStateOnError(ScriptResult& result, ScriptReader& input)
 			{
 				ScriptCursor oldCursor = input.GetCursorCopy();
 				SaveOutputState();
@@ -116,6 +203,13 @@ namespace LibCC
 			virtual void RestoreOutputState() = 0;
 
 			virtual bool Parse(ScriptResult& result, ScriptReader& input) = 0;
+
+			// useful for simple parsing stuff like CInteger(RefOutput(myint)).Parse(L"-1");
+			virtual bool ParseSimple(const std::wstring& script)
+			{
+				ScriptResult result;
+				return Parse(result, BasicStringReader(script));
+			}
 
 			virtual std::wstring Dump(int indentLevel)
 			{
@@ -179,7 +273,8 @@ namespace LibCC
 
 		// basic framework parsers ///////////////////////////////////////////////////////////////////////////////////////
 
-		struct Passthrough : public ParserBase
+		struct Passthrough :
+			public ParserBase
 		{
 		private:
 			ParserPtr m_child;
@@ -239,7 +334,8 @@ namespace LibCC
 		typedef Passthrough Parser;
 
 		template<int MinimumOccurrences>
-		struct Occurrences : public ParserBase
+		struct Occurrences :
+			public ParserBase
 		{
 		private:
 			ParserPtr m_child;
@@ -322,7 +418,8 @@ namespace LibCC
 			return OneOrMore(lhs);
 		}
 
-		struct Not : public ParserBase
+		struct Not :
+			public ParserBase
 		{
 		private:
 			ParserPtr m_child;
@@ -375,7 +472,8 @@ namespace LibCC
 			return Not(lhs);
 		}
 
-		struct Optional : public ParserBase
+		struct Optional :
+			public ParserBase
 		{
 		private:
 			ParserPtr m_child;
@@ -428,7 +526,8 @@ namespace LibCC
 			return Optional(lhs);
 		}
 
-		struct Sequence : public ParserBase
+		struct Sequence :
+			public ParserBase
 		{
 			ParserPtr lhs;
 			ParserPtr rhs;
@@ -487,7 +586,8 @@ namespace LibCC
 			return Sequence(lhs, rhs);
 		}
 
-		struct Or : public ParserBase
+		struct Or :
+			public ParserBase
 		{
 			ParserPtr lhs;
 			ParserPtr rhs;
@@ -540,7 +640,8 @@ namespace LibCC
 			return Or(lhs, rhs);
 		}
 
-		struct Eof : public ParserBase
+		struct Eof :
+			public ParserBase
 		{
 			Eof()
 			{
@@ -912,39 +1013,6 @@ namespace LibCC
 
 		typedef StrT<true> Str;
 		typedef StrT<false> StrI;
-
-		// implements some basic stuff so that custom parsers are less typing.
-		// the derived class needs to have 2 constructors:
-		// 1) Derived(OutputArg& output) : ParserWithoutput<OutputArg, Derived>(output) { }
-		// 1) Derived(const Derived& rhs) : ParserWithoutput<OutputArg, Derived>(rhs.output) { }
-		// then just implement Parse().
-		//template<typename ToutputArg, typename DerivedT>
-		//struct ParserWithOutput : public ParserBase
-		//{
-		//	OutputPtr<ToutputArg> output;
-
-		//	ParserWithOutput() : output(arg) { }
-		//	ParserWithOutput(OutputPtr<ToutputArg>& arg) : output(arg) { }
-
-		//	virtual ParserBase* NewClone() const
-		//	{
-		//		return new DerivedT(*((DerivedT*)(this)));// create a new derived class using copy ctor
-		//	}
-		//	virtual void SaveOutputState()
-		//	{
-		//		output->SaveState();
-		//	}
-		//	virtual void RestoreOutputState()
-		//	{
-		//		output->RestoreState();
-		//	}
-		//	virtual std::wstring Dump(int indentLevel)
-		//	{
-		//		std::wstring ret;
-		//		ret += std::wstring(indentLevel, ' ') + L"ParserWithOutput(generic)\r\n";
-		//		return ret;
-		//	}
-		//};
 
 		// matches exactly 1 whitespace char
 		struct Space : public ParserBase
@@ -1471,15 +1539,15 @@ namespace LibCC
 			return UIntegerBinT<IntT>(output);
 		}
 
-		// UIntegerHexT (signed 16-bit integer parser with prefix of 0x)
+		// SIntegerHexT (signed 16-bit integer parser with prefix of 0x)
 		template<typename IntT>
-		struct IntegerHexT :
+		struct SIntegerHexT :
 			public ParserBase
 		{
 			OutputPtr<IntT> output;
-			IntegerHexT(const OutputPtr<IntT>& output_) : output(output_) { }
-			virtual ParserBase* NewClone() const { return new IntegerHexT<IntT>(*this); }
-			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"IntegerHexT\r\n"; }
+			SIntegerHexT(const OutputPtr<IntT>& output_) : output(output_) { }
+			virtual ParserBase* NewClone() const { return new SIntegerHexT<IntT>(*this); }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"SIntegerHexT\r\n"; }
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
@@ -1497,20 +1565,20 @@ namespace LibCC
 		};
 
 		template<typename IntT>
-		IntegerHexT<IntT> IntegerHex(const OutputPtr<IntT>& output)
+		SIntegerHexT<IntT> SIntegerHex(const OutputPtr<IntT>& output)
 		{
-			return IntegerHexT<IntT>(output);
+			return SIntegerHexT<IntT>(output);
 		}
 
 		// IntegerOctT (signed 8-bit integer parser with prefix of 0)
 		template<typename IntT>
-		struct IntegerOctT :
+		struct SIntegerOctT :
 			public ParserBase
 		{
 			OutputPtr<IntT> output;
-			IntegerOctT(const OutputPtr<IntT>& output_) : output(output_) { }
-			virtual ParserBase* NewClone() const { return new IntegerOctT<IntT>(*this); }
-			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"IntegerOctT\r\n"; }
+			SIntegerOctT(const OutputPtr<IntT>& output_) : output(output_) { }
+			virtual ParserBase* NewClone() const { return new SIntegerOctT<IntT>(*this); }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"SIntegerOctT\r\n"; }
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
@@ -1528,20 +1596,20 @@ namespace LibCC
 		};
 
 		template<typename IntT>
-		IntegerOctT<IntT> IntegerOct(const OutputPtr<IntT>& output)
+		SIntegerOctT<IntT> SIntegerOct(const OutputPtr<IntT>& output)
 		{
-			return IntegerOctT<IntT>(output);
+			return SIntegerOctT<IntT>(output);
 		}
 
 		// IntegerBinT (signed 2-bit integer parser with suffix of 'b')
 		template<typename IntT>
-		struct IntegerBinT :
+		struct SIntegerBinT :
 			public ParserBase
 		{
 			OutputPtr<IntT> output;
-			IntegerBinT(const OutputPtr<IntT>& output_) : output(output_) { }
-			virtual ParserBase* NewClone() const { return new IntegerBinT<IntT>(*this); }
-			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"IntegerBinT\r\n"; }
+			SIntegerBinT(const OutputPtr<IntT>& output_) : output(output_) { }
+			virtual ParserBase* NewClone() const { return new SIntegerBinT<IntT>(*this); }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"SIntegerBinT\r\n"; }
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
@@ -1559,20 +1627,20 @@ namespace LibCC
 		};
 
 		template<typename IntT>
-		IntegerBinT<IntT> IntegerBin(const OutputPtr<IntT>& output)
+		SIntegerBinT<IntT> SIntegerBin(const OutputPtr<IntT>& output)
 		{
-			return IntegerBinT<IntT>(output);
+			return SIntegerBinT<IntT>(output);
 		}
 
 		// IntegerDecT (signed 10-bit integer parser)
 		template<typename IntT>
-		struct IntegerDecT :
+		struct SIntegerDecT :
 			public ParserBase
 		{
 			OutputPtr<IntT> output;
-			IntegerDecT(const OutputPtr<IntT>& output_) : output(output_) { }
-			virtual ParserBase* NewClone() const { return new IntegerDecT<IntT>(*this); }
-			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"IntegerDecT\r\n"; }
+			SIntegerDecT(const OutputPtr<IntT>& output_) : output(output_) { }
+			virtual ParserBase* NewClone() const { return new SIntegerDecT<IntT>(*this); }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"SIntegerDecT\r\n"; }
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
@@ -1590,16 +1658,16 @@ namespace LibCC
 		};
 
 		template<typename IntT>
-		IntegerDecT<IntT> IntegerDec(const OutputPtr<IntT>& output)
+		SIntegerDecT<IntT> SIntegerDec(const OutputPtr<IntT>& output)
 		{
-			return IntegerDecT<IntT>(output);
+			return SIntegerDecT<IntT>(output);
 		}
 
 		// even more high-level.
 		template<typename IntT>
 		Parser CSignedInteger(const OutputPtr<IntT>& output)
 		{
-			return IntegerDec(output) || IntegerOct(output) || IntegerBin(output) || IntegerHex(output);
+			return SIntegerDec(output) || SIntegerOct(output) || SIntegerBin(output) || SIntegerHex(output);
 		}
 
 		template<typename IntT>
@@ -1612,6 +1680,12 @@ namespace LibCC
 		Parser CInteger(const OutputPtr<IntT>& output)
 		{
 			return CUnsignedInteger(output) || CSignedInteger(output);
+		}
+
+		template<typename IntT>
+		Parser CInteger(IntT& output)
+		{
+			return CInteger<IntT>(RefOutput(output));
 		}
 
 
