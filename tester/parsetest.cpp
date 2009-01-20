@@ -23,51 +23,53 @@ struct ElementList
 	std::vector<Element> elements;
 };
 
-struct AttributeParser : public ParserWithOutput<std::vector<Attribute>, AttributeParser>
-{
-	AttributeParser(std::vector<Attribute>& output) : ParserWithOutput<std::vector<Attribute>, AttributeParser>(output) { }
-	AttributeParser(AttributeParser& rhs) : ParserWithOutput<std::vector<Attribute>, AttributeParser>(rhs.output) { }
-	virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"AttributeParser\r\n"; }
-
-	virtual bool Parse(ScriptResult& result, ScriptReader& input)
-	{
-		output.push_back(Attribute());
-		//Parser attributeWithoutEquals = ;
-		//Parser attributeWithEquals = ;
-		return true;
-	}
-};
-
-struct TagParser : public ParserWithOutput<Element, TagParser>
-{
-	TagParser(Element& output) : ParserWithOutput<Element, TagParser>(output) { }
-	TagParser(TagParser& rhs) : ParserWithOutput<Element, TagParser>(rhs.output) { }
-	virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"TagParser\r\n"; }
-
-	virtual bool Parse(ScriptResult& result, ScriptReader& input)
-	{
-		return true;
-	}
-};
-
-struct ElementParser : public ParserWithOutput<ElementList, ElementParser>
-{
-	ElementParser(ElementList& output) : ParserWithOutput<ElementList, ElementParser>(output) { }
-	ElementParser(ElementParser& rhs) : ParserWithOutput<ElementList, ElementParser>(rhs.output) { }
-	virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"ElementParser\r\n"; }
-
-	virtual bool Parse(ScriptResult& result, ScriptReader& input)
-	{
-		output.elements.push_back(Element());
-		Parser p =
-			Char('<')
-			+ TagParser(output.elements.back())
-			+ (*(+Space() + AttributeParser(output.elements.back().attributes)))
-			+ *Space()
-			+ Str(L"/>");
-		return p.ParseRetainingStateOnError(result, input);
-	}
-};
+//struct AttributeParser :
+//	public ParserWithOutput<std::vector<Attribute>, AttributeParser>
+//{
+//	AttributeParser(std::vector<Attribute>& output) : ParserWithOutput<std::vector<Attribute>, AttributeParser>(output) { }
+//	AttributeParser(AttributeParser& rhs) : ParserWithOutput<std::vector<Attribute>, AttributeParser>(rhs.output) { }
+//	virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"AttributeParser\r\n"; }
+//
+//	virtual bool Parse(ScriptResult& result, ScriptReader& input)
+//	{
+//		output.push_back(Attribute());
+//		//Parser attributeWithoutEquals = ;
+//		//Parser attributeWithEquals = ;
+//		return true;
+//	}
+//};
+//
+//struct TagParser : public ParserWithOutput<Element, TagParser>
+//{
+//	TagParser(Element& output) : ParserWithOutput<Element, TagParser>(output) { }
+//	TagParser(TagParser& rhs) : ParserWithOutput<Element, TagParser>(rhs.output) { }
+//	virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"TagParser\r\n"; }
+//
+//	virtual bool Parse(ScriptResult& result, ScriptReader& input)
+//	{
+//		return true;
+//	}
+//};
+//
+//struct ElementParser : public ParserWithOutput<ElementList, ElementParser>
+//{
+//	ElementParser(ElementList& output) : ParserWithOutput<ElementList, ElementParser>(output) { }
+//	ElementParser(ElementParser& rhs) : ParserWithOutput<ElementList, ElementParser>(rhs.output) { }
+//	virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"ElementParser\r\n"; }
+//
+//	virtual bool Parse(ScriptResult& result, ScriptReader& input)
+//	{
+//		output.elements.push_back(Element());
+//		Parser p =
+//			Char('<')
+//			+ TagParser(output.elements.back())
+//			+ (*(+Space() + AttributeParser(output.elements.back().attributes)))
+//			+ *Space()
+//			+ Str(L"/>");
+//		return p.ParseRetainingStateOnError(result, input);
+//	}
+//};
+//
 
 bool ParseTest()
 {
@@ -107,11 +109,32 @@ bool ParseTest()
 
 
 
-	ScriptReader reader(L"0101");
+	CScriptReader reader(L"54 0x36 066 110110b   -54 -0x36 -066 -110110b   ");
+	//CScriptReader reader(L"1111b 0xff 0777 -15");
 	ScriptResult result;
-	int i;
-	Parser p = CInteger(i);
-	p.ParseRetainingStateOnError(result, reader);
+	std::vector<int> r;
+	(*(CInteger(VectorOutput(r)) + *Space())).ParseRetainingStateOnError(result, reader);
+
+
+
+	//CScriptReader reader(L"a");
+	//ScriptResult result;
+	//int i;
+	//wchar_t wch;
+	//std::vector<wchar_t> vwch;
+	//std::wstring ws;
+	//vwch.push_back('b');
+	//ScriptCursor cur = reader.GetCursorCopy();
+	//(*Char(0, InserterOutput<wchar_t>(vwch, std::back_inserter(vwch)))).ParseRetainingStateOnError(result, reader);
+
+	//reader.SetCursor(cur);
+	//(*Char(0, BackInserterOutput<wchar_t>(vwch))).ParseRetainingStateOnError(result, reader);
+
+	//reader.SetCursor(cur);
+	//(*Char(0, VectorOutput(vwch))).ParseRetainingStateOnError(result, reader);
+
+	//reader.SetCursor(cur);
+	//(*Char(0, CharToStringOutput(ws))).ParseRetainingStateOnError(result, reader);
 
 
   return true;
