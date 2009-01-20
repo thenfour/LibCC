@@ -32,8 +32,9 @@ struct AttributeParser : public ParserWithOutput<std::vector<Attribute>, Attribu
 	virtual bool Parse(ScriptResult& result, ScriptReader& input)
 	{
 		output.push_back(Attribute());
-		Parser attributeWithoutEquals = ;
-		Parser attributeWithEquals = ;
+		//Parser attributeWithoutEquals = ;
+		//Parser attributeWithEquals = ;
+		return true;
 	}
 };
 
@@ -45,6 +46,7 @@ struct TagParser : public ParserWithOutput<Element, TagParser>
 
 	virtual bool Parse(ScriptResult& result, ScriptReader& input)
 	{
+		return true;
 	}
 };
 
@@ -66,14 +68,6 @@ struct ElementParser : public ParserWithOutput<ElementList, ElementParser>
 		return p.ParseRetainingStateOnError(result, input);
 	}
 };
-
-struct UnsignedIntegerParser
-{
-}
-
-struct SignedIntegerParser
-{
-}
 
 bool ParseTest()
 {
@@ -101,13 +95,24 @@ bool ParseTest()
 	//	TestAssert(els.elements[2].attributes.size() == 2);
 	//}
 
-	ScriptReader reader(L"    g   \'re\' \"at O'connor\" y e a h!");
+
+
+
+	//ScriptReader reader(L"    g   \'re\' \"at O'connor\" y e a h!");
+	//ScriptResult result;
+	//ElementList els;
+	//std::wstring output;
+	//Parser p = *(*Space() + StringParser(output) + *Space());
+	//p.ParseRetainingStateOnError(result, reader);
+
+
+
+	ScriptReader reader(L"0101");
 	ScriptResult result;
-	ElementList els;
-	std::wstring output;
-	Parser p = *(*Space() + StringParser(output) + *Space());
-	//Parser p = StringParser(output);
+	int i;
+	Parser p = CInteger(i);
 	p.ParseRetainingStateOnError(result, reader);
+
 
   return true;
 }
