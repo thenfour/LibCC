@@ -2,7 +2,7 @@
   LibCC
   Parse Module
   (c) 2009 Carl Corcoran, carlco@gmail.com
-  Documentation: http://wiki.winprog.org/wiki/LibCC
+  Documentation: http://wiki.winprog.org/wiki/LibCC_Parse
 	Official source code: http://svn.winprog.org/personal/carl/LibCC
 
 	Original version: Jan 19, 2009
@@ -29,13 +29,6 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 /*
-
-TODO:
-- floating point number parser
-- profiling & testing
-- better diagnostic stuff (output a sample input string or EBNF string, set breakpoints in the parse process)
-- properly handle overflow on numbers?
-- write a ScriptReader that can work on any stream, not just text?
 
 
 OPERATORS
@@ -1876,6 +1869,18 @@ namespace LibCC
 				return true;
 			}
 		};
+
+		template<typename T>
+		SignedRationalParserT<T> Rational(const OutputPtr<T>& output)
+		{
+			return SignedRationalParserT<T>(output);
+		}
+
+		template<typename T>
+		SignedRationalParserT<T> Rational2(T& output)
+		{
+			return SignedRationalParserT<T>(RefOutput(output));
+		}
 
 		// Utility Script readers ///////////////////////////////////////////////////////////////////////////////////////
 
