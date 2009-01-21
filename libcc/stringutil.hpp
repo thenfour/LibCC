@@ -2654,7 +2654,7 @@ namespace LibCC
 			return d<3, 1, '0', false, 10>(val);
 		}
 
-    LIBCC_INLINE _This& d(double val, size_t DecimalWidthMax = 3, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
+    LIBCC_INLINE _This& d(double val, size_t DecimalWidthMax, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
 		{
 	    _RuntimeAppendFloat<DoublePrecisionFloat, _Char>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, m_Composite);
 			BuildCompositeChunk();

@@ -228,6 +228,10 @@ namespace LibCC
 			{
 				Assign(rhs);
 			}
+			ParserPtr(const ParserBase& rhs) : p(0)
+			{
+				Assign(rhs);
+			}
 			explicit ParserPtr(ParserBase* rhs) : p(0)
 			{
 				Assign(rhs);
@@ -246,6 +250,12 @@ namespace LibCC
 				Release();
 				if(rhs.IsValid())
 					p = rhs.p->NewClone();// copying creates a clone.
+			}
+
+			void Assign(const ParserBase& rhs)
+			{
+				Release();
+				p = rhs.NewClone();
 			}
 
 			void Assign(ParserBase* rhs)
@@ -293,7 +303,7 @@ namespace LibCC
 
 			Passthrough(const ParserBase& rhs)
 			{
-				m_child.Assign(rhs.NewClone());
+				m_child.Assign(rhs);
 			}
 
 			virtual ParserBase* NewClone() const { return new Passthrough(*this); }
@@ -354,7 +364,7 @@ namespace LibCC
 
 			Occurrences(const ParserBase& rhs)
 			{
-				m_child.Assign(rhs.NewClone());
+				m_child.Assign(rhs);
 			}
 
 			virtual ParserBase* NewClone() const { return new Occurrences<MinimumOccurrences>(*this); }
@@ -438,7 +448,7 @@ namespace LibCC
 
 			Not(const ParserBase& rhs)
 			{
-				m_child.Assign(rhs.NewClone());
+				m_child.Assign(rhs);
 			}
 
 			virtual ParserBase* NewClone() const { return new Not(*this); }
@@ -492,7 +502,7 @@ namespace LibCC
 
 			Optional(const ParserBase& rhs)
 			{
-				m_child.Assign(rhs.NewClone());
+				m_child.Assign(rhs);
 			}
 
 			virtual ParserBase* NewClone() const { return new Optional(*this); }
@@ -534,8 +544,8 @@ namespace LibCC
 
 			Sequence(const ParserBase& _lhs, const ParserBase& _rhs)
 			{
-				lhs.Assign(_lhs.NewClone());
-				rhs.Assign(_rhs.NewClone());
+				lhs.Assign(_lhs);
+				rhs.Assign(_rhs);
 			}
 
 			virtual ParserBase* NewClone() const { return new Sequence(*this); }
@@ -594,8 +604,8 @@ namespace LibCC
 
 			Or(const ParserBase& _lhs, const ParserBase& _rhs)
 			{
-				lhs.Assign(_lhs.NewClone());
-				rhs.Assign(_rhs.NewClone());
+				lhs.Assign(_lhs);
+				rhs.Assign(_rhs);
 			}
 
 			virtual ParserBase* NewClone() const { return new Or(*this); }
@@ -855,13 +865,19 @@ namespace LibCC
 			CharT() :
 				match(0)
 			{
-				output.Assign(NullOutput<wchar_t>().NewClone());
+				output.Assign(NullOutput<wchar_t>());
 			}
 
 			CharT(wchar_t match_) :
 				match(match_)
 			{
-				output.Assign(NullOutput<wchar_t>().NewClone());
+				output.Assign(NullOutput<wchar_t>());
+			}
+
+			CharT(const OutputPtr<wchar_t>& out) :
+				match(0),
+				output(out)
+			{
 			}
 
 			CharT(wchar_t match_, const OutputPtr<wchar_t>& out) :
@@ -941,11 +957,6 @@ namespace LibCC
 		{
 			std::wstring match;
 			OutputPtr<std::wstring> output;
-
-			StrT()
-			{
-				output.Assign(NullOutput<std::wstring>());
-			}
 
 			StrT(const std::wstring& match) :
 				match(match)
@@ -1084,11 +1095,11 @@ namespace LibCC
 			}
 
 			CharOfT(const std::wstring& chars_, const OutputPtr<wchar_t>& output_) :
-				chars(chars_)
+				chars(chars_),
+				output(output_)
 			{
 				if(!TCaseSensitive)
 					chars = StringToLower(chars);
-				output.Assign(output_);
 			}
 
 			CharOfT(const std::wstring& chars_, wchar_t& output_) :
@@ -1347,6 +1358,21 @@ namespace LibCC
 			}
 		};
 
+		template<typename Tch>
+		inline int CharToDigit(Tch ch)
+		{
+			ch = CharToLower(ch);
+			if(ch >= '0' && ch <= '9')
+			{
+				return ch - '0';
+			}
+			if(ch >= 'a' && ch <= 'z')
+			{
+				return 10 + ch - 'a';
+			}
+			return 0;
+		}
+
 		// integer parsers ///////////////////////////////////////////////////////////////////////////////////////
 		template<typename IntT>
 		struct UnsignedIntegerParserT :
@@ -1413,18 +1439,8 @@ namespace LibCC
 				IntT out = 0;
 				for(std::wstring::const_iterator it = outputStr.begin(); it != outputStr.end(); ++ it)
 				{
-					wchar_t ch = CharToLower(*it);
-					int digit;
-					if(ch >= '0' && ch <= '9')
-					{
-						digit = ch - '0';
-					}
-					if(ch >= 'a' && ch <= 'z')
-					{
-						digit = 10 + ch - 'a';
-					}
 					out *= base;
-					out += digit;
+					out += CharToDigit(*it);
 				}
 				output->Save(out);
 				return true;
@@ -1539,7 +1555,7 @@ namespace LibCC
 			return UIntegerBinT<IntT>(output);
 		}
 
-		// SIntegerHexT (signed 16-bit integer parser with prefix of 0x)
+		// SIntegerHexT (signed or unsigned 16-bit integer parser with prefix of 0x)
 		template<typename IntT>
 		struct SIntegerHexT :
 			public ParserBase
@@ -1570,7 +1586,7 @@ namespace LibCC
 			return SIntegerHexT<IntT>(output);
 		}
 
-		// IntegerOctT (signed 8-bit integer parser with prefix of 0)
+		// SIntegerOctT (signed or unsigned 8-bit integer parser with prefix of 0)
 		template<typename IntT>
 		struct SIntegerOctT :
 			public ParserBase
@@ -1601,7 +1617,7 @@ namespace LibCC
 			return SIntegerOctT<IntT>(output);
 		}
 
-		// IntegerBinT (signed 2-bit integer parser with suffix of 'b')
+		// SIntegerBinT (signed or unsigned 2-bit integer parser with suffix of 'b')
 		template<typename IntT>
 		struct SIntegerBinT :
 			public ParserBase
@@ -1632,7 +1648,7 @@ namespace LibCC
 			return SIntegerBinT<IntT>(output);
 		}
 
-		// IntegerDecT (signed 10-bit integer parser)
+		// SIntegerDecT (signed or unsigned 10-bit integer parser)
 		template<typename IntT>
 		struct SIntegerDecT :
 			public ParserBase
@@ -1665,7 +1681,7 @@ namespace LibCC
 
 		// even more high-level.
 		template<typename IntT>
-		Parser CSignedInteger(const OutputPtr<IntT>& output)
+		Parser CSignedInteger(const OutputPtr<IntT>& output)// these are all signed or unsigned.
 		{
 			return SIntegerDec(output) || SIntegerOct(output) || SIntegerBin(output) || SIntegerHex(output);
 		}
@@ -1677,17 +1693,189 @@ namespace LibCC
 		}
 
 		template<typename IntT>
-		Parser CInteger(const OutputPtr<IntT>& output)
+		Parser CInteger(const OutputPtr<IntT>& output)// same as CSignedInteger
 		{
-			return CUnsignedInteger(output) || CSignedInteger(output);
+			return SIntegerDec(output) || SIntegerOct(output) || SIntegerBin(output) || SIntegerHex(output);
 		}
 
+		// if this is named CInteger, then the compiler gets it confused with the overload CInteger(const OutputPtr<IntT>& output)
 		template<typename IntT>
-		Parser CInteger(IntT& output)
+		Parser CInteger2(IntT& output)
 		{
 			return CInteger<IntT>(RefOutput(output));
 		}
 
+		// Floating point parser ///////////////////////////////////////////////////////////////////////////////////////
+		// parses an unsigned rational number. the reason i don't add sign parsing here is because
+		// some syntaxes might have prefixes like "-0x100" so I don't want to do the prefix parsing here. Just the
+		// actual numeric part. So this parses a number in a pre-determined base.
+		// bases which use 'e' as a digit character won't be able to use exponents
+		template<typename T>
+		struct UnsignedRationalParserT :
+			public ParserBase
+		{
+			int base;
+			std::wstring digits;
+			OutputPtr<T> output;
+
+			UnsignedRationalParserT() :
+				base(10)
+			{
+				output.Assign(NullOutput<T>());
+				InitDigits();
+			}
+
+			UnsignedRationalParserT(const OutputPtr<T>& output_) :
+				output(output_),
+				base(10)
+			{
+				InitDigits();
+			}
+
+			UnsignedRationalParserT(int base_) :
+				base(base_)
+			{
+				output.Assign(NullOutput<T>());
+				InitDigits();
+			}
+
+			UnsignedRationalParserT(const OutputPtr<T>& output_, int base_) :
+				output(output_),
+				base(base_)
+			{
+				InitDigits();
+			}
+
+			void InitDigits()
+			{
+				digits = std::wstring(L"0123456789abcdefghijklmnopqrstuvwxyz", base);
+			}
+
+			virtual ParserBase* NewClone() const { return new UnsignedRationalParserT<T>(*this); }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"UnsignedRationalParserT\r\n"; }
+			virtual void SaveOutputState() { output->SaveState(); }
+			virtual void RestoreOutputState() { output->RestoreState(); }
+
+			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			{
+				// 1234      1.234      1.234e-56        1e56     1.23e+45
+				std::wstring preDecimalPart;
+				std::wstring decimalPart;
+				wchar_t exponentSign = L'+';
+				std::wstring exponentPart;
+
+				Parser preDecimalP = *CharOf(digits, preDecimalPart);
+				Parser decimalP = Char('.') + *CharOf(digits, decimalPart);
+				Parser exponentP = CharI('e') + (-CharOf(L"+-", exponentSign)) + (+CharOf(digits, exponentPart));
+
+				Parser rationalParserP = preDecimalP + -decimalP + -exponentP;
+				
+				if(!rationalParserP.ParseRetainingStateOnError(result, input))
+					return false;
+
+				// because basically ALL parts of the thing are optional, check if there's nothing of value.
+				// this could also be done in the parser grammar but this is simpler looking.
+				if(preDecimalPart.size() == 0 && decimalPart.size() == 0 && exponentPart.size() == 0)
+					return false;
+
+				// build the output.
+
+				// pre-decimal
+				T predecimal = 0;
+				for(std::wstring::const_iterator it = preDecimalPart.begin(); it != preDecimalPart.end(); ++ it)
+				{
+					predecimal *= base;
+					predecimal += CharToDigit(*it);
+				}
+
+				// post-decimal part.  .12     1 / base
+				T decimal = 0;
+				for(std::wstring::const_reverse_iterator it = decimalPart.rbegin(); it != decimalPart.rend(); ++ it)
+				{
+					decimal += CharToDigit(*it);
+					decimal /= base;
+				}
+
+				// exponent part. TODO: is there a more efficient way of doing this???
+				T res = (predecimal + decimal);
+				if(preDecimalPart.size() > 0)
+				{
+					T exp = 0;
+					for(std::wstring::const_iterator it = exponentPart.begin(); it != exponentPart.end(); ++ it)
+					{
+						exp *= base;
+						exp += CharToDigit(*it);
+					}
+					if(exponentSign == L'+')
+					{
+						for(int i = 0; i < exp; ++i)
+						{
+							res *= base;
+						}
+					}
+					else
+					{
+						for(int i = 0; i < exp; ++i)
+						{
+							res /= base;
+						}
+					}
+				}
+
+				output->Save(res);
+
+				return true;
+			}
+		};
+
+		// matches signed or unsigned rationals
+		template<typename T>
+		struct SignedRationalParserT :
+			public ParserBase
+		{
+			int base;
+			OutputPtr<T> output;
+
+			SignedRationalParserT() :
+				base(10)
+			{
+				output.Assign(NullOutput<T>());
+			}
+
+			SignedRationalParserT(const OutputPtr<T>& output_) :
+				output(output_),
+				base(10)
+			{
+			}
+
+			SignedRationalParserT(int base_) :
+				base(base_)
+			{
+				output.Assign(NullOutput<T>());
+			}
+
+			SignedRationalParserT(const OutputPtr<T>& output_, int base_) :
+				output(output_),
+				base(base_)
+			{
+			}
+
+			virtual ParserBase* NewClone() const { return new SignedRationalParserT<T>(*this); }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"SignedRationalParserT\r\n"; }
+			virtual void SaveOutputState() { output->SaveState(); }
+			virtual void RestoreOutputState() { output->RestoreState(); }
+
+			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			{
+				T temp;
+				wchar_t sign = '+';// default to positive
+				Parser p = (-CharOf(L"+-", sign) + UnsignedRationalParserT<T>(RefOutput(temp), base));
+				if(!p.ParseRetainingStateOnError(result, input))
+					return false;
+				output->Save(sign == '-' ? -temp : temp);
+				return true;
+			}
+		};
 
 		// Utility Script readers ///////////////////////////////////////////////////////////////////////////////////////
 

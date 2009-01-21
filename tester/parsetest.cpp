@@ -1,121 +1,57 @@
 
 
 #include "test.h"
+#include "libcc\timer.hpp"
 #include "libcc\parse.hpp"
 
 
 using namespace LibCC::Parse;
 
-struct Attribute
-{
-	std::wstring lhs;
-	std::wstring rhs;
-};
-
-struct Element
-{
-	std::wstring tagName;
-	std::vector<Attribute> attributes;
-};
-
-struct ElementList
-{
-	std::vector<Element> elements;
-};
-
-//struct AttributeParser :
-//	public ParserWithOutput<std::vector<Attribute>, AttributeParser>
-//{
-//	AttributeParser(std::vector<Attribute>& output) : ParserWithOutput<std::vector<Attribute>, AttributeParser>(output) { }
-//	AttributeParser(AttributeParser& rhs) : ParserWithOutput<std::vector<Attribute>, AttributeParser>(rhs.output) { }
-//	virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"AttributeParser\r\n"; }
-//
-//	virtual bool Parse(ScriptResult& result, ScriptReader& input)
-//	{
-//		output.push_back(Attribute());
-//		//Parser attributeWithoutEquals = ;
-//		//Parser attributeWithEquals = ;
-//		return true;
-//	}
-//};
-//
-//struct TagParser : public ParserWithOutput<Element, TagParser>
-//{
-//	TagParser(Element& output) : ParserWithOutput<Element, TagParser>(output) { }
-//	TagParser(TagParser& rhs) : ParserWithOutput<Element, TagParser>(rhs.output) { }
-//	virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"TagParser\r\n"; }
-//
-//	virtual bool Parse(ScriptResult& result, ScriptReader& input)
-//	{
-//		return true;
-//	}
-//};
-//
-//struct ElementParser : public ParserWithOutput<ElementList, ElementParser>
-//{
-//	ElementParser(ElementList& output) : ParserWithOutput<ElementList, ElementParser>(output) { }
-//	ElementParser(ElementParser& rhs) : ParserWithOutput<ElementList, ElementParser>(rhs.output) { }
-//	virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"ElementParser\r\n"; }
-//
-//	virtual bool Parse(ScriptResult& result, ScriptReader& input)
-//	{
-//		output.elements.push_back(Element());
-//		Parser p =
-//			Char('<')
-//			+ TagParser(output.elements.back())
-//			+ (*(+Space() + AttributeParser(output.elements.back().attributes)))
-//			+ *Space()
-//			+ Str(L"/>");
-//		return p.ParseRetainingStateOnError(result, input);
-//	}
-//};
-//
-
 bool ParseTest()
 {
-	//ScriptReader reader(L" <hi/> <lol /> <omg a b/>");
-	//ScriptResult result;
-	//ElementList els;
-	//Parser p = *Space() + (*(ElementParser(els) + *Space()));
-	//std::wstring d = p.Dump(0);
-	//std::wcout << d;
-	//p.ParseRetainingStateOnError(result, reader);
-	//TestAssert(els.elements.size() == 3);
-	//if(els.elements.size() > 0)
-	//{
-	//	TestAssert(els.elements[0].tagName == L"hi");
-	//	TestAssert(els.elements[0].attributes.size() == 0);
-	//}
-	//if(els.elements.size() > 1)
-	//{
-	//	TestAssert(els.elements[1].tagName == L"lol");
-	//	TestAssert(els.elements[1].attributes.size() == 0);
-	//}
-	//if(els.elements.size() > 2)
-	//{
-	//	TestAssert(els.elements[2].tagName == L"omg");
-	//	TestAssert(els.elements[2].attributes.size() == 2);
-	//}
+	{
+		LibCC::Timer t;
+		int out;
+		t.Tick();
+		for(int i = 0; i < 1000; ++i)
+		{
+			CInteger2(out).ParseSimple(L"1010101b");
+			DoNotOptimize(i);
+			CInteger2(out).ParseSimple(L"0123456");
+			DoNotOptimize(i);
+			CInteger2(out).ParseSimple(L"123456789");
+			DoNotOptimize(i);
+			CInteger2(out).ParseSimple(L"0xabcdef");
+			DoNotOptimize(i);
+			CInteger2(out).ParseSimple(L"-1010101b");
+			DoNotOptimize(i);
+			CInteger2(out).ParseSimple(L"-0123456");
+			DoNotOptimize(i);
+			CInteger2(out).ParseSimple(L"-123456789");
+			DoNotOptimize(i);
+			CInteger2(out).ParseSimple(L"-0xabcdef");
+			DoNotOptimize(i);
+		}
+		t.Tick();
+		std::cout << "CInteger2 (8000 various integers separately)    : " << t.GetLastDelta() << std::endl;
 
+		std::wstring script;
+		for(int i = 0; i < 2000; ++ i)
+		{
+			script.append(LibCC::FormatW(L"%b 0% % 0x% ").i<2>(rand()).i<8>(rand()).i<10>(rand()).i<16>(rand()).Str());
+		}
 
+		t.Tick();
+		std::vector<int> outv;
+		(*(CInteger(VectorOutput(outv)) + *Space())).ParseSimple(script);
+		t.Tick();
+		std::cout << "CInteger2 (8000 integers in a script, whitespace separated)    : " << t.GetLastDelta() << std::endl;
+	}
 
-
-	//ScriptReader reader(L"    g   \'re\' \"at O'connor\" y e a h!");
-	//ScriptResult result;
-	//ElementList els;
-	//std::wstring output;
-	//Parser p = *(*Space() + StringParser(output) + *Space());
-	//p.ParseRetainingStateOnError(result, reader);
-
-
-
-	CScriptReader reader(L"54 0x36 066 110110b   -54 -0x36 -066 -110110b   ");
-	//CScriptReader reader(L"1111b 0xff 0777 -15");
-	ScriptResult result;
-	std::vector<int> r;
-	(*(CInteger(VectorOutput(r)) + *Space())).ParseRetainingStateOnError(result, reader);
-
-
+	double d;
+	SignedRationalParserT<double>(RefOutput(d), 12).ParseSimple(L"-1.2e3");
+  // template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, size_t Base>
+	std::wstring sd = LibCC::FormatW().d<10, 1, '0', true, 12>(d).Str();
 
 	//CScriptReader reader(L"a");
 	//ScriptResult result;
@@ -135,9 +71,6 @@ bool ParseTest()
 
 	//reader.SetCursor(cur);
 	//(*Char(0, CharToStringOutput(ws))).ParseRetainingStateOnError(result, reader);
-
-	int i;
-	CInteger(i).ParseSimple(L"0x68");
 
   return true;
 }
