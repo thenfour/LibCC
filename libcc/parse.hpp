@@ -2009,5 +2009,21 @@ namespace LibCC
 			std::wstring m_script;
 		};
 
+		// small utility base class when you need to make your own custom parsers
+		// - no Dump()
+		// - assumes a single output var called "output" (optional to use it though)
+		// - assumes copy constructor on clone
+		// so you just need to derive like struct MyIntegerParser : ParserWithOutput<int, MyIntegerParser>
+		// and implement constructors and bool Parse(ScriptResult& result, ScriptReader& input)
+		template<typename Toutput, typename Tderived>
+		struct ParserWithOutput :
+			public ParserBase
+		{
+			OutputPtr<Toutput> output;
+			virtual ParserBase* NewClone() const { return new Tderived(*(Tderived*)this); }
+			virtual void SaveOutputState() { output->SaveState(); }
+			virtual void RestoreOutputState() { output->RestoreState(); }
+		};
+
 	}
 }
