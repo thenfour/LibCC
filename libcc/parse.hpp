@@ -253,13 +253,20 @@ namespace LibCC
 			}
 
 		public:
+			bool IsVerboseLoggingEnabled;
+
+			ParserBase() :
+				IsVerboseLoggingEnabled(true)
+			{
+			}
+
 			virtual bool ParseRetainingStateOnError(ScriptResult& result, ScriptReader& input)
 			{
 				ScriptCursor oldCursor = input.GetCursorCopy();
 				SaveOutputState();
-				if(result.verboseParseOutput)
+
+				if(result.verboseParseOutput && IsVerboseLoggingEnabled)
 				{
-					ScriptCursor newCursor = input.GetCursorCopy();
 					result.Message(LibCC::FormatW(L"Parsing '%' from %")
 						(GetParserName())
 						(DebugCursorToString(oldCursor, input))
@@ -268,10 +275,18 @@ namespace LibCC
 					result.indentLevel ++;
 				}
 
+				bool wasVerboseLoggingEnabled = result.verboseParseOutput;
+				if(!IsVerboseLoggingEnabled)
+				{
+					result.verboseParseOutput = false;
+				}
+
 				bool ret = Parse(result, input);
+				result.verboseParseOutput = wasVerboseLoggingEnabled;
+
 				if(!ret)
 				{
-					if(result.verboseParseOutput)
+					if(result.verboseParseOutput && IsVerboseLoggingEnabled)
 					{
 						ScriptCursor newCursor = input.GetCursorCopy();
 						result.Message(LibCC::FormatW(L"=false '%' from % to % %")
@@ -287,7 +302,8 @@ namespace LibCC
 					input.SetCursor(oldCursor);
 					return false;
 				}
-				if(result.verboseParseOutput)
+
+				if(result.verboseParseOutput && IsVerboseLoggingEnabled)
 				{
 					ScriptCursor newCursor = input.GetCursorCopy();
 					result.Message(LibCC::FormatW(L"=TRUE '%' from % to % %")
@@ -428,6 +444,13 @@ namespace LibCC
 			Passthrough(const std::wstring& subName, const ParserBase& rhs)
 			{
 				m_child.Assign(rhs);
+				m_name = subName;
+			}
+
+			Passthrough(const std::wstring& subName, bool enableVerboseLoggingForChild_, const ParserBase& rhs)
+			{
+				m_child.Assign(rhs);
+				m_child->IsVerboseLoggingEnabled = enableVerboseLoggingForChild_;
 				m_name = subName;
 			}
 
@@ -1572,55 +1595,52 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"StringParser\r\n"; }
-			virtual ParserBase* NewClone() const { return new StringParser(); }
+			virtual ParserBase* NewClone() const { return new StringParser(*this); }
 			virtual std::wstring GetParserName() const { return L"StringParser"; }
 
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
 				std::wstring parsed;
 				// input from char and output to string outputer
-				Parser noQuotes =
-					Passthrough(L"*noQuotes", Occurrences<1,false>(Sequence<false>(Not(Space()), Char(0, parsed))))
-					;
+				Parser noQuotes =Occurrences<1,false>(Sequence<false>(Not(Space()), Char(0, parsed)));
+
 				Parser singleQuotes =
-					Passthrough(L"*singleQuotes",
-						Sequence3<false>(
-							Char('\''),
-							Occurrences<0, false>
+					Sequence3<false>
+					(
+						Char('\''),
+						Occurrences<0, false>
+						(
+							Sequence<false>
 							(
-								Sequence<false>
+								Not(CharOf(L"\'\r\n")),
+								Or
 								(
-									Not(CharOf(L"\'\r\n")),
-									Or
-									(
-										StringEscapeParser(CharToStringOutput(parsed)),
-										Char(0, parsed)
-									)
+									StringEscapeParser(CharToStringOutput(parsed)),
+									Char(0, parsed)
 								)
-							),
-							Char('\'')
-						)
+							)
+						),
+						Char('\'')
 					);
 				Parser doubleQuotes =
-					Passthrough(L"*doubleQuotes",
-						Sequence3<false>(
-							Char('\"'),
-							Occurrences<0, false>
+					Sequence3<false>
+					(
+						Char('\"'),
+						Occurrences<0, false>
+						(
+							Sequence<false>
 							(
-								Sequence<false>
+								Not(CharOf(L"\"\r\n")),
+								Or
 								(
-									Not(CharOf(L"\"\r\n")),
-									Or
-									(
-										StringEscapeParser(CharToStringOutput(parsed)),
-										Char(0, parsed)
-									)
+									StringEscapeParser(CharToStringOutput(parsed)),
+									Char(0, parsed)
 								)
-							),
-							Char('\"')
-						)
+							)
+						),
+						Char('\"')
 					);
-				Parser p = Or3(singleQuotes, doubleQuotes, noQuotes);
+				Parser p = Passthrough(L"*StringParser", false, Or3(singleQuotes, doubleQuotes, noQuotes));
 				bool ret = p.ParseRetainingStateOnError(result, input);
 				if(ret)
 					output->Save(parsed);
@@ -2061,7 +2081,7 @@ namespace LibCC
 		template<typename IntT>
 		Parser CInteger2(IntT& output)
 		{
-			return CInteger<IntT>(RefOutput(output));
+			return Passthrough(L"CInteger2", false, CInteger<IntT>(RefOutput(output)));
 		}
 
 		// Floating point parser ///////////////////////////////////////////////////////////////////////////////////////

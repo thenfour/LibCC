@@ -422,6 +422,24 @@ bool ParseTest()
 	TestAssert(p.ParseSimple(L"c"));
 	TestAssert(ch == 'c');
 
+	// retaining a var.
+	p =
+		ZeroOrMore
+		(
+			(Str(L"1", str1) + Char('.'))
+			| (Str(L"2", str2) + Char('.'))
+			| (Str(L"3", str2) + Char('.'))
+			| (Str(L"4", str2) + Char('.'))
+		);
+	str1 = str2 = L"";
+	p.ParseSimple(L"1.2.");
+	TestAssert(str1 == L"1");
+	TestAssert(str2 == L"2");
+	str1 = str2 = L"";
+	p.ParseSimple(L"2.1.");
+	TestAssert(str1 == L"1");
+	TestAssert(str2 == L"2");
+
 	// StringParser
 
 	// CInteger
