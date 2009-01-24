@@ -30,16 +30,6 @@
 */
 /*
 
-
-OPERATORS
-*          zero or more
-+ (unary)  one or more
-!          not (never advances cursor)
--          zero or one
-+          sequence
-&&         sequence (AND)
-||         logical OR
-
 */
 
 #pragma once
@@ -68,6 +58,7 @@ namespace LibCC
 
 		struct ScriptReader
 		{
+			virtual const std::wstring& GetRawInput() const = 0;
 			virtual wchar_t CurrentChar() const = 0;
 			virtual void Advance() = 0;
 			virtual bool IsEOF() const = 0;
@@ -125,6 +116,11 @@ namespace LibCC
 				m_cursor = c;
 			}
 
+			virtual const std::wstring& GetRawInput() const
+			{
+				return m_script;
+			}
+
 		private:
 			void InternalAdvance()
 			{
@@ -167,25 +163,141 @@ namespace LibCC
 		// basic framework parsers ///////////////////////////////////////////////////////////////////////////////////////
 		struct ScriptResult
 		{
+			int indentLevel;
+			bool verboseParseOutput;
+
+			ScriptResult() :
+				indentLevel(0),
+				verboseParseOutput(false)
+			{
+			}
+
 			std::vector<std::wstring> messages;
 			void Message(const std::wstring& msg)
 			{
-				messages.push_back(msg);
+				std::wstring x;
+				for(int i = 0; i < indentLevel; ++ i)
+				{
+					x.append(L"  ");
+				}
+				x.append(msg);
+				messages.push_back(x);
 			}
 		};
 
 		struct ParserBase
 		{
+		private:
+			std::wstring DebugSanitize(const std::wstring& in) const
+			{
+				std::wstring out;
+				for(std::wstring::const_iterator it = in.begin(); it != in.end(); ++ it)
+				{
+					if(*it == '\r') out.push_back('.');
+					else if(*it == '\n') out.push_back('.');
+					else if(*it == '|') out.push_back('.');
+					else out.push_back(*it);
+				}
+				return out;
+			}
+
+			// Pos:288(4,12) "xxx|xxx"
+			std::wstring DebugCursorToString(const ScriptCursor& cur, ScriptReader& input) const
+			{
+				const int amount = 6;
+				const std::wstring& script(input.GetRawInput());
+				int nleft = min(cur.pos, amount);
+				std::wstring left = script.substr(cur.pos - nleft, nleft);
+				int nright = (int)script.size() - cur.pos;
+				nright = min(nright, amount);
+				std::wstring right = script.substr(cur.pos, nright);
+				left = DebugSanitize(left);
+				right = DebugSanitize(right);
+
+				return LibCC::FormatW(L"Pos:%(%,%) \"%^|%\"")
+					.i(cur.pos)
+					.i(cur.line)
+					.i(cur.column)
+					.s(left)
+					.s(right)
+					.Str();
+			}
+
+			// [Abinooeeueue...oooeueeee]
+			std::wstring DebugSubStr(const ScriptCursor& leftCursor, const ScriptCursor& rightCursor, ScriptReader& input) const
+			{
+				int amount = 50;
+				std::wstring ellipses = L"...";
+				const std::wstring& script(input.GetRawInput());
+				int len = rightCursor.pos - leftCursor.pos;
+
+				bool useEllipses = len > amount;
+				if(useEllipses)
+				{
+					len = amount - (int)ellipses.size();
+				}
+
+				int nleft = len / 2;
+				int nright = len - nleft;
+				std::wstring left = script.substr(leftCursor.pos, nleft);
+				std::wstring right = script.substr(rightCursor.pos - nright, nright);
+
+				left = DebugSanitize(left);
+				right = DebugSanitize(right);
+
+				return LibCC::FormatW(L"[%%%]")
+					.s(left)
+					.s(useEllipses ? ellipses : L"")
+					.s(right)
+					.Str();
+			}
+
+		public:
 			virtual bool ParseRetainingStateOnError(ScriptResult& result, ScriptReader& input)
 			{
 				ScriptCursor oldCursor = input.GetCursorCopy();
 				SaveOutputState();
+				if(result.verboseParseOutput)
+				{
+					ScriptCursor newCursor = input.GetCursorCopy();
+					result.Message(LibCC::FormatW(L"Parsing '%' from %")
+						(GetParserName())
+						(DebugCursorToString(oldCursor, input))
+						.Str());
+					result.Message(L"{");
+					result.indentLevel ++;
+				}
+
 				bool ret = Parse(result, input);
 				if(!ret)
 				{
+					if(result.verboseParseOutput)
+					{
+						ScriptCursor newCursor = input.GetCursorCopy();
+						result.Message(LibCC::FormatW(L"=false '%' from % to % %")
+							(GetParserName())
+							(DebugCursorToString(oldCursor, input))
+							(DebugCursorToString(newCursor, input))
+							(DebugSubStr(oldCursor, newCursor, input))
+							.Str());
+						result.indentLevel --;
+						result.Message(L"}");
+					}
 					RestoreOutputState();
 					input.SetCursor(oldCursor);
 					return false;
+				}
+				if(result.verboseParseOutput)
+				{
+					ScriptCursor newCursor = input.GetCursorCopy();
+					result.Message(LibCC::FormatW(L"=TRUE '%' from % to % %")
+						(GetParserName())
+						(DebugCursorToString(oldCursor, input))
+						(DebugCursorToString(newCursor, input))
+						(DebugSubStr(oldCursor, newCursor, input))
+						.Str());
+					result.indentLevel --;
+					result.Message(L"}");
 				}
 				return true;
 			}
@@ -207,6 +319,10 @@ namespace LibCC
 			virtual std::wstring Dump(int indentLevel)
 			{
 				return std::wstring(indentLevel, ' ') + L"(unnamed)\r\n";
+			}
+			virtual std::wstring GetParserName() const
+			{
+				return L"(unnamed)";
 			}
 		};
 
@@ -281,25 +397,42 @@ namespace LibCC
 		{
 		private:
 			ParserPtr m_child;
+			std::wstring m_name;
 
 		public:
-			Passthrough()
+			Passthrough& operator =(const Passthrough& rhs)
 			{
+				m_name = rhs.m_name;
+				m_child = rhs.m_child;
+				return *this;
 			}
 
-			Passthrough(const Passthrough& rhs)
+			Passthrough& operator =(const ParserBase& rhs)
 			{
-				if(rhs.m_child.IsEmpty())
-					return;
-				m_child.Assign(rhs.m_child->NewClone());
+				m_name = L"Passthrough";
+				m_child.Assign(rhs);
+				return *this;
+			}
+
+			Passthrough()
+			{
+				m_name = L"Passthrough";
 			}
 
 			Passthrough(const ParserBase& rhs)
 			{
 				m_child.Assign(rhs);
+				m_name = L"Passthrough";
+			}
+
+			Passthrough(const std::wstring& subName, const ParserBase& rhs)
+			{
+				m_child.Assign(rhs);
+				m_name = subName;
 			}
 
 			virtual ParserBase* NewClone() const { return new Passthrough(*this); }
+			virtual std::wstring GetParserName() const { return m_name; }
 
 			virtual void SaveOutputState()
 			{
@@ -336,7 +469,7 @@ namespace LibCC
 
 		typedef Passthrough Parser;
 
-		template<int MinimumOccurrences>
+		template<int MinimumOccurrences, bool skipWhitespaceBetween>
 		struct Occurrences :
 			public ParserBase
 		{
@@ -348,7 +481,7 @@ namespace LibCC
 			{
 			}
 
-			Occurrences(const Occurrences<MinimumOccurrences>& rhs)
+			Occurrences(const Occurrences<MinimumOccurrences, skipWhitespaceBetween>& rhs)
 			{
 				if(rhs.m_child.IsEmpty())
 					return;
@@ -360,7 +493,16 @@ namespace LibCC
 				m_child.Assign(rhs);
 			}
 
-			virtual ParserBase* NewClone() const { return new Occurrences<MinimumOccurrences>(*this); }
+			virtual ParserBase* NewClone() const { return new Occurrences<MinimumOccurrences, skipWhitespaceBetween>(*this); }
+			virtual std::wstring GetParserName() const
+			{
+				std::wstring skipBehavior = skipWhitespaceBetween ? L"skip" : L"no skip";
+				if(MinimumOccurrences == 0)
+					return LibCC::FormatW(L"Zero or more (%)").s(skipBehavior).Str();
+				if(MinimumOccurrences == 1)
+					return LibCC::FormatW(L"One or more (%)").s(skipBehavior).Str();
+				return LibCC::FormatW(L"Occurrences<%,%>").i(MinimumOccurrences).s(skipBehavior).Str();
+			}
 
 			virtual void SaveOutputState() { if(m_child.IsValid()) m_child->SaveOutputState(); }
 			virtual void RestoreOutputState() { if(m_child.IsValid()) m_child->RestoreOutputState(); }
@@ -393,6 +535,14 @@ namespace LibCC
 					{
 						__asm int 3;// TODO: some kind of cool error handling.
 					}
+
+					if(skipWhitespaceBetween)
+					{
+						while(!input.IsEOF() && StringContains(WhitespaceChars(), input.CurrentChar()))
+						{
+							input.Advance();
+						}
+					}
 				}
 			}
 
@@ -408,18 +558,10 @@ namespace LibCC
 			}
 		};
 
-		typedef Occurrences<0> ZeroOrMore;
-		typedef Occurrences<1> OneOrMore;
-
-		ZeroOrMore operator * (const ParserBase& lhs)
-		{
-			return ZeroOrMore(lhs);
-		}
-
-		OneOrMore operator + (const ParserBase& lhs)
-		{
-			return OneOrMore(lhs);
-		}
+		typedef Occurrences<0, false> ZeroOrMore;
+		typedef Occurrences<0, true> ZeroOrMoreS;
+		typedef Occurrences<0, false> OneOrMore;
+		typedef Occurrences<0, true> OneOrMoreS;
 
 		struct Not :
 			public ParserBase
@@ -445,6 +587,7 @@ namespace LibCC
 			}
 
 			virtual ParserBase* NewClone() const { return new Not(*this); }
+			virtual std::wstring GetParserName() const { return L"Not"; }
 
 			virtual void SaveOutputState() { if(m_child.IsValid()) m_child->SaveOutputState(); }
 			virtual void RestoreOutputState() { if(m_child.IsValid()) m_child->RestoreOutputState(); }
@@ -470,11 +613,6 @@ namespace LibCC
 			}
 		};
 
-		Not operator ! (const ParserBase& lhs)
-		{
-			return Not(lhs);
-		}
-
 		struct Optional :
 			public ParserBase
 		{
@@ -499,6 +637,7 @@ namespace LibCC
 			}
 
 			virtual ParserBase* NewClone() const { return new Optional(*this); }
+			virtual std::wstring GetParserName() const { return L"Optional"; }
 
 			virtual void SaveOutputState() { if(m_child.IsValid()) m_child->SaveOutputState(); }
 			virtual void RestoreOutputState() { if(m_child.IsValid()) m_child->RestoreOutputState(); }
@@ -524,11 +663,36 @@ namespace LibCC
 			}
 		};
 
-		Optional operator - (const ParserBase& lhs)
+		inline const wchar_t* WhitespaceChars()
 		{
-			return Optional(lhs);
+			static const wchar_t x[] = {
+				'\t', '\n', '\r', ' ',
+				0x0085,// NEL (control character next line)
+				0x00A0,// NBSP (NO-BREAK SPACE)
+				0x1680,// OGHAM SPACE MARK
+				0x180E,// MONGOLIAN VOWEL SEPARATOR
+				0x2000,// EN QUAD
+				0x2001,// EM QUAD
+				0x2002,// EN SPACE
+				0x2003,// EM SPACE
+				0x2004,// THREE-PER-EM SPACE
+				0x2005,// FOUR-PER-EM SPACE
+				0x2006,// SIX-PER-EM SPACE
+				0x2007,// FIGURE SPACE
+				0x2008,// PUNCTUATION SPACE
+				0x2009,// THIN SPACE
+				0x200A,// HAIR SPACE
+				0x2028,// LS (LINE SEPARATOR)
+				0x2029,// PS (PARAGRAPH SEPARATOR)
+				0x202F,// NNBSP (NARROW NO-BREAK SPACE)
+				0x205F,// MMSP (MEDIUM MATHEMATICAL SPACE)
+				0x3000,// IDEOGRAPHIC SPACE
+				0xFEFF// ZERO WIDTH NO-BREAK SPACE
+ 			};
+			return x;
 		}
 
+		template<bool skipWhitespaceBetween>
 		struct Sequence :
 			public ParserBase
 		{
@@ -542,6 +706,10 @@ namespace LibCC
 			}
 
 			virtual ParserBase* NewClone() const { return new Sequence(*this); }
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"Sequence<%>").s(skipWhitespaceBetween ? L"skip" : L"no skip").Str();
+			}
 
 			virtual void SaveOutputState()
 			{
@@ -559,6 +727,13 @@ namespace LibCC
 			{
 				if(!lhs->ParseRetainingStateOnError(result, input))
 					return false;
+				if(skipWhitespaceBetween)
+				{
+					while(!input.IsEOF() && StringContains(WhitespaceChars(), input.CurrentChar()))
+					{
+						input.Advance();
+					}
+				}
 				if(!rhs->ParseRetainingStateOnError(result, input))
 					return false;
 				return true;
@@ -578,15 +753,24 @@ namespace LibCC
 			}
 		};
 
-		Sequence operator + (const ParserBase& lhs, const ParserBase& rhs)
+		template<bool skipWhitespaceBetween>
+		Sequence<skipWhitespaceBetween> Sequence3(const ParserBase& a, const ParserBase& b, const ParserBase& c)
 		{
-			return Sequence(lhs, rhs);
+			return
+				Sequence<skipWhitespaceBetween>(
+					Sequence<skipWhitespaceBetween>(a,b),
+					c);
 		}
 
-		// same as operator+(), but in certain contexts this mkes more sense. like (!Char('}') && CharRange('etc'))
-		Sequence operator && (const ParserBase& lhs, const ParserBase& rhs)
+		template<bool skipWhitespaceBetween>
+		Sequence<skipWhitespaceBetween> Sequence4(const ParserBase& a, const ParserBase& b, const ParserBase& c, const ParserBase& d)
 		{
-			return Sequence(lhs, rhs);
+			return
+				Sequence<skipWhitespaceBetween>(
+					Sequence<skipWhitespaceBetween>(
+						Sequence<skipWhitespaceBetween>(a,b),
+						c),
+					d);
 		}
 
 		struct Or :
@@ -602,6 +786,7 @@ namespace LibCC
 			}
 
 			virtual ParserBase* NewClone() const { return new Or(*this); }
+			virtual std::wstring GetParserName() const { return L"Or"; }
 
 			virtual void SaveOutputState()
 			{
@@ -638,19 +823,21 @@ namespace LibCC
 			}
 		};
 
-		Or operator || (const ParserBase& lhs, const ParserBase& rhs)
+		Or Or3(const ParserBase& a, const ParserBase& b, const ParserBase& c)
 		{
-			return Or(lhs, rhs);
+			return Or(Or(a,b),c);
+		}
+
+		Or Or4(const ParserBase& a, const ParserBase& b, const ParserBase& c, const ParserBase& d)
+		{
+			return Or(Or(Or(a,b),c),d);
 		}
 
 		struct Eof :
 			public ParserBase
 		{
-			Eof()
-			{
-			}
-
 			virtual ParserBase* NewClone() const { return new Eof(); }
+			virtual std::wstring GetParserName() const { return L"EOF"; }
 
 			virtual void SaveOutputState() { }
 			virtual void RestoreOutputState() { }
@@ -674,6 +861,8 @@ namespace LibCC
 		template<typename Tin>
 		struct OutputBase
 		{
+			//virtual Tin& Value() = 0; <-- if you need to set data, use Save().
+			virtual const Tin& Value() const = 0;
 			virtual void Save(const Tin& val) = 0;
 			virtual void SaveState() = 0;
 			virtual void RestoreState() = 0;
@@ -752,9 +941,12 @@ namespace LibCC
 		struct NullOutput :
 			public OutputBase<Tin>
 		{
+			Tin dummy;
 			void Save(const Tin& val) { }
 			void SaveState() { }
 			void RestoreState() { }
+			//Tin& Value() { return dummy; }
+			const Tin& Value() const { return dummy; }
 			OutputBase<Tin>* NewClone() const { return new NullOutput<Tin>(*this); }
 		};
 
@@ -781,12 +973,50 @@ namespace LibCC
 			{
 				return new RefOutputT<Tin>(*this);
 			}
+			//Tin& Value() { return output; }
+			const Tin& Value() const { return output; }
 		};
 
 		template<typename Tin>
 		RefOutputT<Tin> RefOutput(Tin& outputVar)
 		{
 			return RefOutputT<Tin>(outputVar);
+		}
+
+		// ExistsOutput
+		// result is actually thrown away, but if it's assigned at all, then the bool reference is set.
+		// you need to use the template var for this. ExistsOutput<wchar_t>(b);
+		template<typename Tin>
+		struct ExistsOutput :
+			public OutputBase<Tin>
+		{
+			bool& output;
+			bool outputBackup;
+			Tin dummy;
+
+			ExistsOutput(bool& output_) :
+				output(output_),
+				outputBackup(output)
+			{
+			}
+			void Save(const Tin& val)
+			{
+				output = true;
+			}
+			void SaveState() { outputBackup = output; }
+			void RestoreState() { output = outputBackup; }
+			OutputBase<Tin>* NewClone() const
+			{
+				return new ExistsOutput<Tin>(*this);
+			}
+			//Tin& Value() { return dummy; }
+			const Tin& Value() const { return dummy; }
+		};
+
+		template<typename Tin>
+		ExistsOutput<Tin> ExistsOutput2(const Tin& throwaway, bool& outputVar)
+		{
+			return ExistsOutput<Tin>(outputVar);
 		}
 
 		// InserterOutput
@@ -798,6 +1028,7 @@ namespace LibCC
 		struct InserterOutputT :
 			public OutputBase<Tin>
 		{
+			Tin dummy;// InserterOutput cannot support Value().
 			Tinserter outputInserter;
 			Tcontainer& outputContainer;
 			Tcontainer outputContainerBackup;
@@ -817,6 +1048,13 @@ namespace LibCC
 			OutputBase<Tin>* NewClone() const
 			{
 				return new InserterOutputT<Tin, Tinserter, Tcontainer>(*this);
+			}
+			//Tin& Value() { return *outputInserterRef; }
+			const Tin& Value() const
+			{
+				// throw an exception or something; this is not supported for inserteroutput.
+				__asm int 3;
+				return dummy;
 			}
 		};
 
@@ -892,26 +1130,28 @@ namespace LibCC
 			}
 
 			virtual ParserBase* NewClone() const { return new CharT<TCaseSensitive>(*this); }
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"Char%('%')")
+					.s(TCaseSensitive ? L"" : L"I")
+					.c(match == 0 ? L'0' : match)
+					.Str();
+			}
 
-			virtual void SaveOutputState()
-			{
-				output->SaveState();
-			}
-			virtual void RestoreOutputState()
-			{
-				output->RestoreState();
-			}
+			virtual void SaveOutputState() { output->SaveState(); }
+			virtual void RestoreOutputState() { output->RestoreState(); }
 
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
+				wchar_t parsed = 0;
 				if(input.IsEOF())
 				{
 					//result.Message(L"Unexpected end of file searching for character ...");
 					return false;
 				}
 
-				wchar_t ch = input.CurrentChar();
-				output->Save(ch);
+				parsed = input.CurrentChar();
+				output->Save(parsed);
 				input.Advance();
 
 				if(match == 0)
@@ -919,12 +1159,12 @@ namespace LibCC
 					return true;
 				}
 
-				if(match == ch)
+				if(match == parsed)
 					return true;
 
 				if(!TCaseSensitive)
 				{
-					if(CharToLower(ch) == CharToLower(match))
+					if(CharToLower(parsed) == CharToLower(match))
 						return true;
 				}
 				//result.Message(L"Unexpected character");
@@ -970,6 +1210,14 @@ namespace LibCC
 			}
 
 			virtual ParserBase* NewClone() const { return new StrT<TCaseSensitive>(*this); }
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"Str%(%)")
+					.s(TCaseSensitive ? L"" : L"I")
+					.qs(match)
+					.Str();
+			}
+
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
@@ -978,7 +1226,7 @@ namespace LibCC
 				if(input.IsEOF())
 					return match.empty();
 
-				std::wstring find;
+				std::wstring parsed;
 
 				for(std::wstring::const_iterator it = match.begin(); it != match.end(); ++ it)
 				{
@@ -996,14 +1244,14 @@ namespace LibCC
 						//result.Message(L"Unexpected character searching for string ...");
 						return false;
 					}
-					if(!TCaseSensitive && (CharToLower(ch) == CharToLower(*it)))
+					if(!TCaseSensitive && (CharToLower(ch) != CharToLower(*it)))
 					{
 						return false;
 					}
-					find.push_back(ch);
+					parsed.push_back(ch);
 				}
 
-				output->Save(find);
+				output->Save(parsed);
 				return true;// made it all the way
 			}
 
@@ -1021,48 +1269,26 @@ namespace LibCC
 		// matches exactly 1 whitespace char
 		struct Space : public ParserBase
 		{
-			std::wstring chars;
-
-			Space()
-			{
-				chars = L"\r\n \t";
-				chars.push_back(0x0085);// NEL (control character next line)
-				chars.push_back(0x00A0);// NBSP (NO-BREAK SPACE)
-				chars.push_back(0x1680);// OGHAM SPACE MARK
-				chars.push_back(0x180E);// MONGOLIAN VOWEL SEPARATOR
-				chars.push_back(0x2000);// EN QUAD
-				chars.push_back(0x2001);// EM QUAD
-				chars.push_back(0x2002);// EN SPACE
-				chars.push_back(0x2003);// EM SPACE
-				chars.push_back(0x2004);// THREE-PER-EM SPACE
-				chars.push_back(0x2005);// FOUR-PER-EM SPACE
-				chars.push_back(0x2006);// SIX-PER-EM SPACE
-				chars.push_back(0x2007);// FIGURE SPACE
-				chars.push_back(0x2008);// PUNCTUATION SPACE
-				chars.push_back(0x2009);// THIN SPACE
-				chars.push_back(0x200A);// HAIR SPACE
-				chars.push_back(0x2028);// LS (LINE SEPARATOR)
-				chars.push_back(0x2029);// PS (PARAGRAPH SEPARATOR)
-				chars.push_back(0x202F);// NNBSP (NARROW NO-BREAK SPACE)
-				chars.push_back(0x205F);// MMSP (MEDIUM MATHEMATICAL SPACE)
-				chars.push_back(0x3000);// IDEOGRAPHIC SPACE
-				chars.push_back(0xFEFF);// ZERO WIDTH NO-BREAK SPACE
-			}
-
 			virtual ParserBase* NewClone() const { return new Space(); }
+			virtual std::wstring GetParserName() const { return L"Space"; }
+
 			virtual void SaveOutputState() { }
 			virtual void RestoreOutputState() { }
 
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
-					if(input.IsEOF() || (std::wstring::npos == chars.find(input.CurrentChar())))
-					{
-						// non-matching char
-						return false;
-					}
+				wchar_t parsed = 0;
+				if(input.IsEOF())
+					return false;
+				parsed = input.CurrentChar();
+				if(!StringContains(WhitespaceChars(), parsed))
+				{
+					// non-matching char
+					return false;
+				}
 
-					input.Advance();
-					return true;
+				input.Advance();
+				return true;
 			}
 
 			virtual std::wstring Dump(int indentLevel)
@@ -1116,26 +1342,33 @@ namespace LibCC
 			{
 				return new CharOfT<TCaseSensitive>(*this);
 			}
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"CharOf%(%)")
+					.s(TCaseSensitive ? L"" : L"I")
+					.qs(chars)
+					.Str();
+			}
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
+				wchar_t parsed = 0;
 				if(input.IsEOF())
+					return false;
+
+				parsed = input.CurrentChar();
+				if(TCaseSensitive && (std::wstring::npos == chars.find(parsed)))
 				{
 					return false;
 				}
-				wchar_t ch = input.CurrentChar();
-				if(TCaseSensitive && (std::wstring::npos == chars.find(ch)))
-				{
-					return false;
-				}
-				if(!TCaseSensitive && (std::wstring::npos == chars.find(CharToLower(ch))))
+				if(!TCaseSensitive && (std::wstring::npos == chars.find(CharToLower(parsed))))
 				{
 					return false;
 				}
 
-				output->Save(ch);
+				output->Save(parsed);
 				input.Advance();
 				return true;
 			}
@@ -1197,9 +1430,7 @@ namespace LibCC
 			// this appends the char to the output. for convenience.
 			CharRangeT(wchar_t lower_, wchar_t upper_, std::wstring& output_) :
 				lower(lower_),
-				upper(upper_),
-				chOutput(chDummy),
-				strOutput(output_)
+				upper(upper_)
 			{
 				if(!TCaseSensitive)
 				{
@@ -1213,28 +1444,35 @@ namespace LibCC
 			{
 				return new CharRangeT<TCaseSensitive>(*this);
 			}
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"CharRange%('%'-'%')")
+					.s(TCaseSensitive ? L"" : L"I")
+					.c(lower)
+					.c(upper)
+					.Str();
+			}
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
+				wchar_t parsed = 0;
 				if(input.IsEOF())
-				{
 					return false;
-				}
-				wchar_t ch = input.CurrentChar();
-				if(TCaseSensitive && ((ch < lower) || (ch > upper)))
+				parsed = input.CurrentChar();
+				if(TCaseSensitive && ((parsed < lower) || (parsed > upper)))
 				{
 					return false;
 				}
 				if(!TCaseSensitive)
 				{
-					wchar_t chL = CharToLower(ch);
-					if((ch < lower) || (ch > upper))
+					wchar_t chL = CharToLower(parsed);
+					if((chL < lower) || (chL > upper))// lower & upper are already lowercase
 						return false;
 				}
 
-				output->Save(ch);
+				output->Save(parsed);
 				input.Advance();
 				return true;
 			}
@@ -1252,11 +1490,8 @@ namespace LibCC
 
 		struct Eol : public ParserBase
 		{
-			Eol()
-			{
-			}
-
 			virtual ParserBase* NewClone() const { return new Eol(); }
+			virtual std::wstring GetParserName() const { return L"EOL"; }
 
 			virtual void SaveOutputState() { }
 			virtual void RestoreOutputState() { }
@@ -1266,7 +1501,7 @@ namespace LibCC
 			{
 				if(input.IsEOF())// count EOF as EOL
 					return true;
-				return (*(Str(L"\r\n") || Char('\r') || Char('\n'))).ParseRetainingStateOnError(result, input);
+				return (Or(Or(Str(L"\r\n"), Char('\r')), Char('\n'))).ParseRetainingStateOnError(result, input);
 			}
 
 			virtual std::wstring Dump(int indentLevel)
@@ -1288,13 +1523,15 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 			virtual ParserBase* NewClone() const { return new StringEscapeParser(); }
+			virtual std::wstring GetParserName() const { return L"StringEscapeParser"; }
 
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"StringEscapeParser\r\n"; }
 
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
 				wchar_t escapeChar = 0;
-				if(!(Char('\\') + Char(0, escapeChar)).ParseRetainingStateOnError(result, input))
+				Parser p = Sequence<false>(Char('\\'), Char(0, escapeChar));
+				if(!(p.ParseRetainingStateOnError(result, input)))
 					return false;
 				switch(escapeChar)
 				{
@@ -1329,24 +1566,64 @@ namespace LibCC
 			public ParserBase
 		{
 			OutputPtr<std::wstring> output;
-			StringParser(){ output.Assign(NullOutput<std::wstring>()); }
+			StringParser() { output.Assign(NullOutput<std::wstring>()); }
 			StringParser(const OutputPtr<std::wstring>& output_) : output(output_) { }
+			StringParser(std::wstring& output_) { output.Assign(RefOutput(output_)); }
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"StringParser\r\n"; }
 			virtual ParserBase* NewClone() const { return new StringParser(); }
+			virtual std::wstring GetParserName() const { return L"StringParser"; }
 
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
+				std::wstring parsed;
 				// input from char and output to string outputer
-				std::wstring thisString;
-				Parser noQuotes = +(!Space() && Char(0, thisString));
-				Parser singleQuotes = Char('\'') + *(!CharOf(L"\'\r\n") && (StringEscapeParser(CharToStringOutput(thisString)) || Char(0, thisString))) + Char('\'');
-				Parser doubleQuotes = Char('\"') + *(!CharOf(L"\"\r\n") && (StringEscapeParser(CharToStringOutput(thisString)) || Char(0, thisString))) + Char('\"');
-				Parser p = singleQuotes || doubleQuotes || noQuotes;
+				Parser noQuotes =
+					Passthrough(L"*noQuotes", Occurrences<1,false>(Sequence<false>(Not(Space()), Char(0, parsed))))
+					;
+				Parser singleQuotes =
+					Passthrough(L"*singleQuotes",
+						Sequence3<false>(
+							Char('\''),
+							Occurrences<0, false>
+							(
+								Sequence<false>
+								(
+									Not(CharOf(L"\'\r\n")),
+									Or
+									(
+										StringEscapeParser(CharToStringOutput(parsed)),
+										Char(0, parsed)
+									)
+								)
+							),
+							Char('\'')
+						)
+					);
+				Parser doubleQuotes =
+					Passthrough(L"*doubleQuotes",
+						Sequence3<false>(
+							Char('\"'),
+							Occurrences<0, false>
+							(
+								Sequence<false>
+								(
+									Not(CharOf(L"\"\r\n")),
+									Or
+									(
+										StringEscapeParser(CharToStringOutput(parsed)),
+										Char(0, parsed)
+									)
+								)
+							),
+							Char('\"')
+						)
+					);
+				Parser p = Or3(singleQuotes, doubleQuotes, noQuotes);
 				bool ret = p.ParseRetainingStateOnError(result, input);
 				if(ret)
-					output->Save(thisString);
+					output->Save(parsed);
 				return ret;
 			}
 		};
@@ -1412,6 +1689,10 @@ namespace LibCC
 			{
 				return new UnsignedIntegerParserT<IntT>(*this);
 			}
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"UnsignedIntegerParser(base=%)").i(base).Str();
+			}
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
@@ -1424,7 +1705,7 @@ namespace LibCC
 			{
 				std::wstring outputStr;
 
-				Parser p = +(CharOfI(digits, outputStr));
+				Parser p = OneOrMore(CharOfI(digits, outputStr));
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;// no digits at all. maybe whitespace? or a non-digit char?
 
@@ -1464,9 +1745,14 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"UIntegerHexT").Str();
+			}
+
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
-				return (Str(L"0x") + UnsignedIntegerParser(16, output)).ParseRetainingStateOnError(result, input);
+				return Sequence(Str(L"0x"), UnsignedIntegerParser(16, output)).ParseRetainingStateOnError(result, input);
 			}
 		};
 
@@ -1488,9 +1774,21 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"UIntegerOctT").Str();
+			}
+
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
-				return (Char('0') + UnsignedIntegerParser(8, output)).ParseRetainingStateOnError(result, input);
+				return
+					Sequence3<false>
+					(
+						Char('0'),
+						Not(Char('x')),
+						UnsignedIntegerParser(8, output)
+					)
+					.ParseRetainingStateOnError(result, input);
 			}
 		};
 
@@ -1512,9 +1810,20 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"UIntegerDecT").Str();
+			}
+
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
-				return (!Char('0') + UnsignedIntegerParser(10, output) + !Char('b')).ParseRetainingStateOnError(result, input);
+				return
+					Sequence3<false>
+					(
+						Not(Char('0')),
+						UnsignedIntegerParser(10, output),
+						Not(Char('b'))
+					).ParseRetainingStateOnError(result, input);
 			}
 		};
 
@@ -1536,9 +1845,20 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"UIntegerBinT").Str();
+			}
+
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
-				return (!Char('0') + UnsignedIntegerParser(2, output) + Char('b')).ParseRetainingStateOnError(result, input);
+				return
+					Sequence3<false>
+					(
+						Not(Char('0')),
+						UnsignedIntegerParser(2, output),
+						Char('b')
+					).ParseRetainingStateOnError(result, input);
 			}
 		};
 
@@ -1560,12 +1880,23 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"SIntegerHexT").Str();
+			}
+
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
 				IntT temp;
 				const int base = 16;
 				wchar_t sign = '+';// default to positive
-				Parser p = (-CharOf(L"+-", sign) + Str(L"0x") + UnsignedIntegerParserT<IntT>(base, RefOutput(temp)));
+				Parser p =
+					Sequence3<false>
+					(
+						Optional(CharOf(L"+-", sign)),
+						Str(L"0x"),
+						UnsignedIntegerParserT<IntT>(base, RefOutput(temp))
+					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
 				output->Save(sign == '-' ? -temp : temp);
@@ -1591,12 +1922,24 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"SIntegerOctT").Str();
+			}
+
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
 				IntT temp;
 				const int base = 8;
 				wchar_t sign = '+';// default to positive
-				Parser p = (-CharOf(L"+-", sign) + Char('0') + UnsignedIntegerParserT<IntT>(base, RefOutput(temp)));
+				Parser p =
+					Sequence4<false>
+					(
+						Optional(CharOf(L"+-", sign)),
+						Char('0'),
+						!Char('x'),
+						UnsignedIntegerParserT<IntT>(base, RefOutput(temp))
+					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
 				output->Save(sign == '-' ? -temp : temp);
@@ -1622,12 +1965,23 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"SIntegerBinT").Str();
+			}
+
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
 				IntT temp;
 				const int base = 2;
 				wchar_t sign = '+';// default to positive
-				Parser p = (-CharOf(L"+-", sign) + UnsignedIntegerParserT<IntT>(base, RefOutput(temp)) + Char('b'));
+				Parser p =
+					Sequence3<false>
+					(
+						Optional(CharOf(L"+-", sign)),
+						UnsignedIntegerParserT<IntT>(base, RefOutput(temp)),
+						Char('b')
+					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
 				output->Save(sign == '-' ? -temp : temp);
@@ -1653,12 +2007,24 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"SIntegerDecT").Str();
+			}
+
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
 				IntT temp;
 				const int base = 10;
 				wchar_t sign = '+';// default to positive
-				Parser p = (-CharOf(L"+-", sign) + !Char('0') + UnsignedIntegerParserT<IntT>(base, RefOutput(temp)) + !Char('b'));
+				Parser p =
+					Sequence4<false>
+					(
+						Optional(CharOf(L"+-", sign)),
+						Not(Char('0')),
+						UnsignedIntegerParserT<IntT>(base, RefOutput(temp)),
+						Not(Char('b'))
+					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
 				output->Save(sign == '-' ? -temp : temp);
@@ -1676,19 +2042,19 @@ namespace LibCC
 		template<typename IntT>
 		Parser CSignedInteger(const OutputPtr<IntT>& output)// these are all signed or unsigned.
 		{
-			return SIntegerDec(output) || SIntegerOct(output) || SIntegerBin(output) || SIntegerHex(output);
+			return Or4(SIntegerDec(output), SIntegerOct(output), SIntegerBin(output), SIntegerHex(output));
 		}
 
 		template<typename IntT>
 		Parser CUnsignedInteger(const OutputPtr<IntT>& output)
 		{
-			return UIntegerDec(output) || UIntegerOct(output) || UIntegerBin(output) || UIntegerHex(output);
+			return Or4(UIntegerDec(output), UIntegerOct(output), UIntegerBin(output), UIntegerHex(output));
 		}
 
 		template<typename IntT>
 		Parser CInteger(const OutputPtr<IntT>& output)// same as CSignedInteger
 		{
-			return SIntegerDec(output) || SIntegerOct(output) || SIntegerBin(output) || SIntegerHex(output);
+			return Or4(SIntegerDec(output), SIntegerOct(output), SIntegerBin(output), SIntegerHex(output));
 		}
 
 		// if this is named CInteger, then the compiler gets it confused with the overload CInteger(const OutputPtr<IntT>& output)
@@ -1749,6 +2115,11 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"UnsignedRationalParser(base=%)").i(base).Str();
+			}
+
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
 				// 1234      1.234      1.234e-56        1e56     1.23e+45
@@ -1757,11 +2128,17 @@ namespace LibCC
 				wchar_t exponentSign = L'+';
 				std::wstring exponentPart;
 
-				Parser preDecimalP = *CharOf(digits, preDecimalPart);
-				Parser decimalP = Char('.') + *CharOf(digits, decimalPart);
-				Parser exponentP = CharI('e') + (-CharOf(L"+-", exponentSign)) + (+CharOf(digits, exponentPart));
+				Parser preDecimalP = ZeroOrMore(CharOfI(digits, preDecimalPart));
+				Parser decimalP = Sequence(Char('.'), ZeroOrMore(CharOfI(digits, decimalPart)));
+				Parser exponentP =
+					Sequence3<false>
+					(
+						CharI('e'),
+						Optional(CharOf(L"+-", exponentSign)),
+						OneOrMore(CharOfI(digits, exponentPart))
+					);
 
-				Parser rationalParserP = preDecimalP + -decimalP + -exponentP;
+				Parser rationalParserP = Sequence3(preDecimalP, Optional(decimalP), Optional(exponentP));
 				
 				if(!rationalParserP.ParseRetainingStateOnError(result, input))
 					return false;
@@ -1858,11 +2235,21 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"SignedRationalParser(base=%)").i(base).Str();
+			}
+
 			virtual bool Parse(ScriptResult& result, ScriptReader& input)
 			{
 				T temp;
 				wchar_t sign = '+';// default to positive
-				Parser p = (-CharOf(L"+-", sign) + UnsignedRationalParserT<T>(RefOutput(temp), base));
+				Parser p =
+					Sequence
+					(
+						Optional(CharOf(L"+-", sign)),
+						UnsignedRationalParserT<T>(RefOutput(temp), base)
+					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
 				output->Save(sign == '-' ? -temp : temp);
@@ -1934,6 +2321,11 @@ namespace LibCC
 			void SetCursor(const ScriptCursor& c)
 			{
 				m_cursor = c;
+			}
+
+			virtual const std::wstring& GetRawInput() const
+			{
+				return m_script;
 			}
 
 		private:
@@ -2025,5 +2417,81 @@ namespace LibCC
 			virtual void RestoreOutputState() { output->RestoreState(); }
 		};
 
+
+
+		// put operators all together, at the end, for a couple reasons:
+		// - operators may change. for this reason, i don't want to use operators in the parser framework. thus, i put them here at the end.
+		// - you might want to turn them off, do a build, and look at compiler errors in order to detect all occurrences of them
+		//   in your own code, because you can't just do a ctrl+f for them.
+#if 1
+		/*
+			unary operators: http://msdn.microsoft.com/en-us/library/f672kxz8.aspx
+			binary operators: http://msdn.microsoft.com/en-us/library/czs2584d.aspx
+
+			Operators as defined both by SP1R1T and LibCC::Parse (without whitespace skipping)
+			x >> y	Match x followed by y (Sequence)
+			x | y	Match x or y (Or)
+			*x	Match x zero or more times (ZeroOrMore)
+			+x	Match x one or more times (OneOrMore)
+			!x	Match x zero or one time (Optional)
+
+			My own operators:
+			x + y Match x followed by y, skipping whitespace (Sequence)
+			&x zero or more, skipping whitespace (ZeroOrMoreS)
+			++x one or more, skipping whitespace (OneOrMoreS)
+			-x do not match x (Not)
+
+			SP1R1T operators that i don't support:
+			x & y	Match x and y
+			x – y	Match x but not y
+			x ^ y	Match x or y but not both
+			x [ function expression ]	Execute the function/functor if x is matched
+			x % y	Match x one or more times, separated by occurrences of y
+		*/
+		ZeroOrMore operator * (const ParserBase& lhs)
+		{
+			return ZeroOrMore(lhs);
+		}
+
+		ZeroOrMoreS operator & (const ParserBase& lhs)
+		{
+			return ZeroOrMoreS(lhs);
+		}
+
+		OneOrMore operator + (const ParserBase& lhs)
+		{
+			return OneOrMore(lhs);
+		}
+
+		OneOrMoreS operator ++ (const ParserBase& lhs)
+		{
+			return OneOrMoreS(lhs);
+		}
+
+		Not operator - (const ParserBase& lhs)
+		{
+			return Not(lhs);
+		}
+
+		Optional operator ! (const ParserBase& lhs)
+		{
+			return Optional(lhs);
+		}
+
+		Sequence<false> operator >> (const ParserBase& lhs, const ParserBase& rhs)
+		{
+			return Sequence<false>(lhs, rhs);
+		}
+
+		Sequence<true> operator + (const ParserBase& lhs, const ParserBase& rhs)
+		{
+			return Sequence<true>(lhs, rhs);
+		}
+
+		Or operator | (const ParserBase& lhs, const ParserBase& rhs)
+		{
+			return Or(lhs, rhs);
+		}
+#endif
 	}
 }
