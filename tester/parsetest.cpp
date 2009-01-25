@@ -8,10 +8,48 @@
 using namespace LibCC::Parse;
 
 
+// holds all messages in memory.
+		struct MyParseResult :
+			ParseResult
+		{
+			int traceIndentLevel;
+			bool traceEnabled;
+
+			MyParseResult() :
+				traceIndentLevel(0),
+				traceEnabled(false)
+			{
+			}
+			virtual void IncrementTraceIndent() { ++traceIndentLevel; }
+			virtual void DecrementTraceIndent() { --traceIndentLevel; }
+			virtual void SetTraceEnabled(bool b) { traceEnabled = b; }
+			virtual bool IsTraceEnabled() const { return traceEnabled; }
+
+			// parse debugging trace messages
+			virtual void Trace(const std::wstring& msg)
+			{
+				std::wstring x;
+				for(int i = 0; i < traceIndentLevel; ++ i)
+				{
+					x.append(L"  ");
+				}
+				x.append(msg);
+				
+				TestMessage(msg);
+			}
+
+			// parser evaluation messages
+			virtual void ParserMessage(const std::wstring& msg)
+			{
+				TestMessage(msg);
+			}
+		};
+
+
 struct Expression : public ParserWithOutput<int, Expression>
 {
 	Expression(const OutputPtr<int>& output_) { output.Assign(output_); }
-	bool Parse(ScriptResult& result, ScriptReader& input)
+	bool Parse(ParseResult& result, ScriptReader& input)
 	{
 		std::vector<int> operands;
 		std::vector<wchar_t> operators;
@@ -64,7 +102,7 @@ int ParseExpression(const std::wstring& exp)
     AnyChar() { output.Assign(NullOutput<wchar_t>().NewClone()); }
     AnyChar(const OutputPtr<wchar_t>& out) { output = out; }
  
-    virtual bool Parse(ScriptResult& result, ScriptReader& input)
+    virtual bool Parse(ParseResult& result, ScriptReader& input)
     {
         if(input.IsEOF())
             return false;// could not parse a char FAIL
@@ -441,6 +479,71 @@ bool ParseTest()
 	TestAssert(str2 == L"2");
 
 	// StringParser
+	p = StringParser(str);
+	TestAssert(!p.ParseSimple(L""));
+
+	// no quotes	
+	str = L"";
+	TestAssert(p.ParseSimple(L"a"));
+	TestAssert(str == L"a");
+
+	str = L"";
+	TestAssert(p.ParseSimple(L"a\nb"));
+	TestAssert(str == L"a");
+
+	str = L"";
+	TestAssert(p.ParseSimple(L"a\\n"));
+	TestAssert(str == L"a\\n");
+	
+	str = L"";
+	TestAssert(p.ParseSimple(L"a\"b\"c"));
+	TestAssert(str == L"a\"b\"c");
+	
+	// double quotes
+	str = L"";
+	TestAssert(p.ParseSimple(L"\"abc\""));
+	TestAssert(str == L"abc");
+	
+	str = L"";
+	TestAssert(p.ParseSimple(L"\"abc\"b"));
+	TestAssert(str == L"abc");
+	
+	str = L"";
+	TestAssert(p.ParseSimple(L"\"\""));
+	TestAssert(str == L"");
+	
+	TestAssert(!p.ParseSimple(L"\"a\n\"b"));
+	
+	str = L"";
+	TestAssert(p.ParseSimple(L"\"a'b\""));
+	TestAssert(str == L"a'b");
+	
+	str = L"";
+	TestAssert(p.ParseSimple(L"\"abc\\n\""));
+	TestAssert(str == L"abc\n");
+	
+	TestAssert(!p.ParseSimple(L"\"a\\\""));
+
+	// single quotes
+	str = L"";
+	TestAssert(p.ParseSimple(L"'abc'"));
+	TestAssert(str == L"abc");
+	
+	str = L"";
+	TestAssert(p.ParseSimple(L"'abc''b...."));
+	TestAssert(str == L"abc");
+	
+	TestAssert(!p.ParseSimple(L"'a\n'"));
+	
+	str = L"";
+	TestAssert(p.ParseSimple(L"'a\\n'"));
+	TestAssert(str == L"a\n");
+	
+	TestAssert(!p.ParseSimple(L"'abc\""));
+	TestAssert(!p.ParseSimple(L"\"abc'"));
+	TestAssert(!p.ParseSimple(L"'a"));
+	TestAssert(!p.ParseSimple(L"\"a"));
+
 
 	// CInteger
 	// CInteger2
@@ -461,6 +564,17 @@ bool ParseTest()
 	// SignedRationalParserT
 	// Rational
 	// Rational2
+
+	{
+		// error handling.
+		Parser nameParser = StrI(L"name=") + FalseMsg(L"Name should be either carl or lucie.", StrI(L"carl") | StrI(L"lucie"));
+		Parser countryParser = StrI(L"name=") + FalseMsg(L"Country should be either usa or belgium.", StrI(L"usa") | StrI(L"belgium"));
+		MyParseResult res;
+		Parser p = nameParser | countryParser | ParseMessage(L"You failed entirely.", false);
+		bool r = p.Parse(res, CScriptReader(L"name=1"));
+		r = p.Parse(res, CScriptReader(L"na"));
+		int a = 133535;
+	}
 
   return true;
 }

@@ -161,27 +161,53 @@ namespace LibCC
 		};
 
 		// basic framework parsers ///////////////////////////////////////////////////////////////////////////////////////
-		struct ScriptResult
+		struct ParseResult
 		{
-			int indentLevel;
-			bool verboseParseOutput;
+			virtual void IncrementTraceIndent() = 0;
+			virtual void DecrementTraceIndent() = 0;
+			virtual void SetTraceEnabled(bool b) = 0;
+			virtual bool IsTraceEnabled() const = 0;
+			virtual void Trace(const std::wstring& msg) = 0;
+			virtual void ParserMessage(const std::wstring& msg) = 0;
+		};
 
-			ScriptResult() :
-				indentLevel(0),
-				verboseParseOutput(false)
+		// built in ParseResult class which holds all messages in memory.
+		struct ParseResultMem :
+			ParseResult
+		{
+			int traceIndentLevel;
+			bool traceEnabled;
+
+			ParseResultMem() :
+				traceIndentLevel(0),
+				traceEnabled(false)
 			{
 			}
+			virtual void IncrementTraceIndent() { ++traceIndentLevel; }
+			virtual void DecrementTraceIndent() { --traceIndentLevel; }
+			virtual void SetTraceEnabled(bool b) { traceEnabled = b; }
+			virtual bool IsTraceEnabled() const { return traceEnabled; }
 
-			std::vector<std::wstring> messages;
-			void Message(const std::wstring& msg)
+			// parse debugging trace messages
+			std::vector<std::wstring> trace;
+
+			virtual void Trace(const std::wstring& msg)
 			{
 				std::wstring x;
-				for(int i = 0; i < indentLevel; ++ i)
+				for(int i = 0; i < traceIndentLevel; ++ i)
 				{
 					x.append(L"  ");
 				}
 				x.append(msg);
-				messages.push_back(x);
+				trace.push_back(x);
+			}
+
+			// parser evaluation messages
+			std::vector<std::wstring> parseMessages;
+
+			virtual void ParserMessage(const std::wstring& msg)
+			{
+				parseMessages.push_back(msg);
 			}
 		};
 
@@ -253,67 +279,67 @@ namespace LibCC
 			}
 
 		public:
-			bool IsVerboseLoggingEnabled;
+			bool IsTraceEnabled;
 
 			ParserBase() :
-				IsVerboseLoggingEnabled(true)
+				IsTraceEnabled(true)
 			{
 			}
 
-			virtual bool ParseRetainingStateOnError(ScriptResult& result, ScriptReader& input)
+			virtual bool ParseRetainingStateOnError(ParseResult& result, ScriptReader& input)
 			{
 				ScriptCursor oldCursor = input.GetCursorCopy();
 				SaveOutputState();
 
-				if(result.verboseParseOutput && IsVerboseLoggingEnabled)
+				if(result.IsTraceEnabled() && IsTraceEnabled)
 				{
-					result.Message(LibCC::FormatW(L"Parsing '%' from %")
+					result.Trace(LibCC::FormatW(L"Parsing '%' from %")
 						(GetParserName())
 						(DebugCursorToString(oldCursor, input))
 						.Str());
-					result.Message(L"{");
-					result.indentLevel ++;
+					result.Trace(L"{");
+					result.IncrementTraceIndent();
 				}
 
-				bool wasVerboseLoggingEnabled = result.verboseParseOutput;
-				if(!IsVerboseLoggingEnabled)
+				bool wasTracingEnabled = result.IsTraceEnabled();
+				if(!IsTraceEnabled)
 				{
-					result.verboseParseOutput = false;
+					result.SetTraceEnabled(false);
 				}
 
 				bool ret = Parse(result, input);
-				result.verboseParseOutput = wasVerboseLoggingEnabled;
+				result.SetTraceEnabled(wasTracingEnabled);
 
 				if(!ret)
 				{
-					if(result.verboseParseOutput && IsVerboseLoggingEnabled)
+					if(result.IsTraceEnabled() && IsTraceEnabled)
 					{
 						ScriptCursor newCursor = input.GetCursorCopy();
-						result.Message(LibCC::FormatW(L"=false '%' from % to % %")
+						result.Trace(LibCC::FormatW(L"=false '%' from % to % %")
 							(GetParserName())
 							(DebugCursorToString(oldCursor, input))
 							(DebugCursorToString(newCursor, input))
 							(DebugSubStr(oldCursor, newCursor, input))
 							.Str());
-						result.indentLevel --;
-						result.Message(L"}");
+						result.DecrementTraceIndent();
+						result.Trace(L"}");
 					}
 					RestoreOutputState();
 					input.SetCursor(oldCursor);
 					return false;
 				}
 
-				if(result.verboseParseOutput && IsVerboseLoggingEnabled)
+				if(result.IsTraceEnabled() && IsTraceEnabled)
 				{
 					ScriptCursor newCursor = input.GetCursorCopy();
-					result.Message(LibCC::FormatW(L"=TRUE '%' from % to % %")
+					result.Trace(LibCC::FormatW(L"=TRUE '%' from % to % %")
 						(GetParserName())
 						(DebugCursorToString(oldCursor, input))
 						(DebugCursorToString(newCursor, input))
 						(DebugSubStr(oldCursor, newCursor, input))
 						.Str());
-					result.indentLevel --;
-					result.Message(L"}");
+					result.DecrementTraceIndent();
+					result.Trace(L"}");
 				}
 				return true;
 			}
@@ -323,12 +349,12 @@ namespace LibCC
 			virtual void SaveOutputState() = 0;
 			virtual void RestoreOutputState() = 0;
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input) = 0;
+			virtual bool Parse(ParseResult& result, ScriptReader& input) = 0;
 
 			// useful for simple parsing stuff like CInteger(RefOutput(myint)).Parse(L"-1");
 			virtual bool ParseSimple(const std::wstring& script)
 			{
-				ScriptResult result;
+				ParseResultMem result;
 				return Parse(result, BasicStringReader(script));
 			}
 
@@ -416,6 +442,9 @@ namespace LibCC
 			std::wstring m_name;
 
 		public:
+			std::wstring falseMessage;
+			std::wstring trueMessage;
+
 			Passthrough& operator =(const Passthrough& rhs)
 			{
 				m_name = rhs.m_name;
@@ -450,7 +479,7 @@ namespace LibCC
 			Passthrough(const std::wstring& subName, bool enableVerboseLoggingForChild_, const ParserBase& rhs)
 			{
 				m_child.Assign(rhs);
-				m_child->IsVerboseLoggingEnabled = enableVerboseLoggingForChild_;
+				m_child->IsTraceEnabled = enableVerboseLoggingForChild_;
 				m_name = subName;
 			}
 
@@ -471,11 +500,20 @@ namespace LibCC
 				m_child->RestoreOutputState();
 			}
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				if(m_child.IsEmpty())
+				{
+					if(!trueMessage.empty())
+						result.ParserMessage(trueMessage);
 					return true;
-				return m_child->ParseRetainingStateOnError(result, input);
+				}
+				bool r = m_child->ParseRetainingStateOnError(result, input);
+				if(r && !trueMessage.empty())
+					result.ParserMessage(trueMessage);
+				if(!r && !falseMessage.empty())
+					result.ParserMessage(falseMessage);
+				return r;
 			}
 
 			virtual std::wstring Dump(int indentLevel)
@@ -491,6 +529,103 @@ namespace LibCC
 		};
 
 		typedef Passthrough Parser;
+
+		inline Passthrough FalseMsg(const std::wstring& msg, const ParserBase& child)
+		{
+			Passthrough ret(child);
+			ret.falseMessage = msg;
+			return ret;
+		}
+
+		inline Passthrough TrueMsg(const std::wstring& msg, const ParserBase& child)
+		{
+			Passthrough ret(child);
+			ret.trueMessage = msg;
+			return ret;
+		}
+
+
+		// acts as a breakpoint during the parsing process. other than that, it simply 
+		struct Break :
+			public ParserBase
+		{
+		private:
+			ParserPtr m_child;
+
+		public:
+			Break(const ParserBase& rhs) :
+				m_child(rhs)
+			{
+			}
+
+			virtual ParserBase* NewClone() const { return new Break(*this); }
+			virtual std::wstring GetParserName() const { return L"Breakpoint"; }
+
+			virtual void SaveOutputState()
+			{
+				if(m_child.IsEmpty())
+					return;
+				m_child->SaveOutputState();
+			}
+
+			virtual void RestoreOutputState()
+			{
+				if(m_child.IsEmpty())
+					return;
+				m_child->RestoreOutputState();
+			}
+
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
+			{
+				__asm int 3;
+				if(m_child.IsEmpty())
+				{
+					return true;
+				}
+				bool r = m_child->ParseRetainingStateOnError(result, input);
+				return r;
+			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				if(m_child.IsValid())
+					return m_child->Dump(indentLevel);
+				return L"break";
+			}
+		};
+
+
+		// acts as a breakpoint during the parsing process. other than that, it simply 
+		struct ParseMessage :
+			public ParserBase
+		{
+			std::wstring msg;
+			bool ret;
+
+			ParseMessage(const std::wstring& msg_, bool ret_ = false) :
+				msg(msg_),
+				ret(ret_)
+			{
+			}
+
+			virtual ParserBase* NewClone() const { return new ParseMessage(*this); }
+			virtual std::wstring GetParserName() const { return L"ParseMessage"; }
+			virtual void SaveOutputState() { }
+			virtual void RestoreOutputState() { }
+
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
+			{
+				if(!msg.empty())
+					result.ParserMessage(msg);
+				return ret;
+			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				return L"ParseMessage";
+			}
+		};
+
 
 		template<int MinimumOccurrences, bool skipWhitespaceBetween>
 		struct Occurrences :
@@ -530,7 +665,7 @@ namespace LibCC
 			virtual void SaveOutputState() { if(m_child.IsValid()) m_child->SaveOutputState(); }
 			virtual void RestoreOutputState() { if(m_child.IsValid()) m_child->RestoreOutputState(); }
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				if(m_child.IsEmpty())
 					return true;
@@ -615,7 +750,7 @@ namespace LibCC
 			virtual void SaveOutputState() { if(m_child.IsValid()) m_child->SaveOutputState(); }
 			virtual void RestoreOutputState() { if(m_child.IsValid()) m_child->RestoreOutputState(); }
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				if(m_child.IsEmpty())
 					return true;
@@ -665,7 +800,7 @@ namespace LibCC
 			virtual void SaveOutputState() { if(m_child.IsValid()) m_child->SaveOutputState(); }
 			virtual void RestoreOutputState() { if(m_child.IsValid()) m_child->RestoreOutputState(); }
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				if(m_child.IsEmpty())
 					return true;
@@ -746,7 +881,7 @@ namespace LibCC
 				rhs->RestoreOutputState();
 			}
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				if(!lhs->ParseRetainingStateOnError(result, input))
 					return false;
@@ -823,7 +958,7 @@ namespace LibCC
 				rhs->RestoreOutputState();
 			}
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				if(lhs->ParseRetainingStateOnError(result, input))
 					return true;
@@ -865,7 +1000,7 @@ namespace LibCC
 			virtual void SaveOutputState() { }
 			virtual void RestoreOutputState() { }
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				return input.IsEOF();
 			}
@@ -1164,7 +1299,7 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				wchar_t parsed = 0;
 				if(input.IsEOF())
@@ -1244,7 +1379,7 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				if(input.IsEOF())
 					return match.empty();
@@ -1298,7 +1433,7 @@ namespace LibCC
 			virtual void SaveOutputState() { }
 			virtual void RestoreOutputState() { }
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				wchar_t parsed = 0;
 				if(input.IsEOF())
@@ -1375,7 +1510,7 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				wchar_t parsed = 0;
 				if(input.IsEOF())
@@ -1478,7 +1613,7 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				wchar_t parsed = 0;
 				if(input.IsEOF())
@@ -1520,7 +1655,7 @@ namespace LibCC
 			virtual void RestoreOutputState() { }
 
 			// basically we match \r, \n, or \r\n
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				if(input.IsEOF())// count EOF as EOL
 					return true;
@@ -1550,7 +1685,7 @@ namespace LibCC
 
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"StringEscapeParser\r\n"; }
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				wchar_t escapeChar = 0;
 				Parser p = Sequence<false>(Char('\\'), Char(0, escapeChar));
@@ -1598,11 +1733,16 @@ namespace LibCC
 			virtual ParserBase* NewClone() const { return new StringParser(*this); }
 			virtual std::wstring GetParserName() const { return L"StringParser"; }
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				std::wstring parsed;
 				// input from char and output to string outputer
-				Parser noQuotes =Occurrences<1,false>(Sequence<false>(Not(Space()), Char(0, parsed)));
+				Parser noQuotes =
+					Sequence<false>
+					(
+						Not(CharOf(L"\'\"\r\n")),
+						Occurrences<1,false>(Sequence<false>(Not(Space()), Char(0, parsed)))
+					);
 
 				Parser singleQuotes =
 					Sequence3<false>
@@ -1721,7 +1861,7 @@ namespace LibCC
 				return std::wstring(indentLevel, ' ') + L"UnsignedIntegerParser\r\n";
 			}
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				std::wstring outputStr;
 
@@ -1770,7 +1910,7 @@ namespace LibCC
 				return LibCC::FormatW(L"UIntegerHexT").Str();
 			}
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				return Sequence(Str(L"0x"), UnsignedIntegerParser(16, output)).ParseRetainingStateOnError(result, input);
 			}
@@ -1799,7 +1939,7 @@ namespace LibCC
 				return LibCC::FormatW(L"UIntegerOctT").Str();
 			}
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				return
 					Sequence3<false>
@@ -1835,7 +1975,7 @@ namespace LibCC
 				return LibCC::FormatW(L"UIntegerDecT").Str();
 			}
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				return
 					Sequence3<false>
@@ -1870,7 +2010,7 @@ namespace LibCC
 				return LibCC::FormatW(L"UIntegerBinT").Str();
 			}
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				return
 					Sequence3<false>
@@ -1905,7 +2045,7 @@ namespace LibCC
 				return LibCC::FormatW(L"SIntegerHexT").Str();
 			}
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				IntT temp;
 				const int base = 16;
@@ -1947,7 +2087,7 @@ namespace LibCC
 				return LibCC::FormatW(L"SIntegerOctT").Str();
 			}
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				IntT temp;
 				const int base = 8;
@@ -1990,7 +2130,7 @@ namespace LibCC
 				return LibCC::FormatW(L"SIntegerBinT").Str();
 			}
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				IntT temp;
 				const int base = 2;
@@ -2032,7 +2172,7 @@ namespace LibCC
 				return LibCC::FormatW(L"SIntegerDecT").Str();
 			}
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				IntT temp;
 				const int base = 10;
@@ -2140,7 +2280,7 @@ namespace LibCC
 				return LibCC::FormatW(L"UnsignedRationalParser(base=%)").i(base).Str();
 			}
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				// 1234      1.234      1.234e-56        1e56     1.23e+45
 				std::wstring preDecimalPart;
@@ -2260,7 +2400,7 @@ namespace LibCC
 				return LibCC::FormatW(L"SignedRationalParser(base=%)").i(base).Str();
 			}
 
-			virtual bool Parse(ScriptResult& result, ScriptReader& input)
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				T temp;
 				wchar_t sign = '+';// default to positive
@@ -2426,7 +2566,7 @@ namespace LibCC
 		// - assumes a single output var called "output" (optional to use it though)
 		// - assumes copy constructor on clone
 		// so you just need to derive like struct MyIntegerParser : ParserWithOutput<int, MyIntegerParser>
-		// and implement constructors and bool Parse(ScriptResult& result, ScriptReader& input)
+		// and implement constructors and bool Parse(ParseResult& result, ScriptReader& input)
 		template<typename Toutput, typename Tderived>
 		struct ParserWithOutput :
 			public ParserBase
@@ -2436,7 +2576,6 @@ namespace LibCC
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
 		};
-
 
 
 		// put operators all together, at the end, for a couple reasons:
