@@ -994,7 +994,7 @@ namespace LibCC
 		struct Eof :
 			public ParserBase
 		{
-			virtual ParserBase* NewClone() const { return new Eof(); }
+			virtual ParserBase* NewClone() const { return new Eof(*this); }
 			virtual std::wstring GetParserName() const { return L"EOF"; }
 
 			virtual void SaveOutputState() { }
@@ -1427,7 +1427,7 @@ namespace LibCC
 		// matches exactly 1 whitespace char
 		struct Space : public ParserBase
 		{
-			virtual ParserBase* NewClone() const { return new Space(); }
+			virtual ParserBase* NewClone() const { return new Space(*this); }
 			virtual std::wstring GetParserName() const { return L"Space"; }
 
 			virtual void SaveOutputState() { }
@@ -1648,7 +1648,7 @@ namespace LibCC
 
 		struct Eol : public ParserBase
 		{
-			virtual ParserBase* NewClone() const { return new Eol(); }
+			virtual ParserBase* NewClone() const { return new Eol(*this); }
 			virtual std::wstring GetParserName() const { return L"EOL"; }
 
 			virtual void SaveOutputState() { }
@@ -1676,11 +1676,11 @@ namespace LibCC
 			public ParserBase
 		{
 			OutputPtr<wchar_t> output;
-			StringEscapeParser(){ output.Assign(NullOutput<wchar_t>()); }
+			StringEscapeParser() { output.Assign(NullOutput<wchar_t>()); }
 			StringEscapeParser(const OutputPtr<wchar_t>& output_) : output(output_) { }
 			virtual void SaveOutputState() { output->SaveState(); }
 			virtual void RestoreOutputState() { output->RestoreState(); }
-			virtual ParserBase* NewClone() const { return new StringEscapeParser(); }
+			virtual ParserBase* NewClone() const { return new StringEscapeParser(*this); }
 			virtual std::wstring GetParserName() const { return L"StringEscapeParser"; }
 
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"StringEscapeParser\r\n"; }
@@ -1719,7 +1719,7 @@ namespace LibCC
 			}
 		};
 
-		// helps parsing javascript-style strings and unquoted strings
+		// helps parsing javascript-style strings
 		struct StringParser :
 			public ParserBase
 		{
@@ -1737,12 +1737,12 @@ namespace LibCC
 			{
 				std::wstring parsed;
 				// input from char and output to string outputer
-				Parser noQuotes =
-					Sequence<false>
-					(
-						Not(CharOf(L"\'\"\r\n")),
-						Occurrences<1,false>(Sequence<false>(Not(Space()), Char(0, parsed)))
-					);
+				//Parser noQuotes =
+				//	Sequence<false>
+				//	(
+				//		Not(CharOf(L"\'\"\r\n")),
+				//		Occurrences<1,false>(Sequence<false>(Not(Space()), Char(0, parsed)))
+				//	);
 
 				Parser singleQuotes =
 					Sequence3<false>
@@ -1780,7 +1780,7 @@ namespace LibCC
 						),
 						Char('\"')
 					);
-				Parser p = Passthrough(L"*StringParser", false, Or3(singleQuotes, doubleQuotes, noQuotes));
+				Parser p = Passthrough(L"*StringParser", false, Or(singleQuotes, doubleQuotes));
 				bool ret = p.ParseRetainingStateOnError(result, input);
 				if(ret)
 					output->Save(parsed);

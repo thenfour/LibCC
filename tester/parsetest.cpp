@@ -481,23 +481,6 @@ bool ParseTest()
 	// StringParser
 	p = StringParser(str);
 	TestAssert(!p.ParseSimple(L""));
-
-	// no quotes	
-	str = L"";
-	TestAssert(p.ParseSimple(L"a"));
-	TestAssert(str == L"a");
-
-	str = L"";
-	TestAssert(p.ParseSimple(L"a\nb"));
-	TestAssert(str == L"a");
-
-	str = L"";
-	TestAssert(p.ParseSimple(L"a\\n"));
-	TestAssert(str == L"a\\n");
-	
-	str = L"";
-	TestAssert(p.ParseSimple(L"a\"b\"c"));
-	TestAssert(str == L"a\"b\"c");
 	
 	// double quotes
 	str = L"";
@@ -544,7 +527,6 @@ bool ParseTest()
 	TestAssert(!p.ParseSimple(L"'a"));
 	TestAssert(!p.ParseSimple(L"\"a"));
 
-
 	// CInteger
 	// CInteger2
 	// CSignedInteger
@@ -564,17 +546,6 @@ bool ParseTest()
 	// SignedRationalParserT
 	// Rational
 	// Rational2
-
-	{
-		// error handling.
-		Parser nameParser = StrI(L"name=") + FalseMsg(L"Name should be either carl or lucie.", StrI(L"carl") | StrI(L"lucie"));
-		Parser countryParser = StrI(L"name=") + FalseMsg(L"Country should be either usa or belgium.", StrI(L"usa") | StrI(L"belgium"));
-		MyParseResult res;
-		Parser p = nameParser | countryParser | ParseMessage(L"You failed entirely.", false);
-		bool r = p.Parse(res, CScriptReader(L"name=1"));
-		r = p.Parse(res, CScriptReader(L"na"));
-		int a = 133535;
-	}
 
   return true;
 }
