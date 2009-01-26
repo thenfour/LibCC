@@ -981,12 +981,12 @@ namespace LibCC
 			}
 		};
 
-		Or Or3(const ParserBase& a, const ParserBase& b, const ParserBase& c)
+		inline Or Or3(const ParserBase& a, const ParserBase& b, const ParserBase& c)
 		{
 			return Or(Or(a,b),c);
 		}
 
-		Or Or4(const ParserBase& a, const ParserBase& b, const ParserBase& c, const ParserBase& d)
+		inline Or Or4(const ParserBase& a, const ParserBase& b, const ParserBase& c, const ParserBase& d)
 		{
 			return Or(Or(Or(a,b),c),d);
 		}
@@ -2607,47 +2607,47 @@ namespace LibCC
 			x [ function expression ]	Execute the function/functor if x is matched
 			x % y	Match x one or more times, separated by occurrences of y
 		*/
-		ZeroOrMore operator * (const ParserBase& lhs)
+		inline ZeroOrMore operator * (const ParserBase& lhs)
 		{
 			return ZeroOrMore(lhs);
 		}
 
-		ZeroOrMoreS operator & (const ParserBase& lhs)
+		inline ZeroOrMoreS operator & (const ParserBase& lhs)
 		{
 			return ZeroOrMoreS(lhs);
 		}
 
-		OneOrMore operator + (const ParserBase& lhs)
+		inline OneOrMore operator + (const ParserBase& lhs)
 		{
 			return OneOrMore(lhs);
 		}
 
-		OneOrMoreS operator ++ (const ParserBase& lhs)
+		inline OneOrMoreS operator ++ (const ParserBase& lhs)
 		{
 			return OneOrMoreS(lhs);
 		}
 
-		Not operator - (const ParserBase& lhs)
+		inline Not operator - (const ParserBase& lhs)
 		{
 			return Not(lhs);
 		}
 
-		Optional operator ! (const ParserBase& lhs)
+		inline Optional operator ! (const ParserBase& lhs)
 		{
 			return Optional(lhs);
 		}
 
-		Sequence<false> operator >> (const ParserBase& lhs, const ParserBase& rhs)
+		inline Sequence<false> operator >> (const ParserBase& lhs, const ParserBase& rhs)
 		{
 			return Sequence<false>(lhs, rhs);
 		}
 
-		Sequence<true> operator + (const ParserBase& lhs, const ParserBase& rhs)
+		inline Sequence<true> operator + (const ParserBase& lhs, const ParserBase& rhs)
 		{
 			return Sequence<true>(lhs, rhs);
 		}
 
-		Or operator | (const ParserBase& lhs, const ParserBase& rhs)
+		inline Or operator | (const ParserBase& lhs, const ParserBase& rhs)
 		{
 			return Or(lhs, rhs);
 		}
