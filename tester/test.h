@@ -1,6 +1,8 @@
 
 #pragma once
 
+#define _SECURE_SCL 0
+
 #include <windows.h>
 #include <iostream>
 #include <tchar.h>

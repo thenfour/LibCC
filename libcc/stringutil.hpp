@@ -85,7 +85,6 @@
 
 #pragma once
 
-#define USE_QUICKSTRING 1
 
 #include <string>
 #include <tchar.h>
@@ -1488,47 +1487,277 @@ namespace LibCC
 
 namespace LibCC
 {
-#if USE_QUICKSTRING == 1
-	// faster than std::basic_string
+	// faster than std::basic_string ?
+
+	// this needs to be a POD for the QuickStringList optimized vector.
+	template<typename _Char>
+	struct QuickStringData
+	{
+		size_t m_len;
+		size_t m_allocated;
+		static const size_t staticBufferSize = 16;
+		_Char staticBuffer[staticBufferSize];
+		_Char* dynBuffer;
+		_Char* p;
+	};
+
+	// attaches to QuickStringData to act like a std::wstring.
 	template<typename _Char>
 	struct QuickString
 	{
-		inline QuickString() :
-			p(staticBuffer),
-			m_len(0),
-			m_allocated(staticBufferSize)
+	//private:
+	//	QuickString<_Char>& operator =(QuickString<_Char>& rhs)
+	//	{
+	//		return *this;
+	//	}
+	//	QuickString(QuickString<_Char>& rhs)
+	//	{
+	//	}
+
+	public:
+		QuickString(QuickStringData<_Char>* data_) :
+			data(data_)
 		{
 		}
 
-		inline QuickString<_Char>& operator =(const QuickString<_Char>& rhs)
+		inline const _Char* c_str() const
 		{
-			m_len = rhs.m_len;
-			m_allocated = rhs.m_allocated;
-			ConstructAlloc();
+			return data->p;
+		}
 
-			if(m_allocated > 0)
-				memcpy(p, rhs.p, sizeof(_Char) * (m_len + 1));
+		inline size_t size() const
+		{
+			return data->m_len;
+		}
+
+		inline void append(const _Char* c)
+		{
+			size_t inputLen = LibCC::StringLength(c);
+			AddAlloc(inputLen);
+			_Char* i = data->p + data->m_len;
+			memcpy(i, c, sizeof(_Char) * inputLen);
+			i += inputLen;
+			*i = 0;
+			data->m_len += inputLen;
+		}
+
+		inline void push_back(_Char ch)
+		{
+			AddAlloc(1);
+			_Char* i = data->p + data->m_len;
+			*i = ch;
+			++ i;
+			*i = 0;
+			data->m_len ++;
+		}
+
+		inline void reserve(size_t n)
+		{
+			if(data->m_allocated >= n)
+				return;
+
+			if(data->p != data->staticBuffer)
+			{
+				HeapFree(GetProcessHeap(), 0, data->p);
+			}
+			data->m_len = 0;
+			data->m_allocated = n + 1;
+			data->dynBuffer = (_Char*)HeapAlloc(GetProcessHeap(), 0, data->m_allocated * sizeof(_Char));
+			data->p = data->dynBuffer;
+		}
+
+	private:
+		inline void AddAlloc(size_t additional)
+		{
+			if(data->m_allocated < (data->m_len + 1 + additional))// 1 for null term
+			{
+				data->m_allocated = max(additional + 1, data->m_allocated << 1);
+				_Char* newp = (_Char*)HeapAlloc(GetProcessHeap(), 0, data->m_allocated * sizeof(_Char));
+				memcpy(newp, data->p, data->m_len * sizeof(_Char));
+				if(data->p != data->staticBuffer)
+				{
+					HeapFree(GetProcessHeap(), 0, data->p);
+				}
+				data->p = newp;
+			}
+		}
+
+		QuickStringData<_Char>* data;
+	};
+
+	// optimized vector which handles construction / destruction of QuickStringData, and hands out QuickString to act
+	// somewhat like a std::string
+	template<typename _Char>
+	struct QuickStringList
+	{
+	//private:
+	//	QuickStringList<_Char>& operator =(QuickStringList<_Char>& rhs)
+	//	{
+	//		return *this;
+	//	}
+	//	QuickStringList(QuickStringList<_Char>& rhs)
+	//	{
+	//	}
+
+	public:
+		QuickStringList() :
+			m_listLen(0),
+			m_listAllocated(listStaticBufferSize),
+			listp(listStaticBuffer)
+		{
+		}
+
+		// hope we can avoid this 
+		QuickStringList<_Char>& operator =(const QuickStringList<_Char>& rhs)
+		{
+			clear();
+
+			m_listLen = rhs.m_listLen;
+			m_listAllocated = rhs.m_listAllocated;
+
+			// allocate.
+			if(m_listAllocated > listStaticBufferSize)
+			{
+				listp = (QuickStringData<_Char>*)HeapAlloc(GetProcessHeap(), 0, sizeof(QuickStringData<_Char>) * m_listAllocated);
+				listp = listDynBuffer;
+			}
+
+			// copy.
+			memcpy(listp, rhs.listp, m_listLen * sizeof(QuickStringData<_Char>));
+			// fix up pointers to static data
+			QuickStringData<_Char>* i = listp;
+			QuickStringData<_Char>* end = listp + m_listLen;
+			for(; i != end; ++ i)
+			{
+				if(i->m_allocated <= QuickStringData<_Char>::staticBufferSize)
+					i->p = i->staticBuffer;
+			}
+
 			return *this;
 		}
 
-		inline QuickString(const QuickString<_Char>& rhs) :
-			m_len(rhs.m_len),
-			m_allocated(rhs.m_allocated)
+		QuickStringList(const QuickStringList<_Char>& rhs) :
+			m_listLen(0),
+			m_listAllocated(listStaticBufferSize),
+			listp(listStaticBuffer)
 		{
-			ConstructAlloc();
-			if(m_allocated > 0)
-				memcpy(p, rhs.p, sizeof(_Char) * (m_len + 1));
+			*this = rhs;
 		}
 
-		// construct from std::string or _Char* with open / close quotes / maxlen
-		inline QuickString(const _Char* s, _Char open, _Char close)
+
+		~QuickStringList()
+		{
+			// free all strings
+			clear();
+			if(listp != listStaticBuffer)
+			{
+				HeapFree(GetProcessHeap(), 0, listp);
+			}
+		}
+
+		size_t size() const
+		{
+			return m_listLen;
+		}
+
+		void clear()
+		{
+			QuickStringData<_Char>* i = listp;
+			QuickStringData<_Char>* end = listp + m_listLen;
+			for(;i != end; ++ i)
+			{
+				if(i->p != i->staticBuffer)
+				{
+					HeapFree(GetProcessHeap(), 0, i->p);
+				}
+			}
+			m_listLen = 0;
+		}
+
+		QuickString<_Char> operator[] (size_t index)
+		{
+			return QuickString<_Char>(&listp[index]);
+		}
+
+		QuickString<_Char> operator[] (size_t index) const
+		{
+			return QuickString<_Char>(&listp[index]);
+		}
+
+		// creates room for X strings, and returns the first one available, UNCONSTRUCTED.
+		QuickStringData<_Char>* AddAlloc(size_t additional)
+		{
+			if(m_listAllocated < (m_listLen + additional))
+			{
+				// realloc. todo: actually use realloc
+				size_t newAllocated = max(m_listAllocated * 2, m_listLen + additional);
+				QuickStringData<_Char>* newp = (QuickStringData<_Char>*)HeapAlloc(GetProcessHeap(), 0, sizeof(QuickStringData<_Char>) * newAllocated);
+				// copy dynBuffer to newp
+				memcpy(newp, listp, m_listLen * sizeof(QuickStringData<_Char>));
+				//memset(p, 0, m_len * sizeof(QuickStringData<_Char>));// DEBUGGING PURPOSES ONLY
+				if(listp != listStaticBuffer)
+				{
+					HeapFree(GetProcessHeap(), 0, listp);
+				}
+
+				m_listAllocated = newAllocated;
+				listp = listDynBuffer;
+
+				// fix up pointers to static data
+				QuickStringData<_Char>* i = listp;
+				QuickStringData<_Char>* end = listp + m_listLen;
+				for(; i != end; ++ i)
+				{
+					if(i->m_allocated <= QuickStringData<_Char>::staticBufferSize)
+						i->p = i->staticBuffer;
+				}
+			}
+			m_listLen ++;
+			return listp + m_listLen - 1;
+		}
+
+		void ConstructAlloc(QuickStringData<_Char>* data)
+		{
+			if(data->m_allocated > QuickStringData<_Char>::staticBufferSize)
+			{
+				data->dynBuffer = (_Char*)HeapAlloc(GetProcessHeap(), 0, data->m_allocated * sizeof(_Char));
+				data->p = data->dynBuffer;
+			}
+			else
+			{
+				data->p = data->staticBuffer;
+			}
+		}
+
+		QuickString<_Char> push_back()
+		{
+			QuickStringData<_Char>* back = AddAlloc(1);
+			ConstructQuickString(back);
+			return QuickString<_Char>(back);
+		}
+
+		void ConstructQuickString(QuickStringData<_Char>* data)
+		{
+			data->p = data->staticBuffer;
+			data->m_len = 0;
+			data->m_allocated = QuickStringData<_Char>::staticBufferSize;
+		}
+
+		QuickString<_Char> push_back(const _Char* s, _Char open, _Char close)
+		{
+			QuickStringData<_Char>* back = AddAlloc(1);
+			ConstructQuickString(back, s, open, close);
+			return QuickString<_Char>(back);
+		}
+
+		void ConstructQuickString(QuickStringData<_Char>* data, const _Char* s, _Char open, _Char close)
 		{
 			size_t inputLen = s == 0 ? 0 : LibCC::StringLength(s);
-			m_len = inputLen + 2;
-			m_allocated = max(m_len + 1, staticBufferSize);
-			ConstructAlloc();
+			data->m_len = inputLen + 2;
+			data->m_allocated = max(data->m_len + 1, QuickStringData<_Char>::staticBufferSize);
+			ConstructAlloc(data);
 
-			_Char* i = p;
+			_Char* i = data->p;
 			*i = open;
 			++i;
 			memcpy(i, s, sizeof(_Char) * inputLen);
@@ -1538,40 +1767,58 @@ namespace LibCC
 			*i = 0;
 		}
 
-		// construct from std::string or _Char* with open / close quotes / maxlen
-		inline QuickString(const _Char* s, int maxLen)
+		QuickString<_Char> push_back(const _Char* s, int maxLen)
 		{
-			m_len = s == 0 ? 0 : min((int)LibCC::StringLength(s), maxLen);
-			m_allocated = max(m_len + 1, staticBufferSize);
-			ConstructAlloc();
+			QuickStringData<_Char>* back = AddAlloc(1);
+			ConstructQuickString(back, s, maxLen);
+			return QuickString<_Char>(back);
+		}
 
-			_Char* i = p;
-			memcpy(i, s, sizeof(_Char) * m_len);
-			i += m_len;
+		void ConstructQuickString(QuickStringData<_Char>* data, const _Char* s, int maxLen)
+		{
+			data->m_len = s == 0 ? 0 : min((int)LibCC::StringLength(s), maxLen);
+			data->m_allocated = max(data->m_len + 1, QuickStringData<_Char>::staticBufferSize);
+			ConstructAlloc(data);
+
+			_Char* i = data->p;
+			memcpy(i, s, sizeof(_Char) * data->m_len);
+			i += data->m_len;
 			*i = 0;
 		}
 
-		// construct from std::string or _Char* with open / close quotes / maxlen
-		inline QuickString(const _Char* s)
+		QuickString<_Char> push_back(const _Char* s)
 		{
-			m_len = s == 0 ? 0 : LibCC::StringLength(s);
-			m_allocated = max(m_len + 1, staticBufferSize);
-			ConstructAlloc();
+			QuickStringData<_Char>* back = AddAlloc(1);
+			ConstructQuickString(back, s);
+			return QuickString<_Char>(back);
+		}
 
-			_Char* i = p;
-			memcpy(i, s, sizeof(_Char) * m_len);
-			i += m_len;
+		void ConstructQuickString(QuickStringData<_Char>* data, const _Char* s)
+		{
+			data->m_len = s == 0 ? 0 : LibCC::StringLength(s);
+			data->m_allocated = max(data->m_len + 1, QuickStringData<_Char>::staticBufferSize);
+			ConstructAlloc(data);
+
+			_Char* i = data->p;
+			memcpy(i, s, sizeof(_Char) * data->m_len);
+			i += data->m_len;
 			*i = 0;
 		}
 
-		// construct from std::string or _Char* with open / close quotes / maxlen
-		inline QuickString(_Char ch, size_t count)
+		QuickString<_Char> push_back(_Char ch, size_t count)
 		{
-			m_len = count;
-			m_allocated = max(m_len + 1, staticBufferSize);
-			ConstructAlloc();
+			QuickStringData<_Char>* back = AddAlloc(1);
+			ConstructQuickString(back, ch, count);
+			return QuickString<_Char>(back);
+		}
 
-			_Char* i = p;
+		void ConstructQuickString(QuickStringData<_Char>* data, _Char ch, size_t count)
+		{
+			data->m_len = count;
+			data->m_allocated = max(data->m_len + 1, QuickStringData<_Char>::staticBufferSize);
+			ConstructAlloc(data);
+
+			_Char* i = data->p;
 			_Char* end = i + count;
 			while(i != end)
 			{
@@ -1581,22 +1828,28 @@ namespace LibCC
 			*i = 0;
 		}
 
-		// construct from std::string or _Char* with open / close quotes / maxlen
-		inline QuickString(const _Char* s, int maxLen, _Char open, _Char close)
+		QuickString<_Char> push_back(const _Char* s, int maxLen, _Char open, _Char close)
 		{
-			m_len = s == 0 ? min(maxLen, 2) : min((int)LibCC::StringLength(s) + 2, maxLen);
-			m_allocated = max(m_len + 1, staticBufferSize);
-			ConstructAlloc();
+			QuickStringData<_Char>* back = AddAlloc(1);
+			ConstructQuickString(back, s, maxLen, open, close);
+			return QuickString<_Char>(back);
+		}
 
-			_Char* i = p;
-			if(m_len > 0)
+		void ConstructQuickString(QuickStringData<_Char>* data, const _Char* s, int maxLen, _Char open, _Char close)
+		{
+			data->m_len = s == 0 ? min(maxLen, 2) : min((int)LibCC::StringLength(s) + 2, maxLen);
+			data->m_allocated = max(data->m_len + 1, QuickStringData<_Char>::staticBufferSize);
+			ConstructAlloc(data);
+
+			_Char* i = data->p;
+			if(data->m_len > 0)
 			{
 				*i = open;
 				++i;
-				if(m_len > 1)
+				if(data->m_len > 1)
 				{
-					memcpy(i, s, sizeof(_Char) * (m_len - 2));
-					i += m_len - 2;
+					memcpy(i, s, sizeof(_Char) * (data->m_len - 2));
+					i += data->m_len - 2;
 					*i = close;
 					++i;
 				}
@@ -1604,106 +1857,13 @@ namespace LibCC
 			*i = 0;
 		}
 
-		~QuickString()
-		{
-			if(p != staticBuffer)
-			{
-				HeapFree(GetProcessHeap(), 0, p);
-				//delete[] p;
-			}
-		}
-
-		inline const _Char* c_str() const
-		{
-			return p;
-		}
-
-		inline size_t size() const
-		{
-			return m_len;
-		}
-
-		inline void append(const _Char* c)
-		{
-			size_t inputLen = LibCC::StringLength(c);
-			AddAlloc(inputLen);
-			_Char* i = p + m_len;
-			memcpy(i, c, sizeof(_Char) * inputLen);
-			i += inputLen;
-			*i = 0;
-			m_len += inputLen;
-		}
-
-		inline void push_back(_Char ch)
-		{
-			AddAlloc(1);
-			_Char* i = p + m_len;
-			*i = ch;
-			++ i;
-			*i = 0;
-			m_len ++;
-		}
-
-		inline void reserve(size_t n)
-		{
-			if(m_allocated >= n)
-				return;
-
-			if(p != staticBuffer)
-			{
-				HeapFree(GetProcessHeap(), 0, p);
-				//delete[] p;
-			}
-			m_len = 0;
-			m_allocated = n + 1;
-			//dynBuffer = new _Char[m_allocated];
-			dynBuffer = (_Char*)HeapAlloc(GetProcessHeap(), 0, m_allocated * sizeof(_Char));
-			p = dynBuffer;
-		}
-
-	private:
-		inline void ConstructAlloc()
-		{
-			if(m_allocated > staticBufferSize)
-			{
-				//dynBuffer = new _Char[m_allocated];
-				dynBuffer = (_Char*)HeapAlloc(GetProcessHeap(), 0, m_allocated * sizeof(_Char));
-				p = dynBuffer;
-			}
-			else
-			{
-				p = staticBuffer;
-			}
-		}
-
-		inline void AddAlloc(size_t additional)
-		{
-			if(m_allocated < (m_len + 1 + additional))// 1 for null term
-			{
-				m_allocated = max(additional + 1, m_allocated << 1);
-				//_Char* newp = new _Char[m_allocated];
-				_Char* newp = (_Char*)HeapAlloc(GetProcessHeap(), 0, m_allocated * sizeof(_Char));
-				memcpy(newp, p, m_len * sizeof(_Char));
-				if(p != staticBuffer)
-				{
-					//delete[] p;
-					HeapFree(GetProcessHeap(), 0, p);
-				}
-				p = newp;
-			}
-		}
-
-		size_t m_len;
-		size_t m_allocated;
-		static const size_t staticBufferSize = 16;
-		_Char staticBuffer[staticBufferSize];
-		_Char* dynBuffer;
-		_Char* p;
+		size_t m_listLen;
+		size_t m_listAllocated;
+		static const size_t listStaticBufferSize = 16;
+		QuickStringData<_Char> listStaticBuffer[listStaticBufferSize];
+		QuickStringData<_Char>* listDynBuffer;
+		QuickStringData<_Char>* listp;
 	};
-
-
-
-#define QUICK_STRING QuickString<_Char>
 
 	template<typename Tlhs, typename Trhs>
 	inline void __StringAppend(QuickString<Tlhs>& lhs, Trhs* rhs)
@@ -1711,19 +1871,8 @@ namespace LibCC
 		lhs.append(StringConvert<Tlhs>(rhs).c_str());
 	}
 
-#else
-	#define QUICK_STRING std::basic_string<_Char>
-
-	template<typename Tlhs, typename Trhs>
-	inline void __StringAppend(std::basic_string<Tlhs>& lhs, Trhs* rhs)
-	{
-		lhs.append(StringConvert<Tlhs>(rhs));
-	}
-
-#endif
-
     template<typename _Char>
-		inline void _RuntimeAppendZeroFloat(size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QUICK_STRING& output)
+		inline void _RuntimeAppendZeroFloat(size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QuickString<_Char>& output)
 		{
 			// zero.
 			// pre-decimal part.
@@ -1749,7 +1898,7 @@ namespace LibCC
 		}
 
     template<typename FloatType, typename _Char>
-    inline void _RuntimeAppendNormalizedFloat(FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QUICK_STRING& output)
+    inline void _RuntimeAppendNormalizedFloat(FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QuickString<_Char>& output)
 		{
 			// how do we know how many chars we will use?  we don't right now.
 			_Char* buf = reinterpret_cast<_Char*>(_alloca(sizeof(_Char) * (2200 + IntegralWidthMin + DecimalWidthMax)));
@@ -1888,7 +2037,7 @@ namespace LibCC
       Converts any floating point (LibCC::IEEEFloat<>) number to a string, and appends it just like any other string.
     */
     template<typename FloatType, typename _Char>
-		inline void _RuntimeAppendFloat(const FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QUICK_STRING& output)
+		inline void _RuntimeAppendFloat(const FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QuickString<_Char>& output)
 		{
 			if(!(_f.m_val & _f.ExponentMask))
 			{
@@ -1930,7 +2079,7 @@ namespace LibCC
 		}
 
     template<typename _Char, typename FloatType, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign>
-    inline void _AppendFloat(const FloatType& _f, QUICK_STRING& output)
+    inline void _AppendFloat(const FloatType& _f, QuickString<_Char>& output)
 		{
 	    return _RuntimeAppendFloat<FloatType>(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, output);
 		}
@@ -2746,7 +2895,7 @@ namespace LibCC
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, size_t Base>
     LIBCC_INLINE _This& d(double val)
 		{
-			QUICK_STRING& back = AddArg();
+			QuickString<_Char> back = AddArg();
 	    _AppendFloat<_Char, DoublePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val, back);
 			m_argumentCharSize += back.size();
 			return *this;
@@ -2783,7 +2932,7 @@ namespace LibCC
 
     LIBCC_INLINE _This& d(double val, size_t DecimalWidthMax, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
 		{
-			QUICK_STRING& n = AddArg();
+			QuickString<_Char> n = AddArg();
 	    _RuntimeAppendFloat<DoublePrecisionFloat, _Char>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, n);
 			m_argumentCharSize += n.size();
 			return *this;
@@ -2960,7 +3109,6 @@ namespace LibCC
 					break;
 				case ReplaceChar:
 					if(currentSequentialArg >= (int)m_dynArguments.size())
-					//if(currentSequentialArg >= (int)m_dynArgumentCount.myval)
 					{
 						m_rendered.push_back(ch);// if you put too many replacechars, then just ignore it.
 					}
@@ -2992,7 +3140,6 @@ namespace LibCC
 							else if(ch2 == NamedArgCloseChar)
 							{
 								if(argIndex < (int)m_dynArguments.size())
-								//if(argIndex < (int)m_dynArgumentCount.myval)
 								{
 									// success!
 									m_rendered.append(GetArg(argIndex).c_str());
@@ -3024,7 +3171,6 @@ namespace LibCC
 			// append unused args. this is how the old Format() works.
 			currentSequentialArg = highestUsedSequentialArg + 1;
 			while(currentSequentialArg < (int)m_dynArguments.size())
-			//while(currentSequentialArg < (int)m_dynArgumentCount.myval)
 			{
 				m_rendered.append(GetArg(currentSequentialArg).c_str());
 				currentSequentialArg ++;
@@ -3035,88 +3181,48 @@ namespace LibCC
 		mutable _String m_rendered;
 		mutable bool m_isRendered;
 
-#if USE_QUICKSTRING == 1
-
-		void AddArg(const _Char* s)
-		{
-			m_argumentCharSize += LibCC::StringLength(s);
-			m_dynArguments.push_back(QUICK_STRING(s));
-		}
-
-		void AddArg(const _Char* s, _Char open, _Char close)
-		{
-			m_argumentCharSize += LibCC::StringLength(s) + 2;
-			m_dynArguments.push_back(QUICK_STRING(s, open, close));
-		}
-
-		void AddArg(const _Char* s, int maxLen)
-		{
-			m_dynArguments.push_back(QUICK_STRING(s, maxLen));
-			m_argumentCharSize += maxLen;
-		}
-
-		void AddArg(const _Char* s, int maxLen, _Char open, _Char close)
-		{
-			m_dynArguments.push_back(QUICK_STRING(s, maxLen, open, close));
-			m_argumentCharSize += maxLen;
-		}
-
-		void AddArg(_Char ch, size_t count)
-		{
-			m_dynArguments.push_back(QUICK_STRING(ch, count));
-			m_argumentCharSize += count;
-		}
-#else
-
 		void AddArg(const _Char* s)
 		{
 			m_argumentCharSize += LibCC::StringLength(s);
 			m_dynArguments.push_back(s);
 		}
 
-		void AddArg(const _Char* s, int maxLen)
-		{
-			size_t inputLen = LibCC::StringLength(s);
-			m_dynArguments.push_back(QUICK_STRING(s, min(maxLen, (int)inputLen)));
-			m_argumentCharSize += maxLen;
-		}
-
 		void AddArg(const _Char* s, _Char open, _Char close)
 		{
-			//size_t inputLen = LibCC::StringLength(s);
-			//m_argumentCharSize += inputLen + 2;
-			//_Char* s = _alloca(sizeof(_Char) * (inputLen + 3));
-			//m_dynArguments.push_back(QUICK_STRING(s, open, close));
+			m_argumentCharSize += LibCC::StringLength(s) + 2;
+			m_dynArguments.push_back(s, open, close);
+		}
+
+		void AddArg(const _Char* s, int maxLen)
+		{
+			m_dynArguments.push_back(s, maxLen);
+			m_argumentCharSize += maxLen;
 		}
 
 		void AddArg(const _Char* s, int maxLen, _Char open, _Char close)
 		{
-			//m_dynArguments.push_back(QUICK_STRING(s, maxLen, open, close));
-			//m_argumentCharSize += maxLen;
+			m_dynArguments.push_back(s, maxLen, open, close);
+			m_argumentCharSize += maxLen;
 		}
 
 		void AddArg(_Char ch, size_t count)
 		{
-			m_dynArguments.push_back(QUICK_STRING(count, ch));
+			m_dynArguments.push_back(ch, count);
 			m_argumentCharSize += count;
 		}
 
-
-#endif
-
-		QUICK_STRING& AddArg()
+		QuickString<_Char> AddArg()
 		{
-			m_dynArguments.push_back(QUICK_STRING());
-			return m_dynArguments.back();
+			return m_dynArguments.push_back();
 		}
 
-		const QUICK_STRING& GetArg(size_t i) const
+		const QuickString<_Char> GetArg(size_t i) const
 		{
 			return m_dynArguments[i];
 		}
 
 		size_t m_argumentCharSize;
-		std::vector<QUICK_STRING > m_dynArguments;
+		QuickStringList<_Char> m_dynArguments;
 
 # ifdef WIN32
 		// a couple functions here are copied from winapi for local use.

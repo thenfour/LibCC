@@ -24,6 +24,33 @@ void FormatTestC(const FormatA& a)
 
 bool FormatTest()
 {
+	//{
+	//	LibCC::QuickString<wchar_t> qs(L"");
+	//	qs = LibCC::QuickString<wchar_t>(L"1");
+
+	//	{
+	//		LibCC::QuickString<wchar_t> qs2(L"1");
+	//		qs2 = LibCC::QuickString<wchar_t>(L"");
+	//		qs2.append(L"");
+	//		qs2.append(L"2");
+	//		qs2.push_back('3');
+	//		qs2.push_back('4');
+	//		qs2.push_back('5');
+	//		qs2.push_back('6');
+	//		qs2.push_back('7');
+	//		qs2.push_back('8');
+	//		qs2.push_back('9');
+	//		qs = qs2;
+	//	}
+
+	//	qs = LibCC::QuickString<wchar_t>(L"1", 0);
+	//	qs = LibCC::QuickString<wchar_t>(L"1", 1);
+	//	qs = LibCC::QuickString<wchar_t>(L"1", 2);
+	//}
+
+	//{
+	//	FormatW().d<2>(1.0).Str();
+	//}
 	//LibCC::FormatA a;
 	//LibCC::FormatW w;
 	//FormatX<DWORD> x;

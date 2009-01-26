@@ -70,7 +70,7 @@ void TestCollection()
 	//RunTest(ParseTest);
 	//RunTest(LogTest);
 	//RunTest(AllocationTrackerTest);
-	//RunTest(FormatTest);
+	RunTest(FormatTest);
   RunTest(FormatBenchmark);
 	//RunTest(RegistryTest); // careful with this of course.
   //RunTest(StatusTest);
