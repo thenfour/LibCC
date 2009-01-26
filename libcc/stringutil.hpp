@@ -89,6 +89,7 @@
 #include <tchar.h>
 #include <malloc.h>// for alloca()
 #include <math.h>// for fmod()
+#include <vector>
 
 #include "blob.hpp"
 #include "float.hpp"
@@ -1492,7 +1493,7 @@ namespace LibCC
 	}
 
     template<typename _Char>
-		inline void _RuntimeAppendZeroFloat(size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, std::basic_string<_Char>& m_Composite)
+		inline void _RuntimeAppendZeroFloat(size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, std::basic_string<_Char>& output)
 		{
 			// zero.
 			// pre-decimal part.
@@ -1500,26 +1501,25 @@ namespace LibCC
 			if(IntegralWidthMin > 0)
 			{
 				// append padding
-				m_Composite.reserve(m_Composite.size() + IntegralWidthMin);
+				output.reserve(output.size() + IntegralWidthMin);
 				for(size_t i = 1; i < IntegralWidthMin; ++ i)
 				{
-					m_Composite.push_back(static_cast<_Char>(PaddingChar));
+					output.push_back(static_cast<_Char>(PaddingChar));
 				}
 				// append the integral zero
-				m_Composite.push_back('0');
+				output.push_back('0');
 			}
 			if(DecimalWidthMax)
 			{
 				// if there are any decimal digits to set, then just append ".0"
-				m_Composite.reserve(m_Composite.size() + 2);
-				m_Composite.push_back('.');
-				m_Composite.push_back('0');
+				output.reserve(output.size() + 2);
+				output.push_back('.');
+				output.push_back('0');
 			}
-			//BuildCompositeChunk();
 		}
 
     template<typename FloatType, typename _Char>
-    inline void _RuntimeAppendNormalizedFloat(FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, std::basic_string<_Char>& m_Composite)
+    inline void _RuntimeAppendNormalizedFloat(FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, std::basic_string<_Char>& output)
 		{
 			// how do we know how many chars we will use?  we don't right now.
 			_Char* buf = reinterpret_cast<_Char*>(_alloca(sizeof(_Char) * (2200 + IntegralWidthMin + DecimalWidthMax)));
@@ -1651,14 +1651,14 @@ namespace LibCC
 			// null terminate
 			*(++ sDecPart) = 0;
 
-			__StringAppend(m_Composite, sIntPart);
+			__StringAppend(output, sIntPart);
 		}
 
     /*
       Converts any floating point (LibCC::IEEEFloat<>) number to a string, and appends it just like any other string.
     */
     template<typename FloatType, typename _Char>
-		inline void _RuntimeAppendFloat(const FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, std::basic_string<_Char>& m_Composite)
+		inline void _RuntimeAppendFloat(const FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, std::basic_string<_Char>& output)
 		{
 			if(!(_f.m_val & _f.ExponentMask))
 			{
@@ -1666,12 +1666,12 @@ namespace LibCC
 				if(_f.m_val & _f.MantissaMask)
 				{
 					// denormalized
-					__StringAppend(m_Composite, "Unsupported denormalized number");
+					__StringAppend(output, "Unsupported denormalized number");
 				}
 				else
 				{
 					// zero
-					return _RuntimeAppendZeroFloat(DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, m_Composite);
+					return _RuntimeAppendZeroFloat(DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, output);
 				}
 			}
 			else if((_f.m_val & _f.ExponentMask) == _f.ExponentMask)
@@ -1679,30 +1679,30 @@ namespace LibCC
 				// exponent = MAX.  either infinity or NAN.
 				if(_f.IsPositiveInfinity())
 				{
-					__StringAppend(m_Composite, "+Inf");
+					__StringAppend(output, "+Inf");
 				}
 				else if(_f.IsNegativeInfinity())
 				{
-					__StringAppend(m_Composite, "-Inf");
+					__StringAppend(output, "-Inf");
 				}
 				else if(_f.IsQNaN())
 				{
-					__StringAppend(m_Composite, "QNaN");
+					__StringAppend(output, "QNaN");
 				}
 				else if(_f.IsSNaN())
 				{
-					__StringAppend(m_Composite, "SNaN");
+					__StringAppend(output, "SNaN");
 				}
 			}
 
 			// normalized number.
-			_RuntimeAppendNormalizedFloat(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, m_Composite);
+			_RuntimeAppendNormalizedFloat(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, output);
 		}
 
     template<typename _Char, typename FloatType, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign>
-    inline void _AppendFloat(const FloatType& _f, std::basic_string<_Char>& m_Composite)
+    inline void _AppendFloat(const FloatType& _f, std::basic_string<_Char>& output)
 		{
-	    return _RuntimeAppendFloat<FloatType>(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, m_Composite);
+	    return _RuntimeAppendFloat<FloatType>(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, output);
 		}
 
     template<size_t Width, typename T>
@@ -1889,6 +1889,8 @@ namespace LibCC
 		static const _Char CloseQuote = '\"';
 
     static const _Char ReplaceChar = '%';
+		static const _Char NamedArgOpenChar = '{';
+		static const _Char NamedArgCloseChar = '}';
     static const _Char EscapeChar = '^';
     static const _Char NewlineChar = '|';
 
@@ -1937,172 +1939,124 @@ namespace LibCC
 
     // Construction / Assignment
 		LIBCC_INLINE FormatX() :
-			m_pos(0)
-		{
-		}
-
-    LIBCC_INLINE FormatX(const _This& r) :
-			m_pos(r.m_pos),
-			m_Format(r.m_Format),
-			m_Composite(r.m_Composite)
+			m_isRendered(false)
 		{
 		}
 
 		explicit LIBCC_INLINE FormatX(const _String& s) :
 			m_Format(s),
-			m_pos(0)
+			m_isRendered(false)
 		{
-			m_Composite.reserve(m_Format.size());
-			BuildCompositeChunk();
 		}
 
     explicit LIBCC_INLINE FormatX(const _Char* s) :
 			m_Format(s),
-			m_pos(0)
+			m_isRendered(false)
 		{
-			if(!s) return;
-			m_Composite.reserve(m_Format.size());
-			BuildCompositeChunk();
 		}
 
     template<typename CharX>
     explicit inline FormatX(const CharX* s) :
-			m_pos(0)
+			m_isRendered(false)
 		{
-			if(!s) return;
 			StringConvert(s, m_Format);
-			BuildCompositeChunk();
 		}
 
 		template<typename CharX>
 		explicit LIBCC_INLINE FormatX(const std::basic_string<CharX>& s) :
-			m_pos(0)
+			m_isRendered(false)
 		{
 			StringConvert(s, m_Format);
-			BuildCompositeChunk();
 		}
 
 #ifdef WIN32
     // construct from stringtable resource
     LIBCC_INLINE FormatX(HINSTANCE hModule, UINT stringID) :
-			m_pos(0)
+			m_isRendered(false)
 		{
-			if(LoadStringX(hModule, stringID, m_Format))
-			{
-				m_Composite.reserve(m_Format.size());
-				BuildCompositeChunk();
-			}
+			LoadStringX(hModule, stringID, m_Format);
 		}
 
     LIBCC_INLINE FormatX(UINT stringID) :
-			m_pos(0)
+			m_isRendered(false)
 		{
-			if(LoadStringX(GetModuleHandle(NULL), stringID, m_Format))
-			{
-				m_Composite.reserve(m_Format.size());
-				BuildCompositeChunk();
-			}
+			LoadStringX(GetModuleHandle(NULL), stringID, m_Format);
 		}
 #endif
 
 		LIBCC_INLINE void Clear()
 		{
-			m_pos = 0;
+			m_isRendered = false;
+			m_arguments.clear();
 			m_Format.clear();
-			m_Composite.clear();
 		}
 
     template<typename CharX>
     LIBCC_INLINE void SetFormat(const CharX* s)
 		{
+			Clear();
 			if(!s)
-			{
-				Clear();
 				return;
-			}
-			m_pos = 0;
 			StringConvert(s, m_Format);
-			m_Composite.clear();
-			m_Composite.reserve(m_Format.size());
-			BuildCompositeChunk();
 		}
 
     LIBCC_INLINE void SetFormat(const _String& s)
 		{
-			m_pos = 0;
+			Clear();
 			m_Format = s;
-			m_Composite.clear();
-			m_Composite.reserve(m_Format.size());
-			BuildCompositeChunk();
 		}
 
     LIBCC_INLINE void SetFormat(const _Char* s)
 		{
+			Clear();
 			if(s == 0)
-			{
-				Clear();
 				return;
-			}
-
-			m_pos = 0;
 			m_Format = s;
-			m_Composite.clear();
-			m_Composite.reserve(m_Format.size());
-			BuildCompositeChunk();
 		}
 
     template<typename CharX>
 		LIBCC_INLINE void SetFormat(const std::basic_string<CharX>& s)
 		{
-			m_pos = 0;
+			Clear();
 			StringConvert(s, m_Format);
-			m_Composite.clear();
-			m_Composite.reserve(m_Format.size());
-			BuildCompositeChunk();
 		}
 
 #ifdef WIN32
     // assign from stringtable resource
     LIBCC_INLINE void SetFormat(HINSTANCE hModule, UINT stringID)
 		{
-			m_pos = 0;
-			if(LoadStringX(hModule, stringID, m_Format))
-			{
-				m_Composite.clear();
-				m_Composite.reserve(m_Format.size());
-				BuildCompositeChunk();
-			}
+			Clear();
+			LoadStringX(hModule, stringID, m_Format);
 		}
 
 		LIBCC_INLINE void SetFormat(UINT stringID)
 		{
-			m_pos = 0;
-			if(LoadStringX(GetModuleHandle(NULL), stringID, m_Format))
-			{
-				m_Composite.clear();
-				m_Composite.reserve(m_Format.size());
-				BuildCompositeChunk();
-			}
+			Clear();
+			LoadStringX(GetModuleHandle(NULL), stringID, m_Format);
 		}
 #endif
 
 		// "GET" methods
     LIBCC_INLINE const _String& Str() const
 		{
-			return m_Composite;
+			Render();
+			return m_rendered;
 		}
     LIBCC_INLINE const _Char* CStr() const
 		{
-			return m_Composite.c_str();
+			Render();
+			return m_rendered.c_str();
 		}
 #if CCSTR_OPTION_AUTOCAST == 1
 		LIBCC_INLINE operator _String() const
 		{
-			return m_Composite;
+			Render();
+			return m_rendered;
 		}
     LIBCC_INLINE operator const _Char*() const
 		{
-			return m_Composite.c_str();
+			Render();
+			return m_rendered.c_str();
 		}
 #endif
 
@@ -2110,30 +2064,24 @@ namespace LibCC
     template<typename T>
     LIBCC_INLINE _This& p(const T* v)
 		{
-			m_Composite.push_back('0');
-			m_Composite.push_back('x');
+			_Char arg[11] = { '0', 'x' };
 			unsigned long temp = *(reinterpret_cast<unsigned long*>(&v));
-			return ul<16, 8>(temp);// treat it as an unsigned number
+			_UnsignedNumberToString<_Char, 16, 8, '0'>(arg + 10, temp);
+			return s(arg);
 		}
 
     // CHARACTER (count) -----------------------------
     template<typename T>
     LIBCC_INLINE _This& c(T v)
 		{
-			m_Composite.push_back(static_cast<_Char>(v));
-			BuildCompositeChunk();
+			m_arguments.push_back(_String(1, static_cast<_Char>(v)));
 			return *this;
 		}
 
     template<typename T>
     LIBCC_INLINE _This& c(T v, size_t count)
 		{
-			m_Composite.reserve(m_Composite.size() + count);
-			for(; count > 0; --count)
-			{
-				m_Composite.push_back(static_cast<_Char>(v));
-			}
-			BuildCompositeChunk();
+			m_arguments.push_back(_String(count, static_cast<_Char>(v)));
 			return *this;
 		}
 
@@ -2141,44 +2089,38 @@ namespace LibCC
     template<size_t MaxLen>
 		LIBCC_INLINE _This& s(const _Char* s)
 		{
-			if(s && MaxLen) m_Composite.append(s, MaxLen);
-			BuildCompositeChunk();
+			if(s && MaxLen) m_arguments.push_back(_String(s, MaxLen));
 			return *this;
 		}
 
     LIBCC_INLINE _This& s(const _Char* s, size_t MaxLen)
 		{
-			if(s) m_Composite.append(s, MaxLen);
-			BuildCompositeChunk();
+			if(s) m_arguments.push_back(_String(s, MaxLen));
 			return *this;
 		}
 
     LIBCC_INLINE _This& s(const _Char* s)
 		{
-			if(s) m_Composite.append(s);
-			BuildCompositeChunk();
+			m_arguments.push_back(s);
 			return *this;
 		}
 
     template<size_t MaxLen>
 		LIBCC_INLINE _This& s(const _String& s)
 		{
-			if(MaxLen) m_Composite.append(s, 0, MaxLen);
-			BuildCompositeChunk();
+			m_arguments.push_back(_String(s, 0, MaxLen));
 			return *this;
 		}
 
     LIBCC_INLINE _This& s(const _String& s, size_t MaxLen)
 		{
-			m_Composite.append(s, 0, MaxLen);
-			BuildCompositeChunk();
+			m_arguments.push_back(_String(s, 0, MaxLen));
 			return *this;
 		}
 
     LIBCC_INLINE _This& s(const _String& s)
 		{
-			m_Composite.append(s);
-			BuildCompositeChunk();
+			m_arguments.push_back(s);
 			return *this;
 		}
 
@@ -2192,7 +2134,6 @@ namespace LibCC
 				StringConvert(foreign, native);
 				return s(native);
 			}
-			BuildCompositeChunk();
 			return *this;
 		}
 
@@ -2211,7 +2152,6 @@ namespace LibCC
 				StringConvert(foreign, native);
 				return s<MaxLen>(native);
 			}
-			BuildCompositeChunk();
 			return *this;
 		}
 
@@ -2224,7 +2164,6 @@ namespace LibCC
 				StringConvert(foreign, native);
 				return s(native, MaxLen);
 			}
-			BuildCompositeChunk();
 			return *this;
 		}
     
@@ -2245,7 +2184,6 @@ namespace LibCC
 				StringConvert(x, native);
 				return s<MaxLen>(native);
 			}
-			BuildCompositeChunk();
 			return *this;
 		}
     
@@ -2260,14 +2198,12 @@ namespace LibCC
 		LIBCC_INLINE _This& NewLine()
 		{
 			AppendNewLine(m_Composite);
-			BuildCompositeChunk();
 			return *this;
 		}
 		
 		LIBCC_INLINE _This& NewParagraph()
 		{
 			AppendNewParagraph(m_Composite);
-			BuildCompositeChunk();
 			return *this;
 		}
 
@@ -2277,18 +2213,19 @@ namespace LibCC
 		{
 			if(MaxLen && s)
 			{
-				m_Composite.push_back(OpenQuote);
+				m_arguments.push_back(_String());
+				_String& back = m_arguments.back();
+				back.push_back(OpenQuote);
 				if(MaxLen >= 3)
 				{
-					m_Composite.append(s, MaxLen - 2);
-					m_Composite.push_back(CloseQuote);
+					back.append(s, MaxLen - 2);
+					back.push_back(CloseQuote);
 				}
 				else if(MaxLen == 2)
 				{
-					m_Composite.push_back(CloseQuote);
+					back.push_back(CloseQuote);
 				}
 			}
-			BuildCompositeChunk();
 			return *this;
 		}
 
@@ -2296,18 +2233,19 @@ namespace LibCC
 		{
 			if(MaxLen && s)
 			{
-				m_Composite.push_back(OpenQuote);
+				m_arguments.push_back(_String());
+				_String& back = m_arguments.back();
+				back.push_back(OpenQuote);
 				if(MaxLen >= 3)
 				{
-					m_Composite.append(s, MaxLen - 2);
-					m_Composite.push_back(CloseQuote);
+					back.append(s, MaxLen - 2);
+					back.push_back(CloseQuote);
 				}
 				else if(MaxLen == 2)
 				{
-					m_Composite.push_back(CloseQuote);
+					back.push_back(CloseQuote);
 				}
 			}
-			BuildCompositeChunk();
 			return *this;
 		}
 
@@ -2315,11 +2253,13 @@ namespace LibCC
 		{
 			if(s)
 			{
-				m_Composite.push_back(OpenQuote);
-				m_Composite.append(s);
-				m_Composite.push_back(CloseQuote);
+				m_arguments.push_back(_String());
+				_String& back = m_arguments.back();
+
+				back.push_back(OpenQuote);
+				back.append(s);
+				back.push_back(CloseQuote);
 			}
-			BuildCompositeChunk();
 			return *this;
 		}
 
@@ -2328,18 +2268,20 @@ namespace LibCC
 		{
 			if(MaxLen)
 			{
-				m_Composite.push_back(OpenQuote);
+				m_arguments.push_back(_String());
+				_String& back = m_arguments.back();
+
+				back.push_back(OpenQuote);
 				if(MaxLen >= 3)
 				{
-					m_Composite.append(s, 0, MaxLen - 2);
-					m_Composite.push_back(CloseQuote);
+					back.append(s, 0, MaxLen - 2);
+					back.push_back(CloseQuote);
 				}
 				else if(MaxLen == 2)
 				{
-					m_Composite.push_back(CloseQuote);
+					back.push_back(CloseQuote);
 				}
 			}
-			BuildCompositeChunk();
 			return *this;
 		}
 
@@ -2347,27 +2289,31 @@ namespace LibCC
 		{
 			if(MaxLen > 0)
 			{
-				m_Composite.push_back(OpenQuote);
+				m_arguments.push_back(_String());
+				_String& back = m_arguments.back();
+
+				back.push_back(OpenQuote);
 				if(MaxLen >= 3)
 				{
-					m_Composite.append(s, 0, MaxLen - 2);
-					m_Composite.push_back(CloseQuote);
+					back.append(s, 0, MaxLen - 2);
+					back.push_back(CloseQuote);
 				}
 				else if(MaxLen == 2)
 				{
-					m_Composite.push_back(CloseQuote);
+					back.push_back(CloseQuote);
 				}
 			}
-			BuildCompositeChunk();
 			return *this;
 		}
 
     LIBCC_INLINE _This& qs(const _String& s)
 		{
-			m_Composite.push_back(OpenQuote);
-			m_Composite.append(s);
-			m_Composite.push_back(CloseQuote);
-			BuildCompositeChunk();
+			m_arguments.push_back(_String());
+			_String& back = m_arguments.back();
+
+			back.push_back(OpenQuote);
+			back.append(s);
+			back.push_back(CloseQuote);
 			return *this;
 		}
 
@@ -2381,7 +2327,6 @@ namespace LibCC
 				StringConvert(foreign, native);
 				return qs(native);
 			}
-			BuildCompositeChunk();
 			return *this;
 		}
 
@@ -2394,7 +2339,6 @@ namespace LibCC
 				StringConvert(foreign, native);
 				return qs<MaxLen>(native);
 			}
-			BuildCompositeChunk();
 			return *this;
 		}
 
@@ -2407,7 +2351,6 @@ namespace LibCC
 				StringConvert(foreign, native);
 				return qs(native, MaxLen);
 			}
-			BuildCompositeChunk();
 			return *this;
 		}
 
@@ -2576,7 +2519,6 @@ namespace LibCC
     LIBCC_INLINE _This& f(float val)
 		{
 	    _AppendFloat<_Char, SinglePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val, m_Composite);
-			BuildCompositeChunk();
 			return *this;
 		}
 
@@ -2612,7 +2554,6 @@ namespace LibCC
     LIBCC_INLINE _This& f(float val, size_t DecimalWidthMax, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
 		{
 	    _RuntimeAppendFloat<SinglePrecisionFloat>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, m_Composite);
-			BuildCompositeChunk();
 			return *this;
 		}
 
@@ -2620,8 +2561,8 @@ namespace LibCC
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, size_t Base>
     LIBCC_INLINE _This& d(double val)
 		{
-	    _AppendFloat<_Char, DoublePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val, m_Composite);
-			BuildCompositeChunk();
+			m_arguments.push_back(_String());
+	    _AppendFloat<_Char, DoublePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val, m_arguments.back());
 			return *this;
 		}
 
@@ -2656,8 +2597,8 @@ namespace LibCC
 
     LIBCC_INLINE _This& d(double val, size_t DecimalWidthMax, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
 		{
-	    _RuntimeAppendFloat<DoublePrecisionFloat, _Char>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, m_Composite);
-			BuildCompositeChunk();
+			m_arguments.push_back(_String());
+	    _RuntimeAppendFloat<DoublePrecisionFloat, _Char>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, m_arguments.back());
 			return *this;
 		}
 
@@ -2800,49 +2741,105 @@ namespace LibCC
 
   private:
 
-    // build composite as much as we can (until a replace-char)
-    LIBCC_INLINE void BuildCompositeChunk()
+		LIBCC_INLINE void Render() const
 		{
-			// go from m_pos to the next insertion point
-			bool bKeepGoing = true;
-			while(bKeepGoing)
+			if(m_isRendered)
+				return;
+			m_isRendered = true;
+			m_rendered.clear();
+			m_rendered.reserve(m_Format.size());// TODO: if i store the size of all the arguments, i could reserve the correct size.
+			int currentSequentialArg = 0;
+			int highestUsedSequentialArg = -1;
+
+			for(_String::const_iterator it = m_Format.begin(); it != m_Format.end(); ++it)
 			{
-				if(m_pos >= m_Format.size())
+				_Char ch = *it;
+				switch(ch)
 				{
-					break;
-				}
-				else
-				{
-					_Char ch = m_Format[m_pos];
-					switch(ch)
+				case EscapeChar:
+					++ it;
+					if(it != m_Format.end())
 					{
-					case EscapeChar:
-						++ m_pos;
-						if(m_pos < m_Format.size())
+						m_rendered.push_back(*it);
+					}
+					break;
+				case NewlineChar:
+					AppendNewLine(m_rendered);
+					break;
+				case ReplaceChar:
+					if(currentSequentialArg >= (int)m_arguments.size())
+					{
+						m_rendered.push_back(ch);// if you put too many replacechars, then just ignore it.
+					}
+					else
+					{
+						m_rendered.append(m_arguments[currentSequentialArg]);
+						highestUsedSequentialArg = max(highestUsedSequentialArg, currentSequentialArg);
+						++ currentSequentialArg;
+					}
+					break;
+				case NamedArgOpenChar:
+					{
+						size_t argIndex = 0;
+						_String::const_iterator it2 = it;
+						while(true)
 						{
-							m_Composite.push_back(m_Format[m_pos]);
+							++ it2;
+							if(it2 == m_Format.end())
+							{
+								// unclosed named arg.
+								m_rendered.push_back(ch);
+								break;
+							}
+							wchar_t ch2 = *it2;
+							if(ch2 >= '0' && ch2 <= '9')
+							{
+								argIndex = (argIndex * 10) + (ch2 - '0');// construct an integer index
+							}
+							else if(ch2 == NamedArgCloseChar)
+							{
+								if(argIndex < m_arguments.size())
+								{
+									// success!
+									m_rendered.append(m_arguments[argIndex]);
+									highestUsedSequentialArg = max(highestUsedSequentialArg, (int)argIndex);
+									it = it2;// advance the cursor.
+								}
+								else
+								{
+									// index out of range
+									m_rendered.push_back(ch);
+								}
+								break;
+							}
+							else
+							{
+								// unrecognized char
+								m_rendered.push_back(ch);
+								break;
+							}
 						}
 						break;
-					case NewlineChar:
-						AppendNewLine(m_Composite);
-						break;
-					case ReplaceChar:
-						// we are done.  the loop will advance the thing one more, then end.
-						bKeepGoing = false;
-						break;
-					default:
-						m_Composite.push_back(ch);
-						break;
 					}
-
-					++ m_pos;
+				default:
+					m_rendered.push_back(ch);
+					break;
 				}
+			}
+
+			// append unused args. this is how the old Format() works.
+			currentSequentialArg = highestUsedSequentialArg + 1;
+			while(currentSequentialArg < (int)m_arguments.size())// ERROR
+			{
+				m_rendered.append(m_arguments[currentSequentialArg]);
+				currentSequentialArg ++;
 			}
 		}
 
     _String m_Format;// the original format string.  this plus arguments that are fed in is used to build m_Composite.
-    _String m_Composite;// the "output" string - this is what we are building.
-    typename _String::size_type m_pos;// 0-based offset into m_Format that points to the first character not in m_Composite.
+		mutable _String m_rendered;
+		mutable bool m_isRendered;
+		std::vector<_String> m_arguments;
   
 # ifdef WIN32
 		// a couple functions here are copied from winapi for local use.
