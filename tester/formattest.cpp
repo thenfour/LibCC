@@ -134,6 +134,62 @@ bool FormatTest()
 		a.SetFormat(IDS_HI);
 		a("carl");
 		TestAssert(a.Str() == "hi carl");
+
+		// escapes and other chars
+		a.SetFormat("a|b");
+		TestAssert(a.Str() == "a\r\nb");
+
+		a.SetFormat("a^^");
+		TestAssert(a.Str() == "a^");
+	}
+
+	// arguments.
+	{
+		FormatW w;
+		w = FormatW(L"%%%");
+		TestAssert(w.Str() == L"%%%");
+
+		w = FormatW(L"%%%").i(1).i(2).i(3);
+		TestAssert(w.Str() == L"123");
+
+		w = FormatW(L"%%").i(1).i(2).i(3).i(4);
+		TestAssert(w.Str() == L"1234");
+
+		w = FormatW(L"{");
+		TestAssert(w.Str() == L"{");
+
+		w = FormatW(L"{0").i(1);
+		TestAssert(w.Str() == L"{01");
+
+		w = FormatW(L"{0}");
+		TestAssert(w.Str() == L"{0}");
+
+		w = FormatW(L"1{0}2");
+		TestAssert(w.Str() == L"1{0}2");
+
+		w = FormatW(L"1{0}3").i(2);
+		TestAssert(w.Str() == L"123");
+
+		w = FormatW(L"1{0}3{1}").i(2).i(456);
+		TestAssert(w.Str() == L"123456");
+
+		w = FormatW(L"1{0}{1}").i(2).s(L"3456");
+		TestAssert(w.Str() == L"123456");
+
+		w = FormatW(L"1{0}{1}{1}").i(2).s(L"3456");
+		TestAssert(w.Str() == L"1234563456");
+
+		w = FormatW(L"1{1}{0}{0}").i(2).s(L"3456");
+		TestAssert(w.Str() == L"1345622");
+
+		w = FormatW(L"1{1}{0}{0}%%").i(2).s(L"3456");
+		TestAssert(w.Str() == L"134562223456");
+
+		w = FormatW(L"1{1}{0}{0}%%%").i(2).s(L"3456");
+		TestAssert(w.Str() == L"134562223456%");
+
+		w = FormatW(L"{10}").i(1).i(2).i(3).i(4).i(5).i(6).i(7).i(8).i(9).i(10).i(11);
+		TestAssert(w.Str() == L"11");
 	}
 
 	// p()

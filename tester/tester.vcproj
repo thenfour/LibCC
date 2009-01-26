@@ -236,6 +236,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\stringutil-711.hpp"
+				>
+			</File>
+			<File
 				RelativePath=".\test.h"
 				>
 			</File>

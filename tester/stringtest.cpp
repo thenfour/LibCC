@@ -124,6 +124,7 @@ BOOL CALLBACK EnumCodePagesProc(LPWSTR lpCodePageString)
 }
 
 
+// [1]
 
 
 bool StringTest()
