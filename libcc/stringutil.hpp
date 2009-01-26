@@ -2,7 +2,7 @@
   LibCC
   StringUtil Module
   (c) 2004-2008 Carl Corcoran, carlco@gmail.com
-  Documentation: http://wiki.winprog.org/wiki/LibCC
+  Documentation: http://wiki.winprog.org/wiki/LibCC_Format
 	Official source code: http://svn.winprog.org/personal/carl/LibCC
 
 	Original version: Nov 15, 2004
@@ -84,6 +84,8 @@
 */
 
 #pragma once
+
+#define USE_QUICKSTRING 1
 
 #include <string>
 #include <tchar.h>
@@ -1486,14 +1488,242 @@ namespace LibCC
 
 namespace LibCC
 {
+#if USE_QUICKSTRING == 1
+	// faster than std::basic_string
+	template<typename _Char>
+	struct QuickString
+	{
+		inline QuickString() :
+			p(staticBuffer),
+			m_len(0),
+			m_allocated(staticBufferSize)
+		{
+		}
+
+		inline QuickString<_Char>& operator =(const QuickString<_Char>& rhs)
+		{
+			m_len = rhs.m_len;
+			m_allocated = rhs.m_allocated;
+			ConstructAlloc();
+
+			if(m_allocated > 0)
+				memcpy(p, rhs.p, sizeof(_Char) * (m_len + 1));
+			return *this;
+		}
+
+		inline QuickString(const QuickString<_Char>& rhs) :
+			m_len(rhs.m_len),
+			m_allocated(rhs.m_allocated)
+		{
+			ConstructAlloc();
+			if(m_allocated > 0)
+				memcpy(p, rhs.p, sizeof(_Char) * (m_len + 1));
+		}
+
+		// construct from std::string or _Char* with open / close quotes / maxlen
+		inline QuickString(const _Char* s, _Char open, _Char close)
+		{
+			size_t inputLen = s == 0 ? 0 : LibCC::StringLength(s);
+			m_len = inputLen + 2;
+			m_allocated = max(m_len + 1, staticBufferSize);
+			ConstructAlloc();
+
+			_Char* i = p;
+			*i = open;
+			++i;
+			memcpy(i, s, sizeof(_Char) * inputLen);
+			i += inputLen;
+			*i = close;
+			++i;
+			*i = 0;
+		}
+
+		// construct from std::string or _Char* with open / close quotes / maxlen
+		inline QuickString(const _Char* s, int maxLen)
+		{
+			m_len = s == 0 ? 0 : min((int)LibCC::StringLength(s), maxLen);
+			m_allocated = max(m_len + 1, staticBufferSize);
+			ConstructAlloc();
+
+			_Char* i = p;
+			memcpy(i, s, sizeof(_Char) * m_len);
+			i += m_len;
+			*i = 0;
+		}
+
+		// construct from std::string or _Char* with open / close quotes / maxlen
+		inline QuickString(const _Char* s)
+		{
+			m_len = s == 0 ? 0 : LibCC::StringLength(s);
+			m_allocated = max(m_len + 1, staticBufferSize);
+			ConstructAlloc();
+
+			_Char* i = p;
+			memcpy(i, s, sizeof(_Char) * m_len);
+			i += m_len;
+			*i = 0;
+		}
+
+		// construct from std::string or _Char* with open / close quotes / maxlen
+		inline QuickString(_Char ch, size_t count)
+		{
+			m_len = count;
+			m_allocated = max(m_len + 1, staticBufferSize);
+			ConstructAlloc();
+
+			_Char* i = p;
+			_Char* end = i + count;
+			while(i != end)
+			{
+				*i = ch;
+				++ i;
+			}
+			*i = 0;
+		}
+
+		// construct from std::string or _Char* with open / close quotes / maxlen
+		inline QuickString(const _Char* s, int maxLen, _Char open, _Char close)
+		{
+			m_len = s == 0 ? min(maxLen, 2) : min((int)LibCC::StringLength(s) + 2, maxLen);
+			m_allocated = max(m_len + 1, staticBufferSize);
+			ConstructAlloc();
+
+			_Char* i = p;
+			if(m_len > 0)
+			{
+				*i = open;
+				++i;
+				if(m_len > 1)
+				{
+					memcpy(i, s, sizeof(_Char) * (m_len - 2));
+					i += m_len - 2;
+					*i = close;
+					++i;
+				}
+			}
+			*i = 0;
+		}
+
+		~QuickString()
+		{
+			if(p != staticBuffer)
+			{
+				HeapFree(GetProcessHeap(), 0, p);
+				//delete[] p;
+			}
+		}
+
+		inline const _Char* c_str() const
+		{
+			return p;
+		}
+
+		inline size_t size() const
+		{
+			return m_len;
+		}
+
+		inline void append(const _Char* c)
+		{
+			size_t inputLen = LibCC::StringLength(c);
+			AddAlloc(inputLen);
+			_Char* i = p + m_len;
+			memcpy(i, c, sizeof(_Char) * inputLen);
+			i += inputLen;
+			*i = 0;
+			m_len += inputLen;
+		}
+
+		inline void push_back(_Char ch)
+		{
+			AddAlloc(1);
+			_Char* i = p + m_len;
+			*i = ch;
+			++ i;
+			*i = 0;
+			m_len ++;
+		}
+
+		inline void reserve(size_t n)
+		{
+			if(m_allocated >= n)
+				return;
+
+			if(p != staticBuffer)
+			{
+				HeapFree(GetProcessHeap(), 0, p);
+				//delete[] p;
+			}
+			m_len = 0;
+			m_allocated = n + 1;
+			//dynBuffer = new _Char[m_allocated];
+			dynBuffer = (_Char*)HeapAlloc(GetProcessHeap(), 0, m_allocated * sizeof(_Char));
+			p = dynBuffer;
+		}
+
+	private:
+		inline void ConstructAlloc()
+		{
+			if(m_allocated > staticBufferSize)
+			{
+				//dynBuffer = new _Char[m_allocated];
+				dynBuffer = (_Char*)HeapAlloc(GetProcessHeap(), 0, m_allocated * sizeof(_Char));
+				p = dynBuffer;
+			}
+			else
+			{
+				p = staticBuffer;
+			}
+		}
+
+		inline void AddAlloc(size_t additional)
+		{
+			if(m_allocated < (m_len + 1 + additional))// 1 for null term
+			{
+				m_allocated = max(additional + 1, m_allocated << 1);
+				//_Char* newp = new _Char[m_allocated];
+				_Char* newp = (_Char*)HeapAlloc(GetProcessHeap(), 0, m_allocated * sizeof(_Char));
+				memcpy(newp, p, m_len * sizeof(_Char));
+				if(p != staticBuffer)
+				{
+					//delete[] p;
+					HeapFree(GetProcessHeap(), 0, p);
+				}
+				p = newp;
+			}
+		}
+
+		size_t m_len;
+		size_t m_allocated;
+		static const size_t staticBufferSize = 16;
+		_Char staticBuffer[staticBufferSize];
+		_Char* dynBuffer;
+		_Char* p;
+	};
+
+
+
+#define QUICK_STRING QuickString<_Char>
+
+	template<typename Tlhs, typename Trhs>
+	inline void __StringAppend(QuickString<Tlhs>& lhs, Trhs* rhs)
+	{
+		lhs.append(StringConvert<Tlhs>(rhs).c_str());
+	}
+
+#else
+	#define QUICK_STRING std::basic_string<_Char>
+
 	template<typename Tlhs, typename Trhs>
 	inline void __StringAppend(std::basic_string<Tlhs>& lhs, Trhs* rhs)
 	{
 		lhs.append(StringConvert<Tlhs>(rhs));
 	}
 
+#endif
+
     template<typename _Char>
-		inline void _RuntimeAppendZeroFloat(size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, std::basic_string<_Char>& output)
+		inline void _RuntimeAppendZeroFloat(size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QUICK_STRING& output)
 		{
 			// zero.
 			// pre-decimal part.
@@ -1519,7 +1749,7 @@ namespace LibCC
 		}
 
     template<typename FloatType, typename _Char>
-    inline void _RuntimeAppendNormalizedFloat(FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, std::basic_string<_Char>& output)
+    inline void _RuntimeAppendNormalizedFloat(FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QUICK_STRING& output)
 		{
 			// how do we know how many chars we will use?  we don't right now.
 			_Char* buf = reinterpret_cast<_Char*>(_alloca(sizeof(_Char) * (2200 + IntegralWidthMin + DecimalWidthMax)));
@@ -1658,7 +1888,7 @@ namespace LibCC
       Converts any floating point (LibCC::IEEEFloat<>) number to a string, and appends it just like any other string.
     */
     template<typename FloatType, typename _Char>
-		inline void _RuntimeAppendFloat(const FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, std::basic_string<_Char>& output)
+		inline void _RuntimeAppendFloat(const FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QUICK_STRING& output)
 		{
 			if(!(_f.m_val & _f.ExponentMask))
 			{
@@ -1700,7 +1930,7 @@ namespace LibCC
 		}
 
     template<typename _Char, typename FloatType, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign>
-    inline void _AppendFloat(const FloatType& _f, std::basic_string<_Char>& output)
+    inline void _AppendFloat(const FloatType& _f, QUICK_STRING& output)
 		{
 	    return _RuntimeAppendFloat<FloatType>(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, output);
 		}
@@ -1939,32 +2169,58 @@ namespace LibCC
 
     // Construction / Assignment
 		LIBCC_INLINE FormatX() :
-			m_isRendered(false)
+			m_isRendered(false),
+			m_argumentCharSize(0)
 		{
 		}
 
+    // Construction / Assignment
+
+		//LIBCC_INLINE FormatX(const _This& rhs) :
+		//	m_isRendered(rhs.m_isRendered),
+		//	m_Format(rhs.m_Format),
+		//	m_rendered(rhs.m_rendered),
+		//	m_argumentCharSize(rhs.m_argumentCharSize)
+		//{
+		//	m_dynArguments = rhs.m_dynArguments;
+		//}
+
+		//_This& operator =(const _This& rhs)
+		//{
+		//	m_isRendered = rhs.m_isRendered;
+		//	m_Format = rhs.m_Format;
+		//	m_rendered = rhs.m_rendered;
+		//	m_argumentCharSize = rhs.m_argumentCharSize;
+		//	m_dynArguments = rhs.m_dynArguments;
+		//	return *this;
+		//}
+
 		explicit LIBCC_INLINE FormatX(const _String& s) :
 			m_Format(s),
-			m_isRendered(false)
+			m_isRendered(false),
+			m_argumentCharSize(0)
 		{
 		}
 
     explicit LIBCC_INLINE FormatX(const _Char* s) :
 			m_Format(s),
-			m_isRendered(false)
+			m_isRendered(false),
+			m_argumentCharSize(0)
 		{
 		}
 
     template<typename CharX>
     explicit inline FormatX(const CharX* s) :
-			m_isRendered(false)
+			m_isRendered(false),
+			m_argumentCharSize(0)
 		{
 			StringConvert(s, m_Format);
 		}
 
 		template<typename CharX>
 		explicit LIBCC_INLINE FormatX(const std::basic_string<CharX>& s) :
-			m_isRendered(false)
+			m_isRendered(false),
+			m_argumentCharSize(0)
 		{
 			StringConvert(s, m_Format);
 		}
@@ -1972,13 +2228,15 @@ namespace LibCC
 #ifdef WIN32
     // construct from stringtable resource
     LIBCC_INLINE FormatX(HINSTANCE hModule, UINT stringID) :
-			m_isRendered(false)
+			m_isRendered(false),
+			m_argumentCharSize(0)
 		{
 			LoadStringX(hModule, stringID, m_Format);
 		}
 
     LIBCC_INLINE FormatX(UINT stringID) :
-			m_isRendered(false)
+			m_isRendered(false),
+			m_argumentCharSize(0)
 		{
 			LoadStringX(GetModuleHandle(NULL), stringID, m_Format);
 		}
@@ -1986,8 +2244,10 @@ namespace LibCC
 
 		LIBCC_INLINE void Clear()
 		{
+			m_argumentCharSize = 0;
 			m_isRendered = false;
-			m_arguments.clear();
+			m_dynArguments.clear();
+			//m_dynArgumentCount.myval = 0;
 			m_Format.clear();
 		}
 
@@ -2074,14 +2334,14 @@ namespace LibCC
     template<typename T>
     LIBCC_INLINE _This& c(T v)
 		{
-			m_arguments.push_back(_String(1, static_cast<_Char>(v)));
+			AddArg(static_cast<_Char>(v), 1);
 			return *this;
 		}
 
     template<typename T>
     LIBCC_INLINE _This& c(T v, size_t count)
 		{
-			m_arguments.push_back(_String(count, static_cast<_Char>(v)));
+			AddArg(static_cast<_Char>(v), count);
 			return *this;
 		}
 
@@ -2089,38 +2349,38 @@ namespace LibCC
     template<size_t MaxLen>
 		LIBCC_INLINE _This& s(const _Char* s)
 		{
-			if(s && MaxLen) m_arguments.push_back(_String(s, MaxLen));
+			AddArg(s, MaxLen);
 			return *this;
 		}
 
     LIBCC_INLINE _This& s(const _Char* s, size_t MaxLen)
 		{
-			if(s) m_arguments.push_back(_String(s, MaxLen));
+			AddArg(s, (int)MaxLen);
 			return *this;
 		}
 
     LIBCC_INLINE _This& s(const _Char* s)
 		{
-			m_arguments.push_back(s);
+			AddArg(s);
 			return *this;
 		}
 
     template<size_t MaxLen>
 		LIBCC_INLINE _This& s(const _String& s)
 		{
-			m_arguments.push_back(_String(s, 0, MaxLen));
+			AddArg(s.c_str(), (int)MaxLen);
 			return *this;
 		}
 
     LIBCC_INLINE _This& s(const _String& s, size_t MaxLen)
 		{
-			m_arguments.push_back(_String(s, 0, MaxLen));
+			AddArg(s.c_str(), (int)MaxLen);
 			return *this;
 		}
 
     LIBCC_INLINE _This& s(const _String& s)
 		{
-			m_arguments.push_back(s);
+			AddArg(s.c_str());
 			return *this;
 		}
 
@@ -2146,7 +2406,7 @@ namespace LibCC
     template<size_t MaxLen, typename aChar>
     LIBCC_INLINE _This& s(const aChar* foreign)
 		{
-			if(MaxLen && foreign)
+			if(foreign)
 			{
 				_String native;
 				StringConvert(foreign, native);
@@ -2178,13 +2438,9 @@ namespace LibCC
 		template<size_t MaxLen, typename aChar, typename aTraits, typename aAlloc>
     LIBCC_INLINE _This& s(const std::basic_string<aChar, aTraits, aAlloc>& x)
 		{
-			if(MaxLen)
-			{
-				_String native;
-				StringConvert(x, native);
-				return s<MaxLen>(native);
-			}
-			return *this;
+			_String native;
+			StringConvert(x, native);
+			return s<MaxLen>(native);
 		}
     
 		template<typename aChar, typename aTraits, typename aAlloc>
@@ -2211,109 +2467,38 @@ namespace LibCC
     template<size_t MaxLen>
     LIBCC_INLINE _This& qs(const _Char* s)
 		{
-			if(MaxLen && s)
-			{
-				m_arguments.push_back(_String());
-				_String& back = m_arguments.back();
-				back.push_back(OpenQuote);
-				if(MaxLen >= 3)
-				{
-					back.append(s, MaxLen - 2);
-					back.push_back(CloseQuote);
-				}
-				else if(MaxLen == 2)
-				{
-					back.push_back(CloseQuote);
-				}
-			}
+			AddArg(s, MaxLen, OpenQuote, CloseQuote);
 			return *this;
 		}
 
     LIBCC_INLINE _This& qs(const _Char* s, size_t MaxLen)
 		{
-			if(MaxLen && s)
-			{
-				m_arguments.push_back(_String());
-				_String& back = m_arguments.back();
-				back.push_back(OpenQuote);
-				if(MaxLen >= 3)
-				{
-					back.append(s, MaxLen - 2);
-					back.push_back(CloseQuote);
-				}
-				else if(MaxLen == 2)
-				{
-					back.push_back(CloseQuote);
-				}
-			}
+			AddArg(s, (int)MaxLen, OpenQuote, CloseQuote);
 			return *this;
 		}
 
     LIBCC_INLINE _This& qs(const _Char* s)
 		{
-			if(s)
-			{
-				m_arguments.push_back(_String());
-				_String& back = m_arguments.back();
-
-				back.push_back(OpenQuote);
-				back.append(s);
-				back.push_back(CloseQuote);
-			}
+			AddArg(s, OpenQuote, CloseQuote);
 			return *this;
 		}
 
 		template<size_t MaxLen>
     LIBCC_INLINE _This& qs(const _String& s)
 		{
-			if(MaxLen)
-			{
-				m_arguments.push_back(_String());
-				_String& back = m_arguments.back();
-
-				back.push_back(OpenQuote);
-				if(MaxLen >= 3)
-				{
-					back.append(s, 0, MaxLen - 2);
-					back.push_back(CloseQuote);
-				}
-				else if(MaxLen == 2)
-				{
-					back.push_back(CloseQuote);
-				}
-			}
+			AddArg(s.c_str(), (int)MaxLen, OpenQuote, CloseQuote);
 			return *this;
 		}
 
     LIBCC_INLINE _This& qs(const _String& s, size_t MaxLen)
 		{
-			if(MaxLen > 0)
-			{
-				m_arguments.push_back(_String());
-				_String& back = m_arguments.back();
-
-				back.push_back(OpenQuote);
-				if(MaxLen >= 3)
-				{
-					back.append(s, 0, MaxLen - 2);
-					back.push_back(CloseQuote);
-				}
-				else if(MaxLen == 2)
-				{
-					back.push_back(CloseQuote);
-				}
-			}
+			AddArg(s.c_str(), (int)MaxLen, OpenQuote, CloseQuote);
 			return *this;
 		}
 
     LIBCC_INLINE _This& qs(const _String& s)
 		{
-			m_arguments.push_back(_String());
-			_String& back = m_arguments.back();
-
-			back.push_back(OpenQuote);
-			back.append(s);
-			back.push_back(CloseQuote);
+			AddArg(s.c_str(), OpenQuote, CloseQuote);
 			return *this;
 		}
 
@@ -2333,7 +2518,7 @@ namespace LibCC
     template<size_t MaxLen, typename aChar>
     LIBCC_INLINE _This& qs(const aChar* foreign)
 		{
-			if(MaxLen && foreign)
+			if(foreign)
 			{
 				_String native;
 				StringConvert(foreign, native);
@@ -2561,8 +2746,9 @@ namespace LibCC
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, size_t Base>
     LIBCC_INLINE _This& d(double val)
 		{
-			m_arguments.push_back(_String());
-	    _AppendFloat<_Char, DoublePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val, m_arguments.back());
+			QUICK_STRING& back = AddArg();
+	    _AppendFloat<_Char, DoublePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val, back);
+			m_argumentCharSize += back.size();
 			return *this;
 		}
 
@@ -2597,8 +2783,9 @@ namespace LibCC
 
     LIBCC_INLINE _This& d(double val, size_t DecimalWidthMax, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
 		{
-			m_arguments.push_back(_String());
-	    _RuntimeAppendFloat<DoublePrecisionFloat, _Char>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, m_arguments.back());
+			QUICK_STRING& n = AddArg();
+	    _RuntimeAppendFloat<DoublePrecisionFloat, _Char>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, n);
+			m_argumentCharSize += n.size();
 			return *this;
 		}
 
@@ -2745,20 +2932,25 @@ namespace LibCC
 		{
 			if(m_isRendered)
 				return;
-			m_isRendered = true;
-			m_rendered.clear();
-			m_rendered.reserve(m_Format.size());// TODO: if i store the size of all the arguments, i could reserve the correct size.
 			int currentSequentialArg = 0;
 			int highestUsedSequentialArg = -1;
 
-			for(_String::const_iterator it = m_Format.begin(); it != m_Format.end(); ++it)
+			m_isRendered = true;
+			m_rendered.clear();
+			m_rendered.reserve(m_Format.size() + m_argumentCharSize);
+
+			const _Char* begin = m_Format.c_str();
+			const _Char* end = begin + m_Format.size();
+			const _Char* it = begin;
+
+			for(; it != end; ++it)
 			{
 				_Char ch = *it;
 				switch(ch)
 				{
 				case EscapeChar:
 					++ it;
-					if(it != m_Format.end())
+					if(it != end)
 					{
 						m_rendered.push_back(*it);
 					}
@@ -2767,25 +2959,26 @@ namespace LibCC
 					AppendNewLine(m_rendered);
 					break;
 				case ReplaceChar:
-					if(currentSequentialArg >= (int)m_arguments.size())
+					if(currentSequentialArg >= (int)m_dynArguments.size())
+					//if(currentSequentialArg >= (int)m_dynArgumentCount.myval)
 					{
 						m_rendered.push_back(ch);// if you put too many replacechars, then just ignore it.
 					}
 					else
 					{
-						m_rendered.append(m_arguments[currentSequentialArg]);
+						m_rendered.append(GetArg(currentSequentialArg).c_str());
 						highestUsedSequentialArg = max(highestUsedSequentialArg, currentSequentialArg);
 						++ currentSequentialArg;
 					}
 					break;
 				case NamedArgOpenChar:
 					{
-						size_t argIndex = 0;
-						_String::const_iterator it2 = it;
+						int argIndex = 0;
+						const _Char* it2 = it;
 						while(true)
 						{
 							++ it2;
-							if(it2 == m_Format.end())
+							if(it2 == end)
 							{
 								// unclosed named arg.
 								m_rendered.push_back(ch);
@@ -2798,10 +2991,11 @@ namespace LibCC
 							}
 							else if(ch2 == NamedArgCloseChar)
 							{
-								if(argIndex < m_arguments.size())
+								if(argIndex < (int)m_dynArguments.size())
+								//if(argIndex < (int)m_dynArgumentCount.myval)
 								{
 									// success!
-									m_rendered.append(m_arguments[argIndex]);
+									m_rendered.append(GetArg(argIndex).c_str());
 									highestUsedSequentialArg = max(highestUsedSequentialArg, (int)argIndex);
 									it = it2;// advance the cursor.
 								}
@@ -2829,9 +3023,10 @@ namespace LibCC
 
 			// append unused args. this is how the old Format() works.
 			currentSequentialArg = highestUsedSequentialArg + 1;
-			while(currentSequentialArg < (int)m_arguments.size())// ERROR
+			while(currentSequentialArg < (int)m_dynArguments.size())
+			//while(currentSequentialArg < (int)m_dynArgumentCount.myval)
 			{
-				m_rendered.append(m_arguments[currentSequentialArg]);
+				m_rendered.append(GetArg(currentSequentialArg).c_str());
 				currentSequentialArg ++;
 			}
 		}
@@ -2839,8 +3034,90 @@ namespace LibCC
     _String m_Format;// the original format string.  this plus arguments that are fed in is used to build m_Composite.
 		mutable _String m_rendered;
 		mutable bool m_isRendered;
-		std::vector<_String> m_arguments;
-  
+
+#if USE_QUICKSTRING == 1
+
+		void AddArg(const _Char* s)
+		{
+			m_argumentCharSize += LibCC::StringLength(s);
+			m_dynArguments.push_back(QUICK_STRING(s));
+		}
+
+		void AddArg(const _Char* s, _Char open, _Char close)
+		{
+			m_argumentCharSize += LibCC::StringLength(s) + 2;
+			m_dynArguments.push_back(QUICK_STRING(s, open, close));
+		}
+
+		void AddArg(const _Char* s, int maxLen)
+		{
+			m_dynArguments.push_back(QUICK_STRING(s, maxLen));
+			m_argumentCharSize += maxLen;
+		}
+
+		void AddArg(const _Char* s, int maxLen, _Char open, _Char close)
+		{
+			m_dynArguments.push_back(QUICK_STRING(s, maxLen, open, close));
+			m_argumentCharSize += maxLen;
+		}
+
+		void AddArg(_Char ch, size_t count)
+		{
+			m_dynArguments.push_back(QUICK_STRING(ch, count));
+			m_argumentCharSize += count;
+		}
+#else
+
+		void AddArg(const _Char* s)
+		{
+			m_argumentCharSize += LibCC::StringLength(s);
+			m_dynArguments.push_back(s);
+		}
+
+		void AddArg(const _Char* s, int maxLen)
+		{
+			size_t inputLen = LibCC::StringLength(s);
+			m_dynArguments.push_back(QUICK_STRING(s, min(maxLen, (int)inputLen)));
+			m_argumentCharSize += maxLen;
+		}
+
+		void AddArg(const _Char* s, _Char open, _Char close)
+		{
+			//size_t inputLen = LibCC::StringLength(s);
+			//m_argumentCharSize += inputLen + 2;
+			//_Char* s = _alloca(sizeof(_Char) * (inputLen + 3));
+			//m_dynArguments.push_back(QUICK_STRING(s, open, close));
+		}
+
+		void AddArg(const _Char* s, int maxLen, _Char open, _Char close)
+		{
+			//m_dynArguments.push_back(QUICK_STRING(s, maxLen, open, close));
+			//m_argumentCharSize += maxLen;
+		}
+
+		void AddArg(_Char ch, size_t count)
+		{
+			m_dynArguments.push_back(QUICK_STRING(count, ch));
+			m_argumentCharSize += count;
+		}
+
+
+#endif
+
+		QUICK_STRING& AddArg()
+		{
+			m_dynArguments.push_back(QUICK_STRING());
+			return m_dynArguments.back();
+		}
+
+		const QUICK_STRING& GetArg(size_t i) const
+		{
+			return m_dynArguments[i];
+		}
+
+		size_t m_argumentCharSize;
+		std::vector<QUICK_STRING > m_dynArguments;
+
 # ifdef WIN32
 		// a couple functions here are copied from winapi for local use.
 		template<typename Traits, typename Alloc>
