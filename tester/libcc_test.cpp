@@ -67,22 +67,28 @@ bool RunTest__(Fn f, const char* sz)
 void TestCollection()
 {
 	//RunTest(BlobTest);
-	//RunTest(ParseTest);
+	
+	RunTest(ParseTest);
+	
 	//RunTest(LogTest);
 	//RunTest(AllocationTrackerTest);
+
+  RunTest(StringTest);
+	RunTest(StringCompilationTest);
 	RunTest(FormatTest);
   RunTest(FormatBenchmark);
+
 	//RunTest(RegistryTest); // careful with this of course.
   //RunTest(StatusTest);
   //RunTest(PathMatchSpecTest);
-  //RunTest(StringTest);
-	//RunTest(StringCompilationTest);
 }
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+	//_CrtSetBreakAlloc(489);
   SetUnhandledExceptionFilter(CCUnhandledExceptionFilter);
 	RunTest(TestCollection);
+	_CrtDumpMemoryLeaks();
 	return 0;
 }
 

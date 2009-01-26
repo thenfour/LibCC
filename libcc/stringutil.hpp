@@ -2469,13 +2469,14 @@ namespace LibCC
 		}
 #endif
 
-    // POINTER - NOT portable when unsigned long != pointer size. -----------------------------
+    // POINTER -----------------------------
     template<typename T>
     LIBCC_INLINE _This& p(const T* v)
 		{
-			_Char arg[11] = { '0', 'x' };
-			unsigned long temp = *(reinterpret_cast<unsigned long*>(&v));
-			_UnsignedNumberToString<_Char, 16, 8, '0'>(arg + 10, temp);
+			static const int Digits = (sizeof(uintptr_t) * 2);// number of digits (32-bit == 4 bytes == 8 digits)
+			_Char arg[Digits + 3] = { '0', 'x' };// +2 for prefix, +1 for null term.
+			uintptr_t temp = *(reinterpret_cast<uintptr_t*>(&v));
+			_UnsignedNumberToString<_Char, 16, Digits, '0'>(arg + 2 + Digits, temp);
 			return s(arg);
 		}
 

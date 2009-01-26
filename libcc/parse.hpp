@@ -286,6 +286,10 @@ namespace LibCC
 			{
 			}
 
+			virtual ~ParserBase()
+			{
+			}
+
 			virtual bool ParseRetainingStateOnError(ParseResult& result, ScriptReader& input)
 			{
 				ScriptCursor oldCursor = input.GetCursorCopy();
