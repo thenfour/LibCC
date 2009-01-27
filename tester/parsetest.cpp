@@ -123,6 +123,18 @@ bool ParseTest()
 	wchar_t ch1, ch2;
 	std::wstring str1, str2;
 
+
+	ParseResultMem resM;
+
+	p =
+		(
+			FalseMsg(L"Error parsing the banana", Str(L"banana"))
+			| FalseMsg(L"Error parsing an accordion", Str(L"accordion"))
+		);
+	TestAssert(!p.ParseRetainingStateOnError(resM, CScriptReader(L"ban")));
+	TestAssert(!p.ParseRetainingStateOnError(resM, CScriptReader(L"acc")));
+
+
 	// basic tests to make sure it compiles correctly,
 	// and to test basic parser operation.
 
@@ -926,6 +938,8 @@ bool ParseTest()
 	// SignedRationalParserT
 	// Rational
 	// Rational2
+
+	// output
 
   return true;
 }
