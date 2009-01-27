@@ -944,6 +944,19 @@ namespace LibCC
 					d);
 		}
 
+		template<bool skipWhitespaceBetween>
+		Sequence<skipWhitespaceBetween> Sequence5(const ParserBase& a, const ParserBase& b, const ParserBase& c, const ParserBase& d, const ParserBase& e)
+		{
+			return
+				Sequence<skipWhitespaceBetween>(
+					Sequence<skipWhitespaceBetween>(
+						Sequence<skipWhitespaceBetween>(
+							Sequence<skipWhitespaceBetween>(a,b),
+							c),
+						d),
+					e);
+		}
+
 		struct Or :
 			public ParserBase
 		{
@@ -1925,7 +1938,7 @@ namespace LibCC
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
-				return Sequence(Str(L"0x"), UnsignedIntegerParser(16, output)).ParseRetainingStateOnError(result, input);
+				return Sequence<false>(Str(L"0x"), UnsignedIntegerParser(16, output)).ParseRetainingStateOnError(result, input);
 			}
 		};
 
@@ -1955,11 +1968,12 @@ namespace LibCC
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				return
-					Sequence3<false>
+					Sequence4<false>
 					(
 						Char('0'),
 						Not(Char('x')),
-						UnsignedIntegerParser(8, output)
+						UnsignedIntegerParser(8, output),
+						Not(Char('b'))
 					)
 					.ParseRetainingStateOnError(result, input);
 			}
@@ -1990,13 +2004,7 @@ namespace LibCC
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
-				return
-					Sequence3<false>
-					(
-						Not(Char('0')),
-						UnsignedIntegerParser(10, output),
-						Not(Char('b'))
-					).ParseRetainingStateOnError(result, input);
+				return UnsignedIntegerParser(10, output).ParseRetainingStateOnError(result, input);
 			}
 		};
 
@@ -2025,13 +2033,12 @@ namespace LibCC
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
-				return
-					Sequence3<false>
+				return Sequence<false>
 					(
-						Not(Char('0')),
 						UnsignedIntegerParser(2, output),
 						Char('b')
 					).ParseRetainingStateOnError(result, input);
+				return true;
 			}
 		};
 
@@ -2106,12 +2113,13 @@ namespace LibCC
 				const int base = 8;
 				wchar_t sign = '+';// default to positive
 				Parser p =
-					Sequence4<false>
+					Sequence5<false>
 					(
 						Optional(CharOf(L"+-", sign)),
 						Char('0'),
-						!Char('x'),
-						UnsignedIntegerParserT<IntT>(base, RefOutput(temp))
+						Not(Char('x')),
+						UnsignedIntegerParserT<IntT>(base, RefOutput(temp)),
+						Not(Char('b'))
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
@@ -2191,12 +2199,10 @@ namespace LibCC
 				const int base = 10;
 				wchar_t sign = '+';// default to positive
 				Parser p =
-					Sequence4<false>
+					Sequence<false>
 					(
 						Optional(CharOf(L"+-", sign)),
-						Not(Char('0')),
-						UnsignedIntegerParserT<IntT>(base, RefOutput(temp)),
-						Not(Char('b'))
+						UnsignedIntegerParserT<IntT>(base, RefOutput(temp))
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
@@ -2215,19 +2221,19 @@ namespace LibCC
 		template<typename IntT>
 		Parser CSignedInteger(const OutputPtr<IntT>& output)// these are all signed or unsigned.
 		{
-			return Or4(SIntegerDec(output), SIntegerOct(output), SIntegerBin(output), SIntegerHex(output));
+			return Or4(SIntegerHex(output), SIntegerOct(output), SIntegerBin(output), SIntegerDec(output));
 		}
 
 		template<typename IntT>
 		Parser CUnsignedInteger(const OutputPtr<IntT>& output)
 		{
-			return Or4(UIntegerDec(output), UIntegerOct(output), UIntegerBin(output), UIntegerHex(output));
+			return Or4(UIntegerHex(output), UIntegerOct(output), UIntegerBin(output), UIntegerDec(output));
 		}
 
 		template<typename IntT>
 		Parser CInteger(const OutputPtr<IntT>& output)// same as CSignedInteger
 		{
-			return Or4(SIntegerDec(output), SIntegerOct(output), SIntegerBin(output), SIntegerHex(output));
+			return Or4(SIntegerHex(output), SIntegerOct(output), SIntegerBin(output), SIntegerDec(output));
 		}
 
 		// if this is named CInteger, then the compiler gets it confused with the overload CInteger(const OutputPtr<IntT>& output)

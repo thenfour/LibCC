@@ -28,7 +28,11 @@ bool FormatBenchmark()
 {
   LibCC::Timer t;
   char crap[100];
-  const int MaxNum = 10;
+#ifdef _DEBUG
+  const int MaxNum = 10000;
+#else
+  const int MaxNum = 1000000;
+#endif
 	const int StdHandicap = 10;
 
 

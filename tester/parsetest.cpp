@@ -527,20 +527,400 @@ bool ParseTest()
 	TestAssert(!p.ParseSimple(L"'a"));
 	TestAssert(!p.ParseSimple(L"\"a"));
 
+	// UnsignedIntegerParser
+	unsigned int i;
+	unsigned __int64 ui64 = 0;
+
+	TestAssert(!UnsignedIntegerParser<unsigned int>(10, RefOutput(i)).ParseSimple(L"-1"));
+	TestAssert(!UnsignedIntegerParser<unsigned int>(10, RefOutput(i)).ParseSimple(L""));
+	TestAssert(!UnsignedIntegerParser<unsigned int>(10, RefOutput(i)).ParseSimple(L" "));
+
+	// base 2
+	i = 1;
+	TestAssert(UnsignedIntegerParser<unsigned int>(2, RefOutput(i)).ParseSimple(L"0"));
+	TestAssert(i == 0);
+
+	i = 0;
+	TestAssert(UnsignedIntegerParser<unsigned int>(2, RefOutput(i)).ParseSimple(L"1"));
+	TestAssert(i == 1);
+
+	i = 0;
+	TestAssert(UnsignedIntegerParser<unsigned int>(2, RefOutput(i)).ParseSimple(L"11"));
+	TestAssert(i == 3);
+
+	ui64 = 0;
+	TestAssert(UnsignedIntegerParser<unsigned __int64>(2, RefOutput(ui64)).ParseSimple(L"101010101010"));
+	TestAssert(ui64 == 2730);
+
+	ui64 = 0;
+	TestAssert(UnsignedIntegerParser<unsigned __int64>(2, RefOutput(ui64)).ParseSimple(L"1111111111111111111111111111111111111111111111111111111111111111"));
+	TestAssert(ui64 == 18446744073709551615);
+
+	TestAssert(!UnsignedIntegerParser<unsigned int>(2, RefOutput(i)).ParseSimple(L"2"));
+
+	// base 8
+	i = 1;
+	TestAssert(UnsignedIntegerParser<unsigned int>(8, RefOutput(i)).ParseSimple(L"0"));
+	TestAssert(i == 0);
+
+	i = 0;
+	TestAssert(UnsignedIntegerParser<unsigned int>(8, RefOutput(i)).ParseSimple(L"1"));
+	TestAssert(i == 1);
+
+	i = 0;
+	TestAssert(UnsignedIntegerParser<unsigned int>(8, RefOutput(i)).ParseSimple(L"77"));
+	TestAssert(i == 63);
+
+	ui64 = 0;
+	TestAssert(UnsignedIntegerParser<unsigned __int64>(8, RefOutput(ui64)).ParseSimple(L"1234567"));
+	TestAssert(ui64 == 01234567);
+
+	ui64 = 0;
+	TestAssert(UnsignedIntegerParser<unsigned __int64>(8, RefOutput(ui64)).ParseSimple(L"1777777777777777777777"));
+	TestAssert(ui64 == 18446744073709551615);
+
+	TestAssert(!UnsignedIntegerParser<unsigned int>(8, RefOutput(i)).ParseSimple(L"8"));
+
+	// base 10
+	i = 1;
+	TestAssert(UnsignedIntegerParser<unsigned int>(10, RefOutput(i)).ParseSimple(L"0"));
+	TestAssert(i == 0);
+
+	i = 0;
+	TestAssert(UnsignedIntegerParser<unsigned int>(10, RefOutput(i)).ParseSimple(L"1"));
+	TestAssert(i == 1);
+
+	i = 0;
+	TestAssert(UnsignedIntegerParser<unsigned int>(10, RefOutput(i)).ParseSimple(L"99"));
+	TestAssert(i == 99);
+
+	ui64 = 0;
+	TestAssert(UnsignedIntegerParser<unsigned __int64>(10, RefOutput(ui64)).ParseSimple(L"123456789"));
+	TestAssert(ui64 == 123456789);
+
+	ui64 = 0;
+	TestAssert(UnsignedIntegerParser<unsigned __int64>(10, RefOutput(ui64)).ParseSimple(L"18446744073709551615"));
+	TestAssert(ui64 == 18446744073709551615);
+
+	TestAssert(!UnsignedIntegerParser<unsigned int>(10, RefOutput(i)).ParseSimple(L"a"));
+
+	// base 16
+	i = 1;
+	TestAssert(UnsignedIntegerParser<unsigned int>(16, RefOutput(i)).ParseSimple(L"0"));
+	TestAssert(i == 0);
+
+	i = 0;
+	TestAssert(UnsignedIntegerParser<unsigned int>(16, RefOutput(i)).ParseSimple(L"f"));
+	TestAssert(i == 15);
+
+	i = 0;
+	TestAssert(UnsignedIntegerParser<unsigned int>(16, RefOutput(i)).ParseSimple(L"F"));
+	TestAssert(i == 15);
+
+	i = 0;
+	TestAssert(UnsignedIntegerParser<unsigned int>(16, RefOutput(i)).ParseSimple(L"FF"));
+	TestAssert(i == 255);
+
+	ui64 = 0;
+	TestAssert(UnsignedIntegerParser<unsigned __int64>(16, RefOutput(ui64)).ParseSimple(L"123456789ABCDEF"));
+	TestAssert(ui64 == 81985529216486895);
+
+	ui64 = 0;
+	TestAssert(UnsignedIntegerParser<unsigned __int64>(16, RefOutput(ui64)).ParseSimple(L"ffffFFFFffffFFFF"));
+	TestAssert(ui64 == 18446744073709551615);
+
+	TestAssert(!UnsignedIntegerParser<unsigned int>(16, RefOutput(i)).ParseSimple(L"g"));
+
+	// UIntegerBin
+	TestAssert(!UIntegerBin<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"101010101010"));
+	TestAssert(!UIntegerBin<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"-101b"));
+
+	ui64 = 1;
+	TestAssert(UIntegerBin<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"0b"));
+	TestAssert(ui64 == 0);
+
+	ui64 = 0;
+	TestAssert(UIntegerBin<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"101010101010b"));
+	TestAssert(ui64 == 2730);
+
+	// UIntegerOct
+	TestAssert(!UIntegerOct<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"1234567"));
+	TestAssert(!UIntegerOct<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"0x1234567"));
+	TestAssert(!UIntegerOct<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"-01234567"));
+
+	ui64 = 1;
+	TestAssert(UIntegerOct<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"00"));
+	TestAssert(ui64 == 0);
+
+	ui64 = 0;
+	TestAssert(UIntegerOct<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"01234567"));
+	TestAssert(ui64 == 01234567);
+
+	// UIntegerDec
+	TestAssert(!UIntegerDec<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"-1234"));
+
+	ui64 = 1;
+	TestAssert(UIntegerDec<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"0"));
+	TestAssert(ui64 == 0);
+
+	ui64 = 0;
+	TestAssert(UIntegerDec<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"01234567890"));
+	TestAssert(ui64 == 1234567890);
+
+	// UIntegerHex
+	TestAssert(!UIntegerHex<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"-0xabcd"));
+	TestAssert(!UIntegerHex<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"0"));
+	TestAssert(!UIntegerHex<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"1234567"));
+	TestAssert(!UIntegerHex<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"01234567"));
+	TestAssert(!UIntegerHex<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"1234567b"));
+
+	ui64 = 1;
+	TestAssert(UIntegerHex<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"0x0"));
+	TestAssert(ui64 == 0);
+
+	ui64 = 0;
+	TestAssert(UIntegerHex<unsigned __int64>(RefOutput(ui64)).ParseSimple(L"0x0123456789abcdEF"));
+	TestAssert(ui64 == 0x0123456789abcdef);
+
+
+	// SIntegerBin
+	__int64 si64;
+
+	TestAssert(!SIntegerBin<__int64>(RefOutput(si64)).ParseSimple(L"-"));
+	TestAssert(!SIntegerBin<__int64>(RefOutput(si64)).ParseSimple(L"101010101010"));
+
+	si64 = 1;
+	TestAssert(SIntegerBin<__int64>(RefOutput(si64)).ParseSimple(L"0b"));
+	TestAssert(si64 == 0);
+
+	si64 = 0;
+	TestAssert(SIntegerBin<__int64>(RefOutput(si64)).ParseSimple(L"101010101010b"));
+	TestAssert(si64 == 2730);
+
+	si64 = 1;
+	TestAssert(SIntegerBin<__int64>(RefOutput(si64)).ParseSimple(L"-0b"));
+	TestAssert(si64 == 0);
+
+	si64 = 0;
+	TestAssert(SIntegerBin<__int64>(RefOutput(si64)).ParseSimple(L"-101010101010b"));
+	TestAssert(si64 == -2730);
+
+	si64 = 0;
+	TestAssert(SIntegerBin<__int64>(RefOutput(si64)).ParseSimple(L"+101010101010b"));
+	TestAssert(si64 == 2730);
+
+	// SIntegerOct
+	TestAssert(!SIntegerOct<__int64>(RefOutput(si64)).ParseSimple(L"-"));
+	TestAssert(!SIntegerOct<__int64>(RefOutput(si64)).ParseSimple(L"0"));
+	TestAssert(!SIntegerOct<__int64>(RefOutput(si64)).ParseSimple(L"1234567"));
+	TestAssert(!SIntegerOct<__int64>(RefOutput(si64)).ParseSimple(L"0x1234567"));
+
+	si64 = 1;
+	TestAssert(SIntegerOct<__int64>(RefOutput(si64)).ParseSimple(L"00"));
+	TestAssert(si64 == 0);
+
+	si64 = 0;
+	TestAssert(SIntegerOct<__int64>(RefOutput(si64)).ParseSimple(L"01234567"));
+	TestAssert(si64 == 01234567);
+
+	si64 = 1;
+	TestAssert(SIntegerOct<__int64>(RefOutput(si64)).ParseSimple(L"-00"));
+	TestAssert(si64 == 0);
+
+	si64 = 0;
+	TestAssert(SIntegerOct<__int64>(RefOutput(si64)).ParseSimple(L"-01234567"));
+	TestAssert(si64 == -01234567);
+
+	si64 = 0;
+	TestAssert(SIntegerOct<__int64>(RefOutput(si64)).ParseSimple(L"+01234567"));
+	TestAssert(si64 == 01234567);
+
+	// SIntegerDec
+	TestAssert(!SIntegerOct<__int64>(RefOutput(si64)).ParseSimple(L"-"));
+
+	si64 = 1;
+	TestAssert(SIntegerDec<__int64>(RefOutput(si64)).ParseSimple(L"0"));
+	TestAssert(si64 == 0);
+
+	si64 = 0;
+	TestAssert(SIntegerDec<__int64>(RefOutput(si64)).ParseSimple(L"01234567890"));
+	TestAssert(si64 == 1234567890);
+
+	si64 = 0;
+	TestAssert(SIntegerDec<__int64>(RefOutput(si64)).ParseSimple(L"-01234567890"));
+	TestAssert(si64 == -1234567890);
+
+	si64 = 0;
+	TestAssert(SIntegerDec<__int64>(RefOutput(si64)).ParseSimple(L"+01234567890"));
+	TestAssert(si64 == 1234567890);
+
+	// SIntegerHex
+	TestAssert(!SIntegerHex<__int64>(RefOutput(si64)).ParseSimple(L"-"));
+	TestAssert(!SIntegerHex<__int64>(RefOutput(si64)).ParseSimple(L"0"));
+	TestAssert(!SIntegerHex<__int64>(RefOutput(si64)).ParseSimple(L"0x"));
+	TestAssert(!SIntegerHex<__int64>(RefOutput(si64)).ParseSimple(L"1234567"));
+	TestAssert(!SIntegerHex<__int64>(RefOutput(si64)).ParseSimple(L"01234567"));
+	TestAssert(!SIntegerHex<__int64>(RefOutput(si64)).ParseSimple(L"1234567b"));
+
+	si64 = 1;
+	TestAssert(SIntegerHex<__int64>(RefOutput(si64)).ParseSimple(L"0x0"));
+	TestAssert(si64 == 0);
+
+	si64 = 0;
+	TestAssert(SIntegerHex<__int64>(RefOutput(si64)).ParseSimple(L"0x0123456789abcdef"));
+	TestAssert(si64 == 0x0123456789abcdef);
+
+	si64 = 1;
+	TestAssert(SIntegerHex<__int64>(RefOutput(si64)).ParseSimple(L"-0x0"));
+	TestAssert(si64 == 0);
+
+	si64 = 0;
+	TestAssert(SIntegerHex<__int64>(RefOutput(si64)).ParseSimple(L"-0x0123456789abcdef"));
+	TestAssert(si64 == -0x0123456789abcdef);
+
+	si64 = 0;
+	TestAssert(SIntegerHex<__int64>(RefOutput(si64)).ParseSimple(L"+0x0123456789abcdef"));
+	TestAssert(si64 == 0x0123456789abcdef);
+
+	// CUnsignedInteger
+	si64 = 0;
+	TestAssert(!CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L""));
+
+	si64 = 0;
+	TestAssert(CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"012b"));// this will work; octal will fail; binary will fail, and decimal will pick it up.
+	TestAssert(si64 == 12);
+
+	si64 = 0;
+	TestAssert(CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"9a"));// this will work; parsing stops at a after base 10 is deduced
+	TestAssert(si64 == 9);
+
+	si64 = 0;
+	TestAssert(CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"078"));// this will work; parsing stops at 8 after octal is deduced.
+	TestAssert(si64 == 07);
+
+	si64 = 0;
+	TestAssert(CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"0x123g"));// this will work; parsing stops at g
+	TestAssert(si64 == 0x123);
+
+	si64 = 1;
+	TestAssert(CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"0"));
+	TestAssert(si64 == 0);
+
+	TestAssert(!CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"+0"));
+	TestAssert(!CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"-0"));
+
+	si64 = 0;
+	TestAssert(CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"011b"));
+	TestAssert(si64 == 3);
+
+	si64 = 0;
+	TestAssert(CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"013"));
+	TestAssert(si64 == 11);
+
+	si64 = 0;
+	TestAssert(CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"13"));
+	TestAssert(si64 == 13);
+
+	si64 = 0;
+	TestAssert(CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"0xafff"));
+	TestAssert(si64 == 0xafff);
+
+	TestAssert(!CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"+011b"));
+	TestAssert(!CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"+013"));
+	TestAssert(!CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"+13"));
+	TestAssert(!CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"+0xafff"));
+	TestAssert(!CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"-011b"));
+	TestAssert(!CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"-013"));
+	TestAssert(!CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"-13"));
+	TestAssert(!CUnsignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"-0xafff"));
+
+
+	// CSignedInteger
+	si64 = 0;
+	TestAssert(!CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L""));
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"012b"));// this will work; octal will fail; binary will fail, and decimal will pick it up.
+	TestAssert(si64 == 12);
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"9a"));// this will work; parsing stops at a after base 10 is deduced
+	TestAssert(si64 == 9);
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"078"));// this will work; parsing stops at 8 after octal is deduced.
+	TestAssert(si64 == 07);
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"0x123g"));// this will work; parsing stops at g
+	TestAssert(si64 == 0x123);
+
+	si64 = 1;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"0"));
+	TestAssert(si64 == 0);
+
+	si64 = 1;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"+0"));
+	TestAssert(si64 == 0);
+
+	si64 = 1;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"-0"));
+	TestAssert(si64 == 0);
+
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"011b"));
+	TestAssert(si64 == 3);
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"013"));
+	TestAssert(si64 == 11);
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"13"));
+	TestAssert(si64 == 13);
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"0xafff"));
+	TestAssert(si64 == 0xafff);
+
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"+011b"));
+	TestAssert(si64 == 3);
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"+013"));
+	TestAssert(si64 == 11);
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"+13"));
+	TestAssert(si64 == 13);
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"+0xafff"));
+	TestAssert(si64 == 0xafff);
+
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"-011b"));
+	TestAssert(si64 == -3);
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"-013"));
+	TestAssert(si64 == -11);
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"-13"));
+	TestAssert(si64 == -13);
+
+	si64 = 0;
+	TestAssert(CSignedInteger<__int64>(RefOutput(si64)).ParseSimple(L"-0xafff"));
+	TestAssert(si64 == -0xafff);
+
+
 	// CInteger
 	// CInteger2
-	// CSignedInteger
-	// CUnsignedInteger
-	// UnsignedIntegerParserT
-	// UnsignedIntegerParser
-	// UIntegerBin
-	// UIntegerOct
-	// UIntegerDec
-	// UIntegerHex
-	// SIntegerBin
-	// SIntegerOct
-	// SIntegerDec
-	// SIntegerHex
 
 	// UnsignedRationalParserT
 	// SignedRationalParserT
