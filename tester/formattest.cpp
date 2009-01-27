@@ -662,7 +662,51 @@ bool FormatTest()
 		TestAssert((w = FormatW().d<3>(1.124).Str()) == L"1.124");
 		TestAssert((w = FormatW().d<3,2>(1.124).Str()) == L"01.124");
 		TestAssert((w = FormatW().d<3,2,' '>(1.124).Str()) == L" 1.124");
-		w.empty();
+		TestAssert((w = FormatW().d<3,50>(1.124).Str()) == L"00000000000000000000000000000000000000000000000001.124");
+	}
+
+	// long strings or lots of arguments.
+	{
+		// lots of args
+		FormatW w;
+		for(int i = 0; i < 100000; ++ i)
+		{
+			w.i(1);
+		}
+		TestAssert(w.Str() == std::wstring(100000, '1'));
+
+		// long strings
+		std::wstring formatstr = L"{1}";
+		for(int i = 0; i < 100000; ++ i)
+		{
+			formatstr.push_back('.');
+		}
+		formatstr.append(L"{0}");
+
+		std::wstring arg0(100000, L'-');
+		std::wstring arg1(100000, L'!');
+		
+		w.SetFormat(formatstr);
+		w.s(arg0);
+		w.s(arg1);
+
+		std::wstring shouldBe = std::wstring(100000, L'!') + std::wstring(100000, L'.') + std::wstring(100000, L'-');
+		TestAssert(w.Str() == shouldBe);
+
+		// lots of args + long strings. this string will be 200 megs - 10000 args of 10000 chars each * sizeof(wchar_t)
+		formatstr = std::wstring(10000, L'%');
+		std::wstring arg(10000, L'-');
+		w.SetFormat(formatstr);
+		for(int i = 0; i < 10000; ++ i)
+		{
+			w.s(arg);
+		}
+		shouldBe.clear();
+		for(int i = 0; i < 10000; ++ i)
+		{
+			shouldBe.append(arg);
+		}
+		TestAssert(w.Str() == shouldBe);
 	}
 
 	return true;

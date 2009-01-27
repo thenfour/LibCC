@@ -1701,6 +1701,7 @@ namespace LibCC
 				}
 
 				m_listAllocated = newAllocated;
+				listDynBuffer = newp;
 				listp = listDynBuffer;
 
 				// fix up pointers to static data
