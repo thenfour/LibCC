@@ -160,6 +160,71 @@ namespace LibCC
 			std::wstring m_script;
 		};
 
+
+		inline std::wstring _DebugSanitize(const std::wstring& in)
+		{
+			std::wstring out;
+			for(std::wstring::const_iterator it = in.begin(); it != in.end(); ++ it)
+			{
+				if(*it == '\r') out.push_back('.');
+				else if(*it == '\n') out.push_back('.');
+				else if(*it == '|') out.push_back('.');
+				else out.push_back(*it);
+			}
+			return out;
+		}
+
+		// Pos:288(4,12) "xxx|xxx"
+		inline std::wstring _DebugCursorToString(const ScriptCursor& cur, const ScriptReader& input)
+		{
+			const int amount = 6;
+			const std::wstring& script(input.GetRawInput());
+			int nleft = min(cur.pos, amount);
+			std::wstring left = script.substr(cur.pos - nleft, nleft);
+			int nright = (int)script.size() - cur.pos;
+			nright = min(nright, amount);
+			std::wstring right = script.substr(cur.pos, nright);
+			left = _DebugSanitize(left);
+			right = _DebugSanitize(right);
+
+			return LibCC::FormatW(L"Pos:%(%,%) \"%^|%\"")
+				.i(cur.pos)
+				.i(cur.line)
+				.i(cur.column)
+				.s(left)
+				.s(right)
+				.Str();
+		}
+
+		// [Abinooeeueue...oooeueeee]
+		inline std::wstring _DebugSubStr(const ScriptCursor& leftCursor, const ScriptCursor& rightCursor, ScriptReader& input)
+		{
+			int amount = 50;
+			std::wstring ellipses = L"...";
+			const std::wstring& script(input.GetRawInput());
+			int len = rightCursor.pos - leftCursor.pos;
+
+			bool useEllipses = len > amount;
+			if(useEllipses)
+			{
+				len = amount - (int)ellipses.size();
+			}
+
+			int nleft = len / 2;
+			int nright = len - nleft;
+			std::wstring left = script.substr(leftCursor.pos, nleft);
+			std::wstring right = script.substr(rightCursor.pos - nright, nright);
+
+			left = _DebugSanitize(left);
+			right = _DebugSanitize(right);
+
+			return LibCC::FormatW(L"[%%%]")
+				.s(left)
+				.s(useEllipses ? ellipses : L"")
+				.s(right)
+				.Str();
+		}
+
 		// basic framework parsers ///////////////////////////////////////////////////////////////////////////////////////
 		struct ParseResult
 		{
@@ -169,6 +234,15 @@ namespace LibCC
 			virtual bool IsTraceEnabled() const = 0;
 			virtual void Trace(const std::wstring& msg) = 0;
 			virtual void ParserMessage(const std::wstring& msg) = 0;
+
+			virtual void ParserMessage2(const std::wstring& msg, const ScriptCursor& pos, const ScriptReader& input)
+			{
+				ParserMessage(LibCC::FormatW(L"%, at %")
+					(msg)
+					(_DebugCursorToString(pos, input))
+					.Str());
+			}
+
 		};
 
 		// built in ParseResult class which holds all messages in memory.
@@ -213,72 +287,6 @@ namespace LibCC
 
 		struct ParserBase
 		{
-		private:
-			std::wstring DebugSanitize(const std::wstring& in) const
-			{
-				std::wstring out;
-				for(std::wstring::const_iterator it = in.begin(); it != in.end(); ++ it)
-				{
-					if(*it == '\r') out.push_back('.');
-					else if(*it == '\n') out.push_back('.');
-					else if(*it == '|') out.push_back('.');
-					else out.push_back(*it);
-				}
-				return out;
-			}
-
-			// Pos:288(4,12) "xxx|xxx"
-			std::wstring DebugCursorToString(const ScriptCursor& cur, ScriptReader& input) const
-			{
-				const int amount = 6;
-				const std::wstring& script(input.GetRawInput());
-				int nleft = min(cur.pos, amount);
-				std::wstring left = script.substr(cur.pos - nleft, nleft);
-				int nright = (int)script.size() - cur.pos;
-				nright = min(nright, amount);
-				std::wstring right = script.substr(cur.pos, nright);
-				left = DebugSanitize(left);
-				right = DebugSanitize(right);
-
-				return LibCC::FormatW(L"Pos:%(%,%) \"%^|%\"")
-					.i(cur.pos)
-					.i(cur.line)
-					.i(cur.column)
-					.s(left)
-					.s(right)
-					.Str();
-			}
-
-			// [Abinooeeueue...oooeueeee]
-			std::wstring DebugSubStr(const ScriptCursor& leftCursor, const ScriptCursor& rightCursor, ScriptReader& input) const
-			{
-				int amount = 50;
-				std::wstring ellipses = L"...";
-				const std::wstring& script(input.GetRawInput());
-				int len = rightCursor.pos - leftCursor.pos;
-
-				bool useEllipses = len > amount;
-				if(useEllipses)
-				{
-					len = amount - (int)ellipses.size();
-				}
-
-				int nleft = len / 2;
-				int nright = len - nleft;
-				std::wstring left = script.substr(leftCursor.pos, nleft);
-				std::wstring right = script.substr(rightCursor.pos - nright, nright);
-
-				left = DebugSanitize(left);
-				right = DebugSanitize(right);
-
-				return LibCC::FormatW(L"[%%%]")
-					.s(left)
-					.s(useEllipses ? ellipses : L"")
-					.s(right)
-					.Str();
-			}
-
-		public:
 			bool IsTraceEnabled;
 
 			ParserBase() :
@@ -299,7 +307,7 @@ namespace LibCC
 				{
 					result.Trace(LibCC::FormatW(L"Parsing '%' from %")
 						(GetParserName())
-						(DebugCursorToString(oldCursor, input))
+						(_DebugCursorToString(oldCursor, input))
 						.Str());
 					result.Trace(L"{");
 					result.IncrementTraceIndent();
@@ -321,9 +329,9 @@ namespace LibCC
 						ScriptCursor newCursor = input.GetCursorCopy();
 						result.Trace(LibCC::FormatW(L"=false '%' from % to % %")
 							(GetParserName())
-							(DebugCursorToString(oldCursor, input))
-							(DebugCursorToString(newCursor, input))
-							(DebugSubStr(oldCursor, newCursor, input))
+							(_DebugCursorToString(oldCursor, input))
+							(_DebugCursorToString(newCursor, input))
+							(_DebugSubStr(oldCursor, newCursor, input))
 							.Str());
 						result.DecrementTraceIndent();
 						result.Trace(L"}");
@@ -338,9 +346,9 @@ namespace LibCC
 					ScriptCursor newCursor = input.GetCursorCopy();
 					result.Trace(LibCC::FormatW(L"=TRUE '%' from % to % %")
 						(GetParserName())
-						(DebugCursorToString(oldCursor, input))
-						(DebugCursorToString(newCursor, input))
-						(DebugSubStr(oldCursor, newCursor, input))
+						(_DebugCursorToString(oldCursor, input))
+						(_DebugCursorToString(newCursor, input))
+						(_DebugSubStr(oldCursor, newCursor, input))
 						.Str());
 					result.DecrementTraceIndent();
 					result.Trace(L"}");
@@ -509,14 +517,14 @@ namespace LibCC
 				if(m_child.IsEmpty())
 				{
 					if(!trueMessage.empty())
-						result.ParserMessage(trueMessage);
+						result.ParserMessage2(trueMessage, input.GetCursorCopy(), input);
 					return true;
 				}
 				bool r = m_child->ParseRetainingStateOnError(result, input);
 				if(r && !trueMessage.empty())
-					result.ParserMessage(trueMessage);
+					result.ParserMessage2(trueMessage, input.GetCursorCopy(), input);
 				if(!r && !falseMessage.empty())
-					result.ParserMessage(falseMessage);
+				result.ParserMessage2(falseMessage, input.GetCursorCopy(), input);
 				return r;
 			}
 
@@ -620,7 +628,7 @@ namespace LibCC
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				if(!msg.empty())
-					result.ParserMessage(msg);
+					result.ParserMessage2(msg, input.GetCursorCopy(), input);
 				return ret;
 			}
 
@@ -696,6 +704,7 @@ namespace LibCC
 					if(oldCursor == input.GetCursorCopy().pos)
 					{
 						__asm int 3;// TODO: some kind of cool error handling.
+						return false;
 					}
 
 					if(skipWhitespaceBetween)
@@ -722,8 +731,8 @@ namespace LibCC
 
 		typedef Occurrences<0, false> ZeroOrMore;
 		typedef Occurrences<0, true> ZeroOrMoreS;
-		typedef Occurrences<0, false> OneOrMore;
-		typedef Occurrences<0, true> OneOrMoreS;
+		typedef Occurrences<1, false> OneOrMore;
+		typedef Occurrences<1, true> OneOrMoreS;
 
 		struct Not :
 			public ParserBase
