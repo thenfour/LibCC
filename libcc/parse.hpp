@@ -121,8 +121,12 @@ namespace LibCC
 
 			void SetCursor(const ScriptCursor& c)
 			{
+				int oldPos = m_cursor.pos;
+				if(oldPos > c.pos)
+					UpdateMeasurements();
 				m_cursor = c;
-				UpdateMeasurements();
+				if(oldPos < c.pos)
+					UpdateMeasurements();
 			}
 
 			virtual const std::wstring& GetRawInput() const
@@ -133,8 +137,6 @@ namespace LibCC
 			// our "stack" of measurement ops.
 			// the pair is position_low, position_high. every time the cursor moves, every item on this stack gets updated.
 			// TOP of the stack is back().
-			// TODO: optimize that, jesus. i should really stick this logic in ParserBase where i do the restoration of the cursor. that would really
-			// reduce the overhead of updating these.
 			std::vector<std::pair<int, int> > m_measurements;
 
 			virtual void PushMeasure()
@@ -145,6 +147,7 @@ namespace LibCC
 			// after calling PushMeasure(), use this to end the measurement operation. it returns the maximum span that the cursor traveled during the measurement.
 			virtual int PopMeasure()
 			{
+				UpdateMeasurements();
 				int ret = m_measurements.back().second - m_measurements.back().first;
 				m_measurements.pop_back();
 				return ret;
@@ -191,8 +194,6 @@ namespace LibCC
 					m_cursor.column ++;
 					m_cursor.pos ++;
 				}
-
-				UpdateMeasurements();
 			}
 
 			ScriptCursor m_cursor;
@@ -272,67 +273,60 @@ namespace LibCC
 			virtual void SetTraceEnabled(bool b) = 0;
 			virtual bool IsTraceEnabled() const = 0;
 			virtual void Trace(const std::wstring& msg) = 0;
+			virtual void RenderMessage(const std::wstring& msg) = 0;
 
-			// this should suppress output but continue to accept messages. so, they should be put in staging.
-			// it will work in 
-			virtual void PushParserMessaging()
+			void ParserMessage(const std::wstring& msg)
 			{
-				int n = (int)m_stagedMessages.size();
-				m_stagedIndices.push(n);
-			}
-
-			// after PushParserMessaging(), call this
-			virtual void PopParserMessaging(bool flushStagedMessages)
-			{
-				int n = m_stagedIndices.top();
-
-				m_stagedIndices.pop();
-				if(!flushStagedMessages)
+				if(m_messagingStack.size() > 0)
 				{
-					m_stagedMessages.resize(n);
-					return;
-				}
-				// flush staged messages.
-				if(m_stagedIndices.size() > 0)
-				{
-					// in the case that we're still staging, then just append the new messages to the previous size
-					//int n1 = (int)m_stagedMessages.size();
-					//m_stagedIndices.top() = n1;
+					m_messagingStack.top()->push_back(msg);
 				}
 				else
 				{
-					// we are not staging messages. flush them out.
-					std::vector<std::wstring>::const_iterator it = m_stagedMessages.begin() + n;
-					for(;it != m_stagedMessages.end(); ++ it)
-					{
-						__ParserMessage(*it);
-					}
-					m_stagedMessages.resize(n);
+					RenderMessage(msg);
 				}
 			}
 
-			virtual void __ParserMessage(const std::wstring& msg) = 0;
-
-			virtual void ParserMessage(const std::wstring& msg, const ScriptCursor& pos, const ScriptReader& input)
+			void ParserMessage(const std::wstring& msg, const ScriptCursor& pos, const ScriptReader& input)
 			{
 				std::wstring msg2 = LibCC::FormatW(L"%, at %")
 					(msg)
 					(_DebugCursorToString(pos, input))
 					.Str();
-				if(m_stagedIndices.size() > 0)
+				ParserMessage(msg2);
+			}
+
+			// this should suppress output but continue to accept messages. so, they should be put in staging.
+			virtual void PushParserMessaging(std::vector<std::wstring>* receiver)
+			{
+				m_messagingStack.push(receiver);
+			}
+
+			// after PushParserMessaging(), call this. if emitMessages == true then the messages
+			// that have been generated since the corresponding Push() are used. if false, then they are thrown away.
+			virtual void PopParserMessaging(bool emitMessages)
+			{
+				PopParserMessaging(emitMessages, *m_messagingStack.top());
+			}
+
+			// allows you to override the messages to be emitted. Useful if you need to maybe get a few sets of
+			// error messagse, then decide later which messagse need to be emitted. Or() uses this.
+			virtual void PopParserMessaging(bool emitMessages, std::vector<std::wstring>& poppedMessages)
+			{
+				m_messagingStack.pop();
+
+				if(!emitMessages)
+					return;
+
+				// there are still other messages
+				for(std::vector<std::wstring>::iterator it = poppedMessages.begin(); it != poppedMessages.end(); ++ it)
 				{
-					// we're staging messages.
-					m_stagedMessages.push_back(msg2);
-				}
-				else
-				{
-					__ParserMessage(msg2);
+					ParserMessage(*it);
 				}
 			}
 
 		private:
-			std::vector<std::wstring> m_stagedMessages;
-			std::stack<int> m_stagedIndices;// top() contains the index where staged messaging started since the last Push()
+			std::stack<std::vector<std::wstring>* > m_messagingStack;
 		};
 
 		// built in ParseResult class which holds all messages in memory.
@@ -369,7 +363,7 @@ namespace LibCC
 			// parser evaluation messages
 			std::vector<std::wstring> parseMessages;
 
-			virtual void __ParserMessage(const std::wstring& msg)
+			virtual void RenderMessage(const std::wstring& msg)
 			{
 				parseMessages.push_back(msg);
 			}
@@ -702,20 +696,20 @@ namespace LibCC
 
 
 		// acts as a breakpoint during the parsing process. other than that, it simply 
-		struct ParseMessage :
+		struct ParseMsg:
 			public ParserBase
 		{
 			std::wstring msg;
 			bool ret;
 
-			ParseMessage(const std::wstring& msg_, bool ret_ = false) :
+			ParseMsg(const std::wstring& msg_, bool ret_ = false) :
 				msg(msg_),
 				ret(ret_)
 			{
 			}
 
-			virtual ParserBase* NewClone() const { return new ParseMessage(*this); }
-			virtual std::wstring GetParserName() const { return L"ParseMessage"; }
+			virtual ParserBase* NewClone() const { return new ParseMsg(*this); }
+			virtual std::wstring GetParserName() const { return L"ParseMsg"; }
 			virtual void SaveOutputState() { }
 			virtual void RestoreOutputState() { }
 
@@ -781,7 +775,8 @@ namespace LibCC
 				while(true)
 				{
 					int oldCursor = input.GetCursorCopy().pos;
-					result.PushParserMessaging();
+					std::vector<std::wstring> parserMessages;
+					result.PushParserMessaging(&parserMessages);
 					if(!m_child->ParseRetainingStateOnError(result, input))
 					{
 						if(count < MinimumOccurrences)
@@ -867,7 +862,8 @@ namespace LibCC
 				if(m_child.IsEmpty())
 					return true;
 
-				result.PushParserMessaging();
+				std::vector<std::wstring> parseMessages;
+				result.PushParserMessaging(&parseMessages);
 				bool r = m_child->ParseRetainingStateOnError(result, input);
 				result.PopParserMessaging(false);// never output messaging from INSIDE m_child. it won't make sense because it will all be negative to the actual interpretation.
 				return !r;// <-- this is the NOT.
@@ -920,7 +916,8 @@ namespace LibCC
 					return true;
 
 				// if the child fails to parse, then don't emit error messages. it was optional.
-				result.PushParserMessaging();
+				std::vector<std::wstring> parseMessages;
+				result.PushParserMessaging(&parseMessages);
 				bool r = m_child->ParseRetainingStateOnError(result, input);
 				result.PopParserMessaging(r);
 				return true;
@@ -1092,7 +1089,8 @@ namespace LibCC
 			{
 				// this will suppress parse messages for parse paths that are just trials basically.
 				// if both children fail, you will only get messaging from the rhs.
-				result.PushParserMessaging();
+				std::vector<std::wstring> lhsParseMessages;
+				result.PushParserMessaging(&lhsParseMessages);
 				input.PushMeasure();
 				if(lhs->ParseRetainingStateOnError(result, input))
 				{
@@ -1103,7 +1101,8 @@ namespace LibCC
 				int lhsDistance = input.PopMeasure();
 				result.PopParserMessaging(false);// it failed to parse. but we have another try so don't output the errors yet... ideally here we would take the messages from the child which made it further. but i don't have a way yet to determine that.
 
-				result.PushParserMessaging();
+				std::vector<std::wstring> rhsParseMessages;
+				result.PushParserMessaging(&rhsParseMessages);
 				input.PushMeasure();
 				if(rhs->ParseRetainingStateOnError(result, input))
 				{
@@ -1120,10 +1119,7 @@ namespace LibCC
 				}
 				else
 				{
-					result.PopParserMessaging(false);
-					// left-hand side wins the right to display its error messages.
-					// too bad they're all gone. try parsing again and outputting them.
-					lhs->ParseRetainingStateOnError(result, input);
+					result.PopParserMessaging(true, lhsParseMessages);
 				}
 
 				return false;
@@ -2635,8 +2631,12 @@ namespace LibCC
 
 			void SetCursor(const ScriptCursor& c)
 			{
+				int oldPos = m_cursor.pos;
+				if(oldPos > c.pos)
+					UpdateMeasurements();
 				m_cursor = c;
-				UpdateMeasurements();
+				if(oldPos < c.pos)
+					UpdateMeasurements();
 			}
 
 			virtual const std::wstring& GetRawInput() const
@@ -2644,9 +2644,7 @@ namespace LibCC
 				return m_script;
 			}
 
-			// our "stack" of measurement ops.
-			// the pair is position_low, position_high. every time the cursor moves, every item on this stack gets updated. TODO: optimize that, jesus.
-			// TOP of the stack is back().
+			// our "stack" of measurement ops. just like BasicScriptReader
 			std::vector<std::pair<int, int> > m_measurements;
 
 			virtual void PushMeasure()
@@ -2654,9 +2652,9 @@ namespace LibCC
 				m_measurements.push_back(std::pair<int, int>(m_cursor.pos, m_cursor.pos));
 			}
 
-			// after calling PushMeasure(), use this to end the measurement operation. it returns the maximum span that the cursor traveled during the measurement.
 			virtual int PopMeasure()
 			{
+				UpdateMeasurements();
 				int ret = m_measurements.back().second - m_measurements.back().first;
 				m_measurements.pop_back();
 				return ret;
@@ -2738,8 +2736,6 @@ namespace LibCC
 					m_cursor.column ++;
 					m_cursor.pos ++;
 				}
-
-				UpdateMeasurements();
 			}
 
 			ScriptCursor m_cursor;

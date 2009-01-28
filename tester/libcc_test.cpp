@@ -73,10 +73,10 @@ void TestCollection()
 	//RunTest(LogTest);
 	//RunTest(AllocationTrackerTest);
 
-  RunTest(StringTest);
-	RunTest(StringCompilationTest);
-	RunTest(FormatTest);
-  RunTest(FormatBenchmark);
+ // RunTest(StringTest);
+	//RunTest(StringCompilationTest);
+	//RunTest(FormatTest);
+ // RunTest(FormatBenchmark);
 
 	//RunTest(RegistryTest); // careful with this of course.
   //RunTest(StatusTest);
