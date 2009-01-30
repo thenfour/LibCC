@@ -1302,37 +1302,51 @@ namespace LibCC
 		// ExistsOutput
 		// result is actually thrown away, but if it's assigned at all, then the bool reference is set.
 		// you need to use the template var for this. ExistsOutput<wchar_t>(b);
-		template<typename Tin>
-		struct ExistsOutput :
+		template<typename Tin, typename Tout>
+		struct ExistsOutputT :
 			public OutputBase<Tin>
 		{
-			bool& output;
-			bool outputBackup;
+			Tout valToSet;
+			Tout& output;
+			Tout outputBackup;
 			Tin dummy;
 
-			ExistsOutput(bool& output_) :
+			ExistsOutputT(Tout& output_, const Tout& valToSet_) :
 				output(output_),
-				outputBackup(output)
+				outputBackup(output),
+				valToSet(valToSet_)
 			{
 			}
+
 			void Save(const Tin& val)
 			{
-				output = true;
+				output = valToSet;
 			}
 			void SaveState() { outputBackup = output; }
 			void RestoreState() { output = outputBackup; }
 			OutputBase<Tin>* NewClone() const
 			{
-				return new ExistsOutput<Tin>(*this);
+				return new ExistsOutputT<Tin, Tout>(*this);
 			}
-			//Tin& Value() { return dummy; }
 			const Tin& Value() const { return dummy; }
 		};
 
-		template<typename Tin>
-		ExistsOutput<Tin> ExistsOutput2(const Tin& throwaway, bool& outputVar)
+		template<typename Tin, typename Tout>
+		ExistsOutputT<Tin, Tout> ExistsOutput(const Tin& throwaway, Tout& outputVar, const Tout& valToSet)
 		{
-			return ExistsOutput<Tin>(outputVar);
+			return ExistsOutputT<Tin, Tout>(outputVar, valToSet);
+		}
+
+		template<typename Tin>
+		ExistsOutputT<Tin, bool> ExistsOutput(const Tin& throwaway, bool& outputVar)
+		{
+			return ExistsOutputT<Tin, bool>(outputVar, true);
+		}
+
+		template<typename Tin>
+		ExistsOutputT<Tin, bool> ExistsOutput(const Tin& throwaway, bool& outputVar, bool valToSet)
+		{
+			return ExistsOutputT<Tin, bool>(outputVar, valToSet);
 		}
 
 		// InserterOutput
