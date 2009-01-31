@@ -83,7 +83,7 @@ struct Expression : public ParserWithOutput<int, Expression>
 			}
 			++ itOperator;
 		}
-		output->Save(temp);
+		output->Save(input, temp);
 		return true;
 	}
 };
@@ -108,7 +108,7 @@ int ParseExpression(const std::wstring& exp)
             return false;// could not parse a char FAIL
  
         wchar_t ch = input.CurrentChar();
-        output->Save(ch);// store the character we parsed.
+        output->Save(input, ch);// store the character we parsed.
         input.Advance();// tell the script to point to the next character.
         return true;// parse success.
     }

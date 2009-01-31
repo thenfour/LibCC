@@ -385,7 +385,7 @@ namespace LibCC
 			virtual bool ParseRetainingStateOnError(ParseResult& result, ScriptReader& input)
 			{
 				ScriptCursor oldCursor = input.GetCursorCopy();
-				SaveOutputState();
+				SaveOutputState(input);
 
 				if(result.IsTraceEnabled() && IsTraceEnabled)
 				{
@@ -420,7 +420,7 @@ namespace LibCC
 						result.DecrementTraceIndent();
 						result.Trace(L"}");
 					}
-					RestoreOutputState();
+					RestoreOutputState(input);
 					input.SetCursor(oldCursor);
 					return false;
 				}
@@ -442,8 +442,8 @@ namespace LibCC
 
 			virtual ParserBase* NewClone() const = 0;
 
-			virtual void SaveOutputState() = 0;
-			virtual void RestoreOutputState() = 0;
+			virtual void SaveOutputState(ScriptReader& input) = 0;
+			virtual void RestoreOutputState(ScriptReader& input) = 0;
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input) = 0;
 
@@ -582,18 +582,18 @@ namespace LibCC
 			virtual ParserBase* NewClone() const { return new Passthrough(*this); }
 			virtual std::wstring GetParserName() const { return m_name; }
 
-			virtual void SaveOutputState()
+			virtual void SaveOutputState(ScriptReader& input)
 			{
 				if(m_child.IsEmpty())
 					return;
-				m_child->SaveOutputState();
+				m_child->SaveOutputState(input);
 			}
 
-			virtual void RestoreOutputState()
+			virtual void RestoreOutputState(ScriptReader& input)
 			{
 				if(m_child.IsEmpty())
 					return;
-				m_child->RestoreOutputState();
+				m_child->RestoreOutputState(input);
 			}
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
@@ -657,18 +657,18 @@ namespace LibCC
 			virtual ParserBase* NewClone() const { return new Break(*this); }
 			virtual std::wstring GetParserName() const { return L"Breakpoint"; }
 
-			virtual void SaveOutputState()
+			virtual void SaveOutputState(ScriptReader& input)
 			{
 				if(m_child.IsEmpty())
 					return;
-				m_child->SaveOutputState();
+				m_child->SaveOutputState(input);
 			}
 
-			virtual void RestoreOutputState()
+			virtual void RestoreOutputState(ScriptReader& input)
 			{
 				if(m_child.IsEmpty())
 					return;
-				m_child->RestoreOutputState();
+				m_child->RestoreOutputState(input);
 			}
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
@@ -710,8 +710,8 @@ namespace LibCC
 
 			virtual ParserBase* NewClone() const { return new ParseMsg(*this); }
 			virtual std::wstring GetParserName() const { return L"ParseMsg"; }
-			virtual void SaveOutputState() { }
-			virtual void RestoreOutputState() { }
+			virtual void SaveOutputState(ScriptReader& input) { }
+			virtual void RestoreOutputState(ScriptReader& input) { }
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
@@ -762,8 +762,8 @@ namespace LibCC
 				return LibCC::FormatW(L"Occurrences<%,%>").i(MinimumOccurrences).s(skipBehavior).Str();
 			}
 
-			virtual void SaveOutputState() { if(m_child.IsValid()) m_child->SaveOutputState(); }
-			virtual void RestoreOutputState() { if(m_child.IsValid()) m_child->RestoreOutputState(); }
+			virtual void SaveOutputState(ScriptReader& input) { if(m_child.IsValid()) m_child->SaveOutputState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { if(m_child.IsValid()) m_child->RestoreOutputState(input); }
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
@@ -854,8 +854,8 @@ namespace LibCC
 			virtual ParserBase* NewClone() const { return new Not(*this); }
 			virtual std::wstring GetParserName() const { return L"Not"; }
 
-			virtual void SaveOutputState() { if(m_child.IsValid()) m_child->SaveOutputState(); }
-			virtual void RestoreOutputState() { if(m_child.IsValid()) m_child->RestoreOutputState(); }
+			virtual void SaveOutputState(ScriptReader& input) { if(m_child.IsValid()) m_child->SaveOutputState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { if(m_child.IsValid()) m_child->RestoreOutputState(input); }
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
@@ -907,8 +907,8 @@ namespace LibCC
 			virtual ParserBase* NewClone() const { return new Optional(*this); }
 			virtual std::wstring GetParserName() const { return L"Optional"; }
 
-			virtual void SaveOutputState() { if(m_child.IsValid()) m_child->SaveOutputState(); }
-			virtual void RestoreOutputState() { if(m_child.IsValid()) m_child->RestoreOutputState(); }
+			virtual void SaveOutputState(ScriptReader& input) { if(m_child.IsValid()) m_child->SaveOutputState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { if(m_child.IsValid()) m_child->RestoreOutputState(input); }
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
@@ -983,16 +983,16 @@ namespace LibCC
 				return LibCC::FormatW(L"Sequence<%>").s(skipWhitespaceBetween ? L"skip" : L"no skip").Str();
 			}
 
-			virtual void SaveOutputState()
+			virtual void SaveOutputState(ScriptReader& input)
 			{
-				lhs->SaveOutputState();
-				rhs->SaveOutputState();
+				lhs->SaveOutputState(input);
+				rhs->SaveOutputState(input);
 			}
 
-			virtual void RestoreOutputState()
+			virtual void RestoreOutputState(ScriptReader& input)
 			{
-				lhs->RestoreOutputState();
-				rhs->RestoreOutputState();
+				lhs->RestoreOutputState(input);
+				rhs->RestoreOutputState(input);
 			}
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
@@ -1073,16 +1073,16 @@ namespace LibCC
 			virtual ParserBase* NewClone() const { return new Or(*this); }
 			virtual std::wstring GetParserName() const { return L"Or"; }
 
-			virtual void SaveOutputState()
+			virtual void SaveOutputState(ScriptReader& input)
 			{
-				lhs->SaveOutputState();
-				rhs->SaveOutputState();
+				lhs->SaveOutputState(input);
+				rhs->SaveOutputState(input);
 			}
 
-			virtual void RestoreOutputState()
+			virtual void RestoreOutputState(ScriptReader& input)
 			{
-				lhs->RestoreOutputState();
-				rhs->RestoreOutputState();
+				lhs->RestoreOutputState(input);
+				rhs->RestoreOutputState(input);
 			}
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
@@ -1155,8 +1155,8 @@ namespace LibCC
 			virtual ParserBase* NewClone() const { return new Eof(*this); }
 			virtual std::wstring GetParserName() const { return L"EOF"; }
 
-			virtual void SaveOutputState() { }
-			virtual void RestoreOutputState() { }
+			virtual void SaveOutputState(ScriptReader& input) { }
+			virtual void RestoreOutputState(ScriptReader& input) { }
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
@@ -1179,9 +1179,9 @@ namespace LibCC
 		{
 			//virtual Tin& Value() = 0; <-- if you need to set data, use Save().
 			virtual const Tin& Value() const = 0;
-			virtual void Save(const Tin& val) = 0;
-			virtual void SaveState() = 0;
-			virtual void RestoreState() = 0;
+			virtual void Save(ScriptReader& input, const Tin& val) = 0;
+			virtual void SaveState(ScriptReader& input) = 0;
+			virtual void RestoreState(ScriptReader& input) = 0;
 			virtual OutputBase<Tin>* NewClone() const = 0;
 		};
 
@@ -1258,10 +1258,9 @@ namespace LibCC
 			public OutputBase<Tin>
 		{
 			Tin dummy;
-			void Save(const Tin& val) { }
-			void SaveState() { }
-			void RestoreState() { }
-			//Tin& Value() { return dummy; }
+			void Save(ScriptReader& input, const Tin& val) { }
+			void SaveState(ScriptReader& input) { }
+			void RestoreState(ScriptReader& input) { }
 			const Tin& Value() const { return dummy; }
 			OutputBase<Tin>* NewClone() const { return new NullOutput<Tin>(*this); }
 		};
@@ -1279,12 +1278,12 @@ namespace LibCC
 				output(output_)
 			{
 			}
-			void Save(const Tin& val)
+			void Save(ScriptReader& input, const Tin& val)
 			{
 				output = val;
 			}
-			void SaveState() { outputBackup = output; }
-			void RestoreState() { output = outputBackup; }
+			void SaveState(ScriptReader& input) { outputBackup = output; }
+			void RestoreState(ScriptReader& input) { output = outputBackup; }
 			OutputBase<Tin>* NewClone() const
 			{
 				return new RefOutputT<Tin>(*this);
@@ -1318,12 +1317,12 @@ namespace LibCC
 			{
 			}
 
-			void Save(const Tin& val)
+			void Save(ScriptReader& input, const Tin& val)
 			{
 				output = valToSet;
 			}
-			void SaveState() { outputBackup = output; }
-			void RestoreState() { output = outputBackup; }
+			void SaveState(ScriptReader& input) { outputBackup = output; }
+			void RestoreState(ScriptReader& input) { output = outputBackup; }
 			OutputBase<Tin>* NewClone() const
 			{
 				return new ExistsOutputT<Tin, Tout>(*this);
@@ -1368,13 +1367,13 @@ namespace LibCC
 				outputInserter(inserter)
 			{
 			}
-			void Save(const Tin& val)
+			void Save(ScriptReader& input, const Tin& val)
 			{
 				*outputInserter = val;
 				++outputInserter;
 			}
-			void SaveState() { outputContainerBackup = outputContainer; }
-			void RestoreState() { outputContainer = outputContainerBackup; }
+			void SaveState(ScriptReader& input) { outputContainerBackup = outputContainer; }
+			void RestoreState(ScriptReader& input) { outputContainer = outputContainerBackup; }
 			OutputBase<Tin>* NewClone() const
 			{
 				return new InserterOutputT<Tin, Tinserter, Tcontainer>(*this);
@@ -1413,6 +1412,95 @@ namespace LibCC
 			return InserterOutput<Tin>(outputVar, std::back_inserter(outputVar));
 		}
 
+		// TeeOutput(ExistsOutput(), SomethingElse())
+		// branches output into two
+		template<typename Tin>
+		struct TeeOutputT :
+			public OutputBase<Tin>
+		{
+			OutputPtr<Tin> outputA;
+			OutputPtr<Tin> outputB;
+
+			TeeOutputT(const OutputBase<Tin>& outputA_, const OutputBase<Tin>& outputB_) :
+				outputA(outputA_),
+				outputB(outputB_)
+			{
+			}
+
+			const Tin& Value() const { return outputA->Value(); }
+
+			void Save(ScriptReader& input, const Tin& val)
+			{
+				outputA->Save(input, val);
+				outputB->Save(input, val);
+			}
+			void SaveState(ScriptReader& input)
+			{
+				outputA->SaveState(input);
+				outputB->SaveState(input);
+			}
+			void RestoreState(ScriptReader& input)
+			{
+				outputA->RestoreState(input);
+				outputB->RestoreState(input);
+			}
+			OutputBase<Tin>* NewClone() const
+			{
+				return new TeeOutputT<Tin>(*this);
+			}
+		};
+
+		template<typename Tin>
+		TeeOutputT<Tin> TeeOutput(const OutputBase<Tin>& a, const OutputBase<Tin>& b)
+		{
+			return TeeOutputT<Tin>(a, b);
+		}
+
+		// ContextOutput - puts script cursor context somewhere. only saved if the parse was successful (on Save()).
+		template<typename Tin>
+		struct ContextOutputT :
+			public OutputBase<Tin>
+		{
+			OutputPtr<ScriptCursor> output;
+			ScriptCursor cursorToUse;
+			Tin dummy;
+
+			ContextOutputT(OutputBase<ScriptCursor>& output_) :
+				output(output_)
+			{
+			}
+
+			void Save(ScriptReader& input, const Tin& val)
+			{
+				output->Save(input, cursorToUse);
+			}
+			void SaveState(ScriptReader& input)
+			{
+				// i know that if we're saving state then the script is at the BEGINNING of this parse. so use THIS, not the 
+				// position given in Save().
+				cursorToUse = input.GetCursorCopy();
+
+				output->SaveState(input);
+			}
+			void RestoreState(ScriptReader& input) { output->RestoreState(input); }
+			OutputBase<Tin>* NewClone() const
+			{
+				return new ContextOutputT<Tin>(*this);
+			}
+			const Tin& Value() const { return dummy; }
+		};
+
+		template<typename Tin>
+		ContextOutputT<Tin> ContextOutput(const Tin& throwaway, OutputBase<ScriptCursor>& output_)
+		{
+			return ContextOutputT<Tin>(output_);
+		}
+
+		template<typename Tin>
+		ContextOutputT<Tin> ContextOutput(const Tin& throwaway, ScriptCursor& output_)
+		{
+			return ContextOutput<Tin>(throwaway, RefOutput(output_));
+		}
 
 		// Some basic utility parsers ///////////////////////////////////////////////////////////////////////////////////////
 		// this class used to end on line 711
@@ -1468,8 +1556,8 @@ namespace LibCC
 					.Str();
 			}
 
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
@@ -1481,7 +1569,7 @@ namespace LibCC
 				}
 
 				parsed = input.CurrentChar();
-				output->Save(parsed);
+				output->Save(input, parsed);
 				input.Advance();
 
 				if(match == 0)
@@ -1548,8 +1636,8 @@ namespace LibCC
 					.Str();
 			}
 
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
@@ -1581,7 +1669,7 @@ namespace LibCC
 					parsed.push_back(ch);
 				}
 
-				output->Save(parsed);
+				output->Save(input, parsed);
 				return true;// made it all the way
 			}
 
@@ -1602,8 +1690,8 @@ namespace LibCC
 			virtual ParserBase* NewClone() const { return new Space(*this); }
 			virtual std::wstring GetParserName() const { return L"Space"; }
 
-			virtual void SaveOutputState() { }
-			virtual void RestoreOutputState() { }
+			virtual void SaveOutputState(ScriptReader& input) { }
+			virtual void RestoreOutputState(ScriptReader& input) { }
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
@@ -1679,8 +1767,8 @@ namespace LibCC
 					.qs(chars)
 					.Str();
 			}
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
@@ -1698,7 +1786,7 @@ namespace LibCC
 					return false;
 				}
 
-				output->Save(parsed);
+				output->Save(input, parsed);
 				input.Advance();
 				return true;
 			}
@@ -1782,8 +1870,8 @@ namespace LibCC
 					.c(upper)
 					.Str();
 			}
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
@@ -1802,7 +1890,7 @@ namespace LibCC
 						return false;
 				}
 
-				output->Save(parsed);
+				output->Save(input, parsed);
 				input.Advance();
 				return true;
 			}
@@ -1823,8 +1911,8 @@ namespace LibCC
 			virtual ParserBase* NewClone() const { return new Eol(*this); }
 			virtual std::wstring GetParserName() const { return L"EOL"; }
 
-			virtual void SaveOutputState() { }
-			virtual void RestoreOutputState() { }
+			virtual void SaveOutputState(ScriptReader& input) { }
+			virtual void RestoreOutputState(ScriptReader& input) { }
 
 			// basically we match \r, \n, or \r\n
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
@@ -1850,8 +1938,8 @@ namespace LibCC
 			OutputPtr<wchar_t> output;
 			StringEscapeParser() { output.Assign(NullOutput<wchar_t>()); }
 			StringEscapeParser(const OutputPtr<wchar_t>& output_) : output(output_) { }
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 			virtual ParserBase* NewClone() const { return new StringEscapeParser(*this); }
 			virtual std::wstring GetParserName() const { return L"StringEscapeParser"; }
 
@@ -1866,22 +1954,22 @@ namespace LibCC
 				switch(escapeChar)
 				{
 				case 'r':
-					output->Save('\r');
+					output->Save(input, '\r');
 					return true;
 				case 'n':
-					output->Save('\n');
+					output->Save(input, '\n');
 					return true;
 				case 't':
-					output->Save('\t');
+					output->Save(input, '\t');
 					return true;
 				case '\"':
-					output->Save('\"');
+					output->Save(input, '\"');
 					return true;
 				case '\\':
-					output->Save('\\');
+					output->Save(input, '\\');
 					return true;
 				case '\'':
-					output->Save('\'');
+					output->Save(input, '\'');
 					return true;
 				// TODO: handle other escape sequences
 				default:
@@ -1899,8 +1987,8 @@ namespace LibCC
 			StringParser() { output.Assign(NullOutput<std::wstring>()); }
 			StringParser(const OutputPtr<std::wstring>& output_) : output(output_) { }
 			StringParser(std::wstring& output_) { output.Assign(RefOutput(output_)); }
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"StringParser\r\n"; }
 			virtual ParserBase* NewClone() const { return new StringParser(*this); }
 			virtual std::wstring GetParserName() const { return L"StringParser"; }
@@ -1955,7 +2043,7 @@ namespace LibCC
 				Parser p = Passthrough(L"*StringParser", false, Or(singleQuotes, doubleQuotes));
 				bool ret = p.ParseRetainingStateOnError(result, input);
 				if(ret)
-					output->Save(parsed);
+					output->Save(input, parsed);
 				return ret;
 			}
 		};
@@ -2025,8 +2113,8 @@ namespace LibCC
 			{
 				return LibCC::FormatW(L"UnsignedIntegerParser(base=%)").i(base).Str();
 			}
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 
 			virtual std::wstring Dump(int indentLevel)
 			{
@@ -2048,7 +2136,7 @@ namespace LibCC
 					out *= base;
 					out += CharToDigit(*it);
 				}
-				output->Save(out);
+				output->Save(input, out);
 				return true;
 			}
 		};
@@ -2074,8 +2162,8 @@ namespace LibCC
 			UIntegerHexT(const OutputPtr<IntT>& output_) : output(output_) { }
 			virtual ParserBase* NewClone() const { return new UIntegerHexT<IntT>(*this); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"UIntegerHexT\r\n"; }
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 
 			virtual std::wstring GetParserName() const
 			{
@@ -2103,8 +2191,8 @@ namespace LibCC
 			UIntegerOctT(const OutputPtr<IntT>& output_) : output(output_) { }
 			virtual ParserBase* NewClone() const { return new UIntegerOctT<IntT>(*this); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"UIntegerOctT\r\n"; }
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 
 			virtual std::wstring GetParserName() const
 			{
@@ -2140,8 +2228,8 @@ namespace LibCC
 			UIntegerDecT(const OutputPtr<IntT>& output_) : output(output_) { }
 			virtual ParserBase* NewClone() const { return new UIntegerDecT<IntT>(*this); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"UIntegerDecT\r\n"; }
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 
 			virtual std::wstring GetParserName() const
 			{
@@ -2169,8 +2257,8 @@ namespace LibCC
 			UIntegerBinT(const OutputPtr<IntT>& output_) : output(output_) { }
 			virtual ParserBase* NewClone() const { return new UIntegerBinT<IntT>(*this); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"UIntegerBinT\r\n"; }
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 
 			virtual std::wstring GetParserName() const
 			{
@@ -2203,8 +2291,8 @@ namespace LibCC
 			SIntegerHexT(const OutputPtr<IntT>& output_) : output(output_) { }
 			virtual ParserBase* NewClone() const { return new SIntegerHexT<IntT>(*this); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"SIntegerHexT\r\n"; }
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 
 			virtual std::wstring GetParserName() const
 			{
@@ -2225,7 +2313,7 @@ namespace LibCC
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
-				output->Save(sign == '-' ? -temp : temp);
+				output->Save(input, sign == '-' ? -temp : temp);
 				return true;
 			}
 		};
@@ -2245,8 +2333,8 @@ namespace LibCC
 			SIntegerOctT(const OutputPtr<IntT>& output_) : output(output_) { }
 			virtual ParserBase* NewClone() const { return new SIntegerOctT<IntT>(*this); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"SIntegerOctT\r\n"; }
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 
 			virtual std::wstring GetParserName() const
 			{
@@ -2269,7 +2357,7 @@ namespace LibCC
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
-				output->Save(sign == '-' ? -temp : temp);
+				output->Save(input, sign == '-' ? -temp : temp);
 				return true;
 			}
 		};
@@ -2289,8 +2377,8 @@ namespace LibCC
 			SIntegerBinT(const OutputPtr<IntT>& output_) : output(output_) { }
 			virtual ParserBase* NewClone() const { return new SIntegerBinT<IntT>(*this); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"SIntegerBinT\r\n"; }
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 
 			virtual std::wstring GetParserName() const
 			{
@@ -2311,7 +2399,7 @@ namespace LibCC
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
-				output->Save(sign == '-' ? -temp : temp);
+				output->Save(input, sign == '-' ? -temp : temp);
 				return true;
 			}
 		};
@@ -2331,8 +2419,8 @@ namespace LibCC
 			SIntegerDecT(const OutputPtr<IntT>& output_) : output(output_) { }
 			virtual ParserBase* NewClone() const { return new SIntegerDecT<IntT>(*this); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"SIntegerDecT\r\n"; }
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 
 			virtual std::wstring GetParserName() const
 			{
@@ -2352,7 +2440,7 @@ namespace LibCC
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
-				output->Save(sign == '-' ? -temp : temp);
+				output->Save(input, sign == '-' ? -temp : temp);
 				return true;
 			}
 		};
@@ -2437,8 +2525,8 @@ namespace LibCC
 
 			virtual ParserBase* NewClone() const { return new UnsignedRationalParserT<T>(*this); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"UnsignedRationalParserT\r\n"; }
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 
 			virtual std::wstring GetParserName() const
 			{
@@ -2517,7 +2605,7 @@ namespace LibCC
 					}
 				}
 
-				output->Save(res);
+				output->Save(input, res);
 
 				return true;
 			}
@@ -2557,8 +2645,8 @@ namespace LibCC
 
 			virtual ParserBase* NewClone() const { return new SignedRationalParserT<T>(*this); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"SignedRationalParserT\r\n"; }
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 
 			virtual std::wstring GetParserName() const
 			{
@@ -2577,7 +2665,7 @@ namespace LibCC
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
-				output->Save(sign == '-' ? -temp : temp);
+				output->Save(input, sign == '-' ? -temp : temp);
 				return true;
 			}
 		};
@@ -2768,8 +2856,8 @@ namespace LibCC
 		{
 			OutputPtr<Toutput> output;
 			virtual ParserBase* NewClone() const { return new Tderived(*(Tderived*)this); }
-			virtual void SaveOutputState() { output->SaveState(); }
-			virtual void RestoreOutputState() { output->RestoreState(); }
+			virtual void SaveOutputState(ScriptReader& input) { output->SaveState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { output->RestoreState(input); }
 		};
 
 
