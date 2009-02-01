@@ -29,6 +29,16 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 /*
+	NOTE: the reason that I have to use a ParserBase with NewClone is because of
+	the overloaded operators. I cannot just use any old parser class and expect to use
+	operator * with it like
+
+	template<typename Tlhs, typename Trhs>
+	Sequence<Tlhs, Trhs> operator >> (const Tlhs& lhs, const Trhs& rhs)
+	{
+		... how could this possibly work? even if i can use a base class, i need to be able to copy (thus, store,)
+		a copy of lhs and rhs in the return parser. I need to know their full types.
+	}
 
 */
 
