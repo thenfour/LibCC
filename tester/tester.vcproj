@@ -202,6 +202,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\parse_benchmark.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\parsetest.cpp"
 				>
 			</File>
@@ -294,6 +298,10 @@
 		</Filter>
 		<File
 			RelativePath=".\libcc_test.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\parse_benchmark.txt"
 			>
 		</File>
 		<File

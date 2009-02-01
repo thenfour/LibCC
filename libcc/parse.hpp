@@ -2771,10 +2771,24 @@ namespace LibCC
 				}
 			}
 
-			bool CursorStartsWith(const std::wstring& s)
+			bool CursorStartsWith(const wchar_t* s)
 			{
-				return m_cursor.pos == m_script.find(s, m_cursor.pos);
+				const wchar_t* i = m_script.c_str() + m_cursor.pos;
+				while(true)
+				{
+					if(*s == 0)
+						return true;
+					if(*s != *i)
+						return false;
+					++ s;
+					++ i;
+				}
 			}
+
+			//bool CursorStartsWith(const std::wstring& s)
+			//{
+			//	return m_cursor.pos == m_script.find(s, m_cursor.pos);
+			//}
 
 			void AdvancePastComments()
 			{

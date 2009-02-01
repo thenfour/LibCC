@@ -9,6 +9,7 @@ extern bool StringTest();
 extern bool PathMatchSpecTest();
 extern bool FormatTest();
 extern bool FormatBenchmark();
+extern bool ParseBenchmark();
 extern void LogTest();
 extern bool BlobTest();
 extern bool AllocationTrackerTest();
@@ -67,20 +68,21 @@ bool RunTest__(Fn f, const char* sz)
 void TestCollection()
 {
 	//RunTest(BlobTest);
-	
-	RunTest(ParseTest);
-	
+
+	//RunTest(ParseTest);
+	RunTest(ParseBenchmark);
+
 	//RunTest(LogTest);
 	//RunTest(AllocationTrackerTest);
 
- // RunTest(StringTest);
+	// RunTest(StringTest);
 	//RunTest(StringCompilationTest);
 	//RunTest(FormatTest);
- // RunTest(FormatBenchmark);
+	// RunTest(FormatBenchmark);
 
 	//RunTest(RegistryTest); // careful with this of course.
-  //RunTest(StatusTest);
-  //RunTest(PathMatchSpecTest);
+	//RunTest(StatusTest);
+	//RunTest(PathMatchSpecTest);
 }
 
 int _tmain(int argc, _TCHAR* argv[])
