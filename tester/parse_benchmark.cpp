@@ -42,10 +42,10 @@ struct Element
 };
 
 
-struct AttributeParser740 : ParserWithOutput<Attribute, AttributeParser740>
+template<typename Toutput>
+struct AttributeParser740T : ParserWithOutput<Toutput, AttributeParser740T<Toutput> >
 {
-	AttributeParser740(const OutputPtr<Attribute>& output_) { output.Assign(output_); }
-	AttributeParser740(const OutputBase<Attribute>& output_) { output.Assign(output_); }
+	AttributeParser740T(const Toutput& output_) : ParserWithOutput(output_) { }
 	bool Parse(ParseResult& result, ScriptReader& input)
 	{
 		Attribute temp;
@@ -58,15 +58,20 @@ struct AttributeParser740 : ParserWithOutput<Attribute, AttributeParser740>
 			);
 		if(!p.ParseRetainingStateOnError(result, input))
 			return false;
-		output->Save(input, temp);
+		output.Save(input, temp);
 		return true;
 	}
 };
-
-struct ElementParser740 : ParserWithOutput<Element, ElementParser740>
+template<typename Toutput>
+AttributeParser740T<Toutput> AttributeParser740(const Toutput& output_)
 {
-	ElementParser740(const OutputPtr<Element>& output_) { output.Assign(output_); }
-	ElementParser740(const OutputBase<Element>& output_) { output.Assign(output_); }
+	return AttributeParser740T<Toutput>(output_);
+}
+
+template<typename Toutput>
+struct ElementParser740T : ParserWithOutput<Toutput, ElementParser740T<Toutput> >
+{
+	ElementParser740T(const Toutput& output_) : ParserWithOutput(output_) { }
 	bool Parse(ParseResult& result, ScriptReader& input)
 	{
 		Element temp;
@@ -103,10 +108,17 @@ struct ElementParser740 : ParserWithOutput<Element, ElementParser740>
 			));
 		if(!p.ParseRetainingStateOnError(result, input))
 			return false;
-		output->Save(input, temp);
+		output.Save(input, temp);
 		return true;
 	}
 };
+
+template<typename Toutput>
+ElementParser740T<Toutput> ElementParser740(const Toutput& output_)
+{
+	return ElementParser740T<Toutput>(output_);
+}
+
 
 
 inline std::wstring LoadTextFileResource(HINSTANCE hInstance, LPCTSTR szResName, LPCTSTR szResType)
@@ -137,6 +149,8 @@ bool ParseBenchmark()
 	// for version 740, 50 passes, i get results between 4.89 and 5.02 seconds.
 	// after optimizing AdvancePastComments()
 	// between 1.04 and 1.11 seconds. wow, huge improvement there.
+	// now changing output to templated.
+	// between  0.78 and 0.83
 	std::cout << std::endl << "Parse big typical file:" << std::endl;
 	StartBenchmark(t);
 	for(int n = 0; n < MaxNum; n ++)

@@ -8,112 +8,6 @@
 using namespace LibCC::Parse;
 
 
-// holds all messages in memory.
-		struct MyParseResult :
-			ParseResult
-		{
-			int traceIndentLevel;
-			bool traceEnabled;
-
-			MyParseResult() :
-				traceIndentLevel(0),
-				traceEnabled(false)
-			{
-			}
-			virtual void IncrementTraceIndent() { ++traceIndentLevel; }
-			virtual void DecrementTraceIndent() { --traceIndentLevel; }
-			virtual void SetTraceEnabled(bool b) { traceEnabled = b; }
-			virtual bool IsTraceEnabled() const { return traceEnabled; }
-
-			// parse debugging trace messages
-			virtual void Trace(const std::wstring& msg)
-			{
-				std::wstring x;
-				for(int i = 0; i < traceIndentLevel; ++ i)
-				{
-					x.append(L"  ");
-				}
-				x.append(msg);
-				
-				TestMessage(msg);
-			}
-
-			// parser evaluation messages
-			virtual void ParserMessage(const std::wstring& msg)
-			{
-				TestMessage(msg);
-			}
-		};
-
-
-struct Expression : public ParserWithOutput<int, Expression>
-{
-	Expression(const OutputPtr<int>& output_) { output.Assign(output_); }
-	bool Parse(ParseResult& result, ScriptReader& input)
-	{
-		std::vector<int> operands;
-		std::vector<wchar_t> operators;
-
-		Parser operandParser = (Char('(') + Expression(VectorOutput(operands)) + Char(')')) | CInteger(VectorOutput(operands));
-		Parser p = operandParser + *(CharOf(L"+-*/", VectorOutput(operators)) + operandParser);
-
-		if(!p.ParseRetainingStateOnError(result, input))
-			return false;
-
-		std::vector<int>::iterator itOperand = operands.begin();
-		std::vector<wchar_t>::iterator itOperator = operators.begin();
-		int temp = *itOperand;
-		while(itOperator != operators.end())
-		{
-			++ itOperand;
-			switch(*itOperator)
-			{
-			case '+':
-				temp += *itOperand;
-				break;
-			case '-':
-				temp -= *itOperand;
-				break;
-			case '/':
-				temp /= *itOperand;
-				break;
-			case '*':
-				temp *= *itOperand;
-				break;
-			}
-			++ itOperator;
-		}
-		output->Save(input, temp);
-		return true;
-	}
-};
-
-int ParseExpression(const std::wstring& exp)
-{
-	int ret = 0;
-	Expression(RefOutput(ret)).ParseSimple(exp);
-	return ret;
-}
-
-
- struct AnyChar :
-    public ParserWithOutput<wchar_t, AnyChar>
- {
-    AnyChar() { output.Assign(NullOutput<wchar_t>().NewClone()); }
-    AnyChar(const OutputPtr<wchar_t>& out) { output = out; }
- 
-    virtual bool Parse(ParseResult& result, ScriptReader& input)
-    {
-        if(input.IsEOF())
-            return false;// could not parse a char FAIL
- 
-        wchar_t ch = input.CurrentChar();
-        output->Save(input, ch);// store the character we parsed.
-        input.Advance();// tell the script to point to the next character.
-        return true;// parse success.
-    }
- };
-
 bool ParseTest()
 {
 	wchar_t ch = 0;
@@ -259,7 +153,7 @@ bool ParseTest()
 	TestAssert(!p.ParseSimple(L"X"));
 	TestAssert(!p.ParseSimple(L""));
 
-	p = Char(RefOutput(ch));
+	p = AnyChar(RefOutput(ch));
 	ch = 0;
 	TestAssert(p.ParseSimple(L"x"));
 
@@ -289,7 +183,7 @@ bool ParseTest()
 	TestAssert(p.ParseSimple(L"X"));
 	TestAssert(!p.ParseSimple(L""));
 
-	p = CharI(RefOutput(ch));
+	p = AnyCharI(RefOutput(ch));
 	ch = 0;
 	TestAssert(p.ParseSimple(L"x"));
 
