@@ -6,9 +6,50 @@
 #include "libcc\parse.hpp"
 #include "parse-743.hpp"
 #include "parse-745.hpp"
+#include "parse-746.hpp"
+#include "parse-746b.hpp"
 #include "libcc\timer.hpp"
 
 #include <sstream>
+
+
+// built in ParseResult class which holds all messages in memory.
+struct ParseResultStdout :
+	LibCC::Parse::ParseResult
+{
+	int traceIndentLevel;
+	bool traceEnabled;
+
+	ParseResultStdout() :
+		traceIndentLevel(0),
+		traceEnabled(false)
+	{
+	}
+	virtual void IncrementTraceIndent() { ++traceIndentLevel; }
+	virtual void DecrementTraceIndent() { --traceIndentLevel; }
+	virtual void SetTraceEnabled(bool b) { traceEnabled = b; }
+	virtual bool IsTraceEnabled() const { return traceEnabled; }
+
+	virtual void Trace(const std::wstring& msg)
+	{
+		LibCC::FormatW x;
+		for(int i = 0; i < traceIndentLevel; ++ i)
+		{
+			x(L"  ");
+		}
+		x(msg);
+		x(L"\r\n");
+		//std::wcout << x.CStr();
+		OutputDebugStringW(x.CStr());
+	}
+
+	virtual void RenderMessage(const std::wstring& msg)
+	{
+		//std::wcout << msg;
+		OutputDebugStringW(msg.c_str());
+		OutputDebugStringW(L"\r\n");
+	}
+};
 
 
 extern void StartBenchmark(LibCC::Timer& t);
@@ -44,81 +85,259 @@ struct Element
 };
 
 
-template<typename Toutput>
-struct AttributeParserHEADT : LibCC::Parse::ParserWithOutput<Toutput, AttributeParserHEADT<Toutput> >
+namespace LibCC
 {
-	AttributeParserHEADT(const Toutput& output_) : ParserWithOutput(output_) { }
-	bool Parse(LibCC::Parse::ParseResult& result, LibCC::Parse::ScriptReader& input)
+	namespace Parse
 	{
-		Attribute temp;
-		LibCC::Parse::Parser identifier = LibCC::Parse::OneOrMore(LibCC::Parse::CharRangeI('a', 'z', LibCC::Parse::CharToStringOutput(temp.name)) | LibCC::Parse::CharRange('0', '9', LibCC::Parse::CharToStringOutput(temp.name)));
-		LibCC::Parse::Parser p = identifier + LibCC::Parse::FalseMsg(L"Error; missing equal sign", LibCC::Parse::Char('='))
-			+ LibCC::Parse::Or
-			(
-				LibCC::Parse::CInteger2(temp.intValue),
-				LibCC::Parse::StringParser(temp.stringValue)
-			);
-		if(!p.ParseRetainingStateOnError(result, input))
-			return false;
-		output.Save(input, temp);
-		return true;
+		template<typename Toutput>
+		struct AttributeParserT : ParserWithOutput<Toutput, AttributeParserT<Toutput> >
+		{
+			virtual std::wstring GetParserName() const { return L"AttributeParser"; }
+			AttributeParserT(const Toutput& output_) : ParserWithOutput(output_) { }
+			bool Parse(ParseResult& result, ScriptReader& input)
+			{
+				Attribute temp;
+				Parser identifier = OneOrMore(CharRangeI('a', 'z', CharToStringOutput(temp.name)) | CharRange('0', '9', CharToStringOutput(temp.name)));
+				Parser p = identifier + FalseMsg(L"Error; missing equal sign", Char('='))
+					+ Or
+					(
+						CInteger2(temp.intValue),
+						StringParser(temp.stringValue)
+					);
+				if(!p.ParseRetainingStateOnError(result, input))
+					return false;
+				output.Save(input, temp);
+				return true;
+			}
+		};
+		template<typename Toutput>
+		AttributeParserT<Toutput> AttributeParser(const Toutput& output_)
+		{
+			return AttributeParserT<Toutput>(output_);
+		}
+
+		template<typename Toutput>
+		struct ElementParserT : ParserWithOutput<Toutput, ElementParserT<Toutput> >
+		{
+			virtual std::wstring GetParserName() const { return L"ElementParser"; }
+			ElementParserT(const Toutput& output_) : ParserWithOutput(output_) { }
+			bool Parse(ParseResult& result, ScriptReader& input)
+			{
+				Element temp;
+
+				Parser openingIdentifier = FalseMsg(L"Error; error parsing opening tag name",
+					OneOrMore(CharRangeI('a', 'z', CharToStringOutput(temp.openingName)) | CharRange('0', '9', CharToStringOutput(temp.openingName))));
+
+				Parser closingIdentifier = FalseMsg(L"Error; error parsing closing tag name",
+					OneOrMore(CharRangeI('a', 'z', CharToStringOutput(temp.closingName)) | CharRange('0', '9', CharToStringOutput(temp.closingName))));
+
+				Parser p =
+					FalseMsg(L"Error; error parsing element.",
+					(
+						Char('<')
+						>> openingIdentifier
+						+ ZeroOrMoreS
+						(
+							AttributeParser(VectorOutput(temp.m_attributes))
+						)
+						+ Or
+						(
+							FalseMsg(L"Error; error parsing simple closing tag", Str(L"/>")),
+							(
+								Char('>')
+								+ ZeroOrMoreS(ElementParser(VectorOutput(temp.m_children)))
+								+ FalseMsg(L"Error; error parsing closing tag",
+								(
+									Str(L"</")
+									>> closingIdentifier
+									>> Char('>')
+								))
+							)
+						)
+					));
+				if(!p.ParseRetainingStateOnError(result, input))
+					return false;
+				output.Save(input, temp);
+				return true;
+			}
+		};
+
+		template<typename Toutput>
+		ElementParserT<Toutput> ElementParser(const Toutput& output_)
+		{
+			return ElementParserT<Toutput>(output_);
+		}
 	}
-};
-template<typename Toutput>
-AttributeParserHEADT<Toutput> AttributeParserHEAD(const Toutput& output_)
-{
-	return AttributeParserHEADT<Toutput>(output_);
 }
 
-template<typename Toutput>
-struct ElementParserHEADT : LibCC::Parse::ParserWithOutput<Toutput, ElementParserHEADT<Toutput> >
+
+namespace LibCC_746
 {
-	ElementParserHEADT(const Toutput& output_) : ParserWithOutput(output_) { }
-	bool Parse(LibCC::Parse::ParseResult& result, LibCC::Parse::ScriptReader& input)
+	namespace Parse
 	{
-		Element temp;
-
-		LibCC::Parse::Parser openingIdentifier = LibCC::Parse::FalseMsg(L"Error; error parsing opening tag name",
-			LibCC::Parse::OneOrMore(LibCC::Parse::CharRangeI('a', 'z', LibCC::Parse::CharToStringOutput(temp.openingName)) | LibCC::Parse::CharRange('0', '9', LibCC::Parse::CharToStringOutput(temp.openingName))));
-
-		LibCC::Parse::Parser closingIdentifier = LibCC::Parse::FalseMsg(L"Error; error parsing closing tag name",
-			LibCC::Parse::OneOrMore(LibCC::Parse::CharRangeI('a', 'z', LibCC::Parse::CharToStringOutput(temp.closingName)) | LibCC::Parse::CharRange('0', '9', LibCC::Parse::CharToStringOutput(temp.closingName))));
-
-		LibCC::Parse::Parser p =
-			LibCC::Parse::FalseMsg(L"Error; error parsing element.",
-			(
-				LibCC::Parse::Char('<')
-				>> openingIdentifier
-				+ LibCC::Parse::ZeroOrMoreS
-				(
-					AttributeParserHEAD(LibCC::Parse::VectorOutput(temp.m_attributes))
-				)
-				+ LibCC::Parse::Or
-				(
-					LibCC::Parse::FalseMsg(L"Error; error parsing simple closing tag", LibCC::Parse::Str(L"/>")),
+		template<typename Toutput>
+		struct AttributeParserT : ParserWithOutput<Toutput, AttributeParserT<Toutput> >
+		{
+			AttributeParserT(const Toutput& output_) : ParserWithOutput(output_) { }
+			bool Parse(ParseResult& result, ScriptReader& input)
+			{
+				Attribute temp;
+				Parser identifier = OneOrMore(CharRangeI('a', 'z', CharToStringOutput(temp.name)) | CharRange('0', '9', CharToStringOutput(temp.name)));
+				Parser p = identifier + FalseMsg(L"Error; missing equal sign", Char('='))
+					+ Or
 					(
-						LibCC::Parse::Char('>')
-						+ LibCC::Parse::ZeroOrMoreS(ElementParserHEAD(LibCC::Parse::VectorOutput(temp.m_children)))
-						+ LibCC::Parse::FalseMsg(L"Error; error parsing closing tag",
-						(
-							LibCC::Parse::Str(L"</")
-							>> closingIdentifier
-							>> LibCC::Parse::Char('>')
-						))
-					)
-				)
-			));
-		if(!p.ParseRetainingStateOnError(result, input))
-			return false;
-		output.Save(input, temp);
-		return true;
-	}
-};
+						CInteger2(temp.intValue),
+						StringParser(temp.stringValue)
+					);
+				if(!p.ParseRetainingStateOnError(result, input))
+					return false;
+				output.Save(input, temp);
+				return true;
+			}
+		};
+		template<typename Toutput>
+		AttributeParserT<Toutput> AttributeParser(const Toutput& output_)
+		{
+			return AttributeParserT<Toutput>(output_);
+		}
 
-template<typename Toutput>
-ElementParserHEADT<Toutput> ElementParserHEAD(const Toutput& output_)
+		template<typename Toutput>
+		struct ElementParserT : ParserWithOutput<Toutput, ElementParserT<Toutput> >
+		{
+			ElementParserT(const Toutput& output_) : ParserWithOutput(output_) { }
+			bool Parse(ParseResult& result, ScriptReader& input)
+			{
+				Element temp;
+
+				Parser openingIdentifier = FalseMsg(L"Error; error parsing opening tag name",
+					OneOrMore(CharRangeI('a', 'z', CharToStringOutput(temp.openingName)) | CharRange('0', '9', CharToStringOutput(temp.openingName))));
+
+				Parser closingIdentifier = FalseMsg(L"Error; error parsing closing tag name",
+					OneOrMore(CharRangeI('a', 'z', CharToStringOutput(temp.closingName)) | CharRange('0', '9', CharToStringOutput(temp.closingName))));
+
+				Parser p =
+					FalseMsg(L"Error; error parsing element.",
+					(
+						Char('<')
+						>> openingIdentifier
+						+ ZeroOrMoreS
+						(
+							AttributeParser(VectorOutput(temp.m_attributes))
+						)
+						+ Or
+						(
+							FalseMsg(L"Error; error parsing simple closing tag", Str(L"/>")),
+							(
+								Char('>')
+								+ ZeroOrMoreS(ElementParser(VectorOutput(temp.m_children)))
+								+ FalseMsg(L"Error; error parsing closing tag",
+								(
+									Str(L"</")
+									>> closingIdentifier
+									>> Char('>')
+								))
+							)
+						)
+					));
+				if(!p.ParseRetainingStateOnError(result, input))
+					return false;
+				output.Save(input, temp);
+				return true;
+			}
+		};
+
+		template<typename Toutput>
+		ElementParserT<Toutput> ElementParser(const Toutput& output_)
+		{
+			return ElementParserT<Toutput>(output_);
+		}
+	}
+}
+
+
+
+
+namespace LibCC_746b
 {
-	return ElementParserHEADT<Toutput>(output_);
+	namespace Parse
+	{
+		template<typename Toutput>
+		struct AttributeParserT : ParserWithOutput<Toutput, AttributeParserT<Toutput> >
+		{
+			AttributeParserT(const Toutput& output_) : ParserWithOutput(output_) { }
+			bool Parse(ParseResult& result, ScriptReader& input)
+			{
+				Attribute temp;
+				Parser identifier = OneOrMore(CharRangeI('a', 'z', CharToStringOutput(temp.name)) | CharRange('0', '9', CharToStringOutput(temp.name)));
+				Parser p = identifier + FalseMsg(L"Error; missing equal sign", Char('='))
+					+ Or
+					(
+						CInteger2(temp.intValue),
+						StringParser(temp.stringValue)
+					);
+				if(!p.ParseRetainingStateOnError(result, input))
+					return false;
+				output.Save(input, temp);
+				return true;
+			}
+		};
+		template<typename Toutput>
+		AttributeParserT<Toutput> AttributeParser(const Toutput& output_)
+		{
+			return AttributeParserT<Toutput>(output_);
+		}
+
+		template<typename Toutput>
+		struct ElementParserT : ParserWithOutput<Toutput, ElementParserT<Toutput> >
+		{
+			ElementParserT(const Toutput& output_) : ParserWithOutput(output_) { }
+			bool Parse(ParseResult& result, ScriptReader& input)
+			{
+				Element temp;
+
+				Parser openingIdentifier = FalseMsg(L"Error; error parsing opening tag name",
+					OneOrMore(CharRangeI('a', 'z', CharToStringOutput(temp.openingName)) | CharRange('0', '9', CharToStringOutput(temp.openingName))));
+
+				Parser closingIdentifier = FalseMsg(L"Error; error parsing closing tag name",
+					OneOrMore(CharRangeI('a', 'z', CharToStringOutput(temp.closingName)) | CharRange('0', '9', CharToStringOutput(temp.closingName))));
+
+				Parser p =
+					FalseMsg(L"Error; error parsing element.",
+					(
+						Char('<')
+						>> openingIdentifier
+						+ ZeroOrMoreS
+						(
+							AttributeParser(VectorOutput(temp.m_attributes))
+						)
+						+ Or
+						(
+							FalseMsg(L"Error; error parsing simple closing tag", Str(L"/>")),
+							(
+								Char('>')
+								+ ZeroOrMoreS(ElementParser(VectorOutput(temp.m_children)))
+								+ FalseMsg(L"Error; error parsing closing tag",
+								(
+									Str(L"</")
+									>> closingIdentifier
+									>> Char('>')
+								))
+							)
+						)
+					));
+				if(!p.ParseRetainingStateOnError(result, input))
+					return false;
+				output.Save(input, temp);
+				return true;
+			}
+		};
+
+		template<typename Toutput>
+		ElementParserT<Toutput> ElementParser(const Toutput& output_)
+		{
+			return ElementParserT<Toutput>(output_);
+		}
+	}
 }
 
 
@@ -206,6 +425,7 @@ ElementParser745T<Toutput> ElementParser745(const Toutput& output_)
 
 
 
+
 struct AttributeParser743 : LibCC_743::Parse::ParserWithOutput<Attribute, AttributeParser743>
 {
 	AttributeParser743(const LibCC_743::Parse::OutputPtr<Attribute>& output_) { output.Assign(output_); }
@@ -287,6 +507,14 @@ inline std::wstring LoadTextFileResource(HINSTANCE hInstance, LPCTSTR szResName,
 
 bool ParseBenchmark()
 {
+	//{
+	//	LibCC::QuickStringList<char> a;
+	//	a.push_back("aoeusntahoesutnahoeusatoehusnatoheusnateohsanteohusantehusantehusanohusanotehusntoehusantehuasntoehusantoehusantoehu");
+	//	{
+	//		LibCC::QuickStringList<char> b(a);
+	//	}
+	//}
+
   LibCC::Timer t;
 #ifdef _DEBUG
   const int MaxNum = 5;
@@ -297,108 +525,79 @@ bool ParseBenchmark()
 	std::cout << std::endl << "LibCC::Parse benchmarks, " << MaxNum << " passes." << std::endl;
 
 	//////////////////////////////////
-	// for version 740, 50 passes, i get results between 4.89 and 5.02 seconds.
-	// after optimizing AdvancePastComments()
-	// between 1.04 and 1.11 seconds. wow, huge improvement there.
-	// now changing output to templated.
-	// between  0.78 and 0.83
-	// after switching to using parserRoot instead of parserbase (to eliminate all the allocations),
-	// between 1.14 and 1.16. WEIRD. Oh i see. The previous version is now going at 1.68 seconds - presumably because of the new compiler version.
 	std::cout << std::endl << "Parse big typical file:" << std::endl;
 
-	StartBenchmark(t);
-	for(int n = 0; n < MaxNum; n ++)
-  {
-		LibCC_743::Parse::ParseResultMem result;
-		Element el;
-		LibCC_743::Parse::CScriptReader740 input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
-		bool r = (*LibCC_743::Parse::Space() + ElementParser743(LibCC_743::Parse::RefOutput(el)) + LibCC_743::Parse::Eof()).ParseRetainingStateOnError(result, input);
-		DoNotOptimize(el);
-  }
-	ReportBenchmark(t, "740 revision (original CScriptReader)");
+	for(int overall = 0; overall < 2; ++ overall)
+	{
+		std::cout << std::endl;
 
-	StartBenchmark(t);
-	for(int n = 0; n < MaxNum; n ++)
-  {
-		LibCC_743::Parse::ParseResultMem result;
-		Element el;
-		LibCC_743::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
-		bool r = (*LibCC_743::Parse::Space() + ElementParser743(LibCC_743::Parse::RefOutput(el)) + LibCC_743::Parse::Eof()).ParseRetainingStateOnError(result, input);
-		DoNotOptimize(el);
-  }
-	ReportBenchmark(t, "743 revision (optimized cursor)");
+		StartBenchmark(t);
+		for(int n = 0; n < MaxNum; n ++)
+		{
+			LibCC_743::Parse::ParseResultMem result;
+			Element el;
+			LibCC_743::Parse::CScriptReader740 input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+			bool r = (*LibCC_743::Parse::Space() + ElementParser743(LibCC_743::Parse::RefOutput(el)) + LibCC_743::Parse::Eof()).ParseRetainingStateOnError(result, input);
+			DoNotOptimize(el);
+		}
+		ReportBenchmark(t, "740 revision (original CScriptReader)");
 
-	StartBenchmark(t);
-	for(int n = 0; n < MaxNum; n ++)
-  {
-		LibCC_745::Parse::ParseResultMem result;
-		Element el;
-		LibCC_745::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
-		bool r = (*LibCC_745::Parse::Space() + ElementParser745(LibCC_745::Parse::RefOutput(el)) + LibCC_745::Parse::Eof()).ParseRetainingStateOnError(result, input);
-		DoNotOptimize(el);
-  }
-	ReportBenchmark(t, "745 revision (optimized outputs)");
+		StartBenchmark(t);
+		for(int n = 0; n < MaxNum; n ++)
+		{
+			LibCC_743::Parse::ParseResultMem result;
+			Element el;
+			LibCC_743::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+			bool r = (*LibCC_743::Parse::Space() + ElementParser743(LibCC_743::Parse::RefOutput(el)) + LibCC_743::Parse::Eof()).ParseRetainingStateOnError(result, input);
+			DoNotOptimize(el);
+		}
+		ReportBenchmark(t, "743 revision (optimized cursor)");
 
-	StartBenchmark(t);
-	for(int n = 0; n < MaxNum; n ++)
-  {
-		LibCC::Parse::ParseResultMem result;
-		Element el;
-		LibCC::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
-		bool r = (*LibCC::Parse::Space() + ElementParserHEAD(LibCC::Parse::RefOutput(el)) + LibCC::Parse::Eof()).ParseRetainingStateOnError(result, input);
-		DoNotOptimize(el);
-  }
-	ReportBenchmark(t, "HEAD revision (optimized parserBase)");
+		StartBenchmark(t);
+		for(int n = 0; n < MaxNum; n ++)
+		{
+			LibCC_745::Parse::ParseResultMem result;
+			Element el;
+			LibCC_745::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+			bool r = (*LibCC_745::Parse::Space() + ElementParser745(LibCC_745::Parse::RefOutput(el)) + LibCC_745::Parse::Eof()).ParseRetainingStateOnError(result, input);
+			DoNotOptimize(el);
+		}
+		ReportBenchmark(t, "745 revision (optimized outputs)");
 
+		StartBenchmark(t);
+		for(int n = 0; n < MaxNum; n ++)
+		{
+			LibCC_746::Parse::ParseResultMem result;
+			Element el;
+			LibCC_746::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+			bool r = (*LibCC_746::Parse::Space() + LibCC_746::Parse::ElementParser(LibCC_746::Parse::RefOutput(el)) + LibCC_746::Parse::Eof()).ParseRetainingStateOnError(result, input);
+			DoNotOptimize(el);
+		}
+		ReportBenchmark(t, "746 revision (optimized parserBase)");
 
+		StartBenchmark(t);
+		for(int n = 0; n < MaxNum; n ++)
+		{
+			LibCC_746b::Parse::ParseResultMem result;
+			Element el;
+			LibCC_746b::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+			bool r = (*LibCC_746b::Parse::Space() + LibCC_746b::Parse::ElementParser(LibCC_746b::Parse::RefOutput(el)) + LibCC_746b::Parse::Eof()).ParseRetainingStateOnError(result, input);
+			DoNotOptimize(el);
+		}
+		ReportBenchmark(t, "746b revision (QuickString passthrough and )");
 
-
-
-	StartBenchmark(t);
-	for(int n = 0; n < MaxNum; n ++)
-  {
-		LibCC_743::Parse::ParseResultMem result;
-		Element el;
-		LibCC_743::Parse::CScriptReader740 input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
-		bool r = (*LibCC_743::Parse::Space() + ElementParser743(LibCC_743::Parse::RefOutput(el)) + LibCC_743::Parse::Eof()).ParseRetainingStateOnError(result, input);
-		DoNotOptimize(el);
-  }
-	ReportBenchmark(t, "740 revision (original CScriptReader)");
-
-	StartBenchmark(t);
-	for(int n = 0; n < MaxNum; n ++)
-  {
-		LibCC_743::Parse::ParseResultMem result;
-		Element el;
-		LibCC_743::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
-		bool r = (*LibCC_743::Parse::Space() + ElementParser743(LibCC_743::Parse::RefOutput(el)) + LibCC_743::Parse::Eof()).ParseRetainingStateOnError(result, input);
-		DoNotOptimize(el);
-  }
-	ReportBenchmark(t, "743 revision (optimized cursor)");
-
-	StartBenchmark(t);
-	for(int n = 0; n < MaxNum; n ++)
-  {
-		LibCC_745::Parse::ParseResultMem result;
-		Element el;
-		LibCC_745::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
-		bool r = (*LibCC_745::Parse::Space() + ElementParser745(LibCC_745::Parse::RefOutput(el)) + LibCC_745::Parse::Eof()).ParseRetainingStateOnError(result, input);
-		DoNotOptimize(el);
-  }
-	ReportBenchmark(t, "745 revision (optimized outputs)");
-
-	StartBenchmark(t);
-	for(int n = 0; n < MaxNum; n ++)
-  {
-		LibCC::Parse::ParseResultMem result;
-		Element el;
-		LibCC::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
-		bool r = (*LibCC::Parse::Space() + ElementParserHEAD(LibCC::Parse::RefOutput(el)) + LibCC::Parse::Eof()).ParseRetainingStateOnError(result, input);
-		DoNotOptimize(el);
-  }
-	ReportBenchmark(t, "HEAD revision (optimized parserBase)");
-
-
+		StartBenchmark(t);
+		for(int n = 0; n < MaxNum; n ++)
+		{
+			ParseResultStdout result;
+			//result.SetTraceEnabled(true);
+			Element el;
+			LibCC::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+			bool r = (*LibCC::Parse::Space() + LibCC::Parse::ElementParser(LibCC::Parse::RefOutput(el)) + LibCC::Parse::Eof()).ParseRetainingStateOnError(result, input);
+			DoNotOptimize(el);
+		}
+		ReportBenchmark(t, "HEAD revision");
+	}
 
 	return true;
 }

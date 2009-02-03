@@ -1590,14 +1590,14 @@ namespace LibCC
 	template<typename _Char>
 	struct QuickStringList
 	{
-	//private:
-	//	QuickStringList<_Char>& operator =(QuickStringList<_Char>& rhs)
-	//	{
-	//		return *this;
-	//	}
-	//	QuickStringList(QuickStringList<_Char>& rhs)
-	//	{
-	//	}
+	private:
+		//QuickStringList<_Char>& operator =(QuickStringList<_Char>& rhs)
+		//{
+		//	return *this;
+		//}
+		//QuickStringList(QuickStringList<_Char>& rhs)
+		//{
+		//}
 
 	public:
 		QuickStringList() :
@@ -1631,6 +1631,13 @@ namespace LibCC
 			{
 				if(i->m_allocated <= QuickStringData<_Char>::staticBufferSize)
 					i->p = i->staticBuffer;
+				else
+				{
+					// dynamic alloc :(
+					i->dynBuffer = (_Char*)HeapAlloc(GetProcessHeap(), 0, i->m_allocated * sizeof(_Char));
+					memcpy(i->dynBuffer, i->p, (i->m_len + 1) * sizeof(_Char));
+					i->p = i->dynBuffer;
+				}
 			}
 
 			return *this;

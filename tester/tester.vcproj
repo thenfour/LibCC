@@ -247,6 +247,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\parse-746.hpp"
+				>
+			</File>
+			<File
+				RelativePath=".\parse-746b.hpp"
+				>
+			</File>
+			<File
 				RelativePath=".\resource.h"
 				>
 			</File>

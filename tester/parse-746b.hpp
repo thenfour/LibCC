@@ -1,57 +1,14 @@
 /*
-  LibCC
-  Parse Module
-  (c) 2009 Carl Corcoran, carlco@gmail.com
-  Documentation: http://wiki.winprog.org/wiki/LibCC_Parse
-	Official source code: http://svn.winprog.org/personal/carl/LibCC
-
-	Original version: Jan 19, 2009
-
-	== License:
-
-  All software on this site is provided 'as-is', without any express or
-  implied warranty, by its respective authors and owners. In no event will
-  the authors be held liable for any damages arising from the use of this
-  software.
-
-  Permission is granted to anyone to use this software for any purpose,
-  including commercial applications, and to alter it and redistribute it
-  freely, subject to the following restrictions:
-
-  1. The origin of this software must not be misrepresented; you must not
-  claim that you wrote the original software. If you use this software in
-  a product, an acknowledgment in the product documentation would be
-  appreciated but is not required.
-
-  2. Altered source versions must be plainly marked as such, and must not
-  be misrepresented as being the original software.
-
-  3. This notice may not be removed or altered from any source distribution.
-*/
-/*
-
-	Optimizations
-	x remove std::wstring::find in CScriptReader (+27%)
-	x remove the need for OutputPtr, reducing allocations (+30%)
-	x remove the need for ParserPtr, reducing allocations (+49%)
-	x use QuickStringList in Passthrough and reduce std::wstring copies (+10%)
-	- do not make an output backup EVERY parse; add a SaveOutput() function.
-
+	THIS IS ADAPTED FROM REVISION 746 with local revisions to use quickstring instead of std::wstring in passthrough FROM FEB 2 2009
+	OF PARSE.HPP FOR COMPARISON WITH THE LATEST VERSION.
 */
 
 #pragma once
 
-#include "stringutil.hpp"
 #include <vector>
 #include <stack>
 
-#ifndef LIBCC_PARSE_TRACE_ENABLED
-#	define LIBCC_PARSE_TRACE_ENABLED 0
-#endif
-
-#pragma warning(disable:4503)// warning C4503: ...' : decorated name length exceeded, name was truncated
-
-namespace LibCC
+namespace LibCC_746b
 {
 	namespace Parse
 	{
@@ -288,68 +245,6 @@ namespace LibCC
 			virtual void Trace(const std::wstring& msg) = 0;
 			virtual void RenderMessage(const std::wstring& msg) = 0;
 
-			virtual ~ParseResult()
-			{
-			}
-#if !LIBCC_PARSE_TRACE_ENABLED
-			ParseResult()
-			{
-			}
-#endif
-#if LIBCC_PARSE_TRACE_ENABLED
-
-			ParseResult() :
-				stackLow(0),
-				stackHigh(0),
-				maxStackSizeUsed(0)
-			{
-			}
-
-			void* stackLow;
-			void* stackHigh;
-			ptrdiff_t maxStackSizeUsed;
-			std::vector<std::wstring> myStack;
-			std::vector<std::wstring> maxStack;
-			std::wstring maxStackStr;
-
-			void EnterParse(const std::wstring& context)
-			{
-				// stack size metrics
-				int a;
-				void* myStackPtr = &a;
-				if(stackLow == 0 || myStackPtr < stackLow)
-					stackLow = myStackPtr;
-				if(stackHigh == 0 || myStackPtr > stackHigh)
-					stackHigh = myStackPtr;
-
-				ptrdiff_t currentStackUtilization = (uintptr_t)stackHigh - (uintptr_t)stackLow;
-				if(currentStackUtilization > maxStackSizeUsed)
-					maxStackSizeUsed = currentStackUtilization;
-
-				// stack snapshot
-				myStack.push_back(context);
-				if(myStack.size() > maxStack.size())
-				{
-					maxStack = myStack;
-					// render to a string
-					maxStackStr.clear();
-					for(std::vector<std::wstring>::reverse_iterator it = myStack.rbegin(); it != myStack.rend(); ++ it)
-					{
-						maxStackStr.append(*it);
-						maxStackStr.append(L"\r\n");
-					}
-				}
-
-				//if(myStack.size() == 100)
-				//{
-				//	OutputDebugStringW(maxStackStr.c_str());
-				//}
-			}
-			void ExitParse()
-			{
-				myStack.pop_back();
-			}
-#endif
 			void ParserMessage(const std::wstring& msg)
 			{
 				if(m_messagingStack.size() > 0)
@@ -403,23 +298,6 @@ namespace LibCC
 		private:
 			std::stack<std::vector<std::wstring>* > m_messagingStack;
 		};
-
-#if LIBCC_PARSE_TRACE_ENABLED
-		// only used by ParserBase, period
-		struct ParseDepthToken
-		{
-			ParseResult& result;
-			ParseDepthToken(ParseResult& result_, const std::wstring& context) :
-				result(result_)
-			{
-				result.EnterParse(context);
-			}
-			~ParseDepthToken()
-			{
-				result.ExitParse();
-			}
-		};
-#endif
 
 		// built in ParseResult class which holds all messages in memory.
 		struct ParseResultMem :
@@ -482,9 +360,6 @@ namespace LibCC
 				ScriptCursor oldCursor = input.GetCursorCopy();
 				SaveOutputState(input);
 
-#if LIBCC_PARSE_TRACE_ENABLED
-				ParseDepthToken pdt(result, LibCC::FormatW(L"% at %") (GetParserName()) (_DebugCursorToString(oldCursor, input)).Str());
-
 				if(result.IsTraceEnabled() && IsTraceEnabled)
 				{
 					result.Trace(LibCC::FormatW(L"Parsing '%' from %")
@@ -500,17 +375,12 @@ namespace LibCC
 				{
 					result.SetTraceEnabled(false);
 				}
-#endif
 
 				bool ret = Parse(result, input);
-
-#if LIBCC_PARSE_TRACE_ENABLED
 				result.SetTraceEnabled(wasTracingEnabled);
-#endif
 
 				if(!ret)
 				{
-#if LIBCC_PARSE_TRACE_ENABLED
 					if(result.IsTraceEnabled() && IsTraceEnabled)
 					{
 						ScriptCursor newCursor = input.GetCursorCopy();
@@ -523,13 +393,11 @@ namespace LibCC
 						result.DecrementTraceIndent();
 						result.Trace(L"}");
 					}
-#endif
 					RestoreOutputState(input);
 					input.SetCursor(oldCursor);
 					return false;
 				}
 
-#if LIBCC_PARSE_TRACE_ENABLED
 				if(result.IsTraceEnabled() && IsTraceEnabled)
 				{
 					ScriptCursor newCursor = input.GetCursorCopy();
@@ -542,8 +410,6 @@ namespace LibCC
 					result.DecrementTraceIndent();
 					result.Trace(L"}");
 				}
-				return true;
-#endif
 				return true;
 			}
 
@@ -562,7 +428,14 @@ namespace LibCC
 				return Parse(result, BasicStringReader(script));
 			}
 
-			virtual std::wstring GetParserName() const = 0;
+			virtual std::wstring Dump(int indentLevel)
+			{
+				return std::wstring(indentLevel, ' ') + L"(unnamed)\r\n";
+			}
+			virtual std::wstring GetParserName() const
+			{
+				return L"(unnamed)";
+			}
 		};
 
 
@@ -597,19 +470,21 @@ namespace LibCC
 		public:
 			LibCC::QuickStringList<wchar_t> msgs;
 			bool isTrue;
+			//std::wstring falseMessage;
+			//std::wstring trueMessage;
 
 			PassthroughT(const Tchild& rhs, const std::wstring& trueMessage_, const std::wstring& falseMessage_) :
 				m_child(rhs)
 			{
-				msgs.push_back(trueMessage_.c_str());
-				msgs.push_back(falseMessage_.c_str());
+				msgs.push_back(trueMessage_);
+				msgs.push_back(falseMessage_);
 			}
 
 			PassthroughT(const Tchild& rhs, const std::wstring& msg, bool isTrueMsg) :
 				m_child(rhs),
 				isTrue(isTrueMsg)
 			{
-				msgs.push_back(msg.c_str());
+				msgs.push_back(msg);
 			}
 
 			PassthroughT(const Tchild& rhs, const wchar_t* trueMessage_, const wchar_t* falseMessage_) :
@@ -630,8 +505,6 @@ namespace LibCC
 				m_child(rhs)
 			{
 			}
-
-			virtual std::wstring GetParserName() const { return L"Passthrough"; }
 
 			virtual void SaveOutputState(ScriptReader& input)
 			{
@@ -755,8 +628,6 @@ namespace LibCC
 				m_child = 0;
 			}
 
-			virtual std::wstring GetParserName() const { return L"Parser"; }
-
 			virtual void SaveOutputState(ScriptReader& input)
 			{
 				if(!m_child)
@@ -785,7 +656,6 @@ namespace LibCC
 		{
 			virtual void SaveOutputState(ScriptReader& input) { }
 			virtual void RestoreOutputState(ScriptReader& input) { }
-			virtual std::wstring GetParserName() const { return L"NothingParser"; }
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				return true;
@@ -806,7 +676,6 @@ namespace LibCC
 			{
 			}
 
-			virtual std::wstring GetParserName() const { return L"Break"; }
 			virtual void SaveOutputState(ScriptReader& input) { m_child.SaveOutputState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { m_child.RestoreOutputState(input); }
 
@@ -815,10 +684,13 @@ namespace LibCC
 				ScriptCursor oldCursor = input.GetCursorCopy();
 				std::wstring oldContext = _DebugCursorToString(oldCursor, input);
 				//__asm int 3;
-				bool r = m_child.ParseRetainingStateOnError(result, input);
+				if(m_child.IsEmpty())
+				{
+					return true;
+				}
+				bool r = m_child->ParseRetainingStateOnError(result, input);
 				ScriptCursor newCursor = input.GetCursorCopy();
 				std::wstring newContext = _DebugCursorToString(newCursor, input);
-				DoNotOptimize(r);
 				return r;
 			}
 		};
@@ -842,7 +714,6 @@ namespace LibCC
 			{
 			}
 
-			virtual std::wstring GetParserName() const { return L"ParseMsg"; }
 			virtual void SaveOutputState(ScriptReader& input) { }
 			virtual void RestoreOutputState(ScriptReader& input) { }
 
@@ -868,7 +739,6 @@ namespace LibCC
 			{
 			}
 
-			virtual std::wstring GetParserName() const { return L"Occurrences"; }
 			virtual void SaveOutputState(ScriptReader& input) { m_child.SaveOutputState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { m_child.RestoreOutputState(input); }
 
@@ -966,7 +836,6 @@ namespace LibCC
 			{
 			}
 
-			virtual std::wstring GetParserName() const { return L"Not"; }
 			virtual void SaveOutputState(ScriptReader& input) { m_child.SaveOutputState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { m_child.RestoreOutputState(input); }
 
@@ -1000,7 +869,6 @@ namespace LibCC
 			{
 			}
 
-			virtual std::wstring GetParserName() const { return L"Optional"; }
 			virtual void SaveOutputState(ScriptReader& input) { m_child.SaveOutputState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { m_child.RestoreOutputState(input); }
 
@@ -1046,8 +914,7 @@ namespace LibCC
 				0x202F,// NNBSP (NARROW NO-BREAK SPACE)
 				0x205F,// MMSP (MEDIUM MATHEMATICAL SPACE)
 				0x3000,// IDEOGRAPHIC SPACE
-				0xFEFF,// ZERO WIDTH NO-BREAK SPACE
-				0// null terminate
+				0xFEFF// ZERO WIDTH NO-BREAK SPACE
  			};
 			return x;
 		}
@@ -1065,7 +932,6 @@ namespace LibCC
 			{
 			}
 
-			virtual std::wstring GetParserName() const { return L"Sequence"; }
 			virtual void SaveOutputState(ScriptReader& input)
 			{
 				lhs.SaveOutputState(input);
@@ -1143,8 +1009,6 @@ namespace LibCC
 				rhs(_rhs)
 			{
 			}
-
-			virtual std::wstring GetParserName() const { return L"Or"; }
 
 			virtual void SaveOutputState(ScriptReader& input)
 			{
@@ -1225,7 +1089,6 @@ namespace LibCC
 		struct Eof :
 			public ParserBase<Eof>
 		{
-			virtual std::wstring GetParserName() const { return L"Eof"; }
 			virtual void SaveOutputState(ScriptReader& input) { }
 			virtual void RestoreOutputState(ScriptReader& input) { }
 			virtual bool Parse(ParseResult& result, ScriptReader& input)

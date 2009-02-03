@@ -69,13 +69,13 @@ void TestCollection()
 {
 	//RunTest(BlobTest);
 
-	RunTest(ParseTest);
+	//RunTest(ParseTest);
 	RunTest(ParseBenchmark);
 
 	//RunTest(LogTest);
 	//RunTest(AllocationTrackerTest);
 
-	// RunTest(StringTest);
+	//RunTest(StringTest);
 	//RunTest(StringCompilationTest);
 	//RunTest(FormatTest);
 	// RunTest(FormatBenchmark);
