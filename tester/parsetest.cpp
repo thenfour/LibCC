@@ -32,11 +32,15 @@ bool ParseTest()
 			| FalseMsg(L"Error parsing an accordion", Str(L"accordion"))
 		);
 	TestAssert(!p.ParseRetainingStateOnError(resM, CScriptReader(L"ba")));// parser will get 2 chars into banana, but only 1 char into accordion.
-	TestAssert(std::wstring::npos != resM.parseMessages[0].find(L"Error parsing the banana"));
+	TestAssert(resM.parseMessages.size() > 0);
+	if(resM.parseMessages.size() > 0)
+		TestAssert(std::wstring::npos != resM.parseMessages[0].find(L"Error parsing the banana"));
 	resM.parseMessages.clear();
 
 	TestAssert(!p.ParseRetainingStateOnError(resM, CScriptReader(L"ac")));
-	TestAssert(std::wstring::npos != resM.parseMessages[0].find(L"Error parsing an accordion"));
+	TestAssert(resM.parseMessages.size() > 0);
+	if(resM.parseMessages.size() > 0)
+		TestAssert(std::wstring::npos != resM.parseMessages[0].find(L"Error parsing an accordion"));
 	resM.parseMessages.clear();
 
 	// the point is that I want to be able to see error messages here for a ZeroOrMore thing.
@@ -48,15 +52,18 @@ bool ParseTest()
 		) + (Eof() | ParseMsg(L"Expected: end of file."));
 
 	TestAssert(!p.ParseRetainingStateOnError(resM, CScriptReader(L"w")));
-	TestAssert(std::wstring::npos != resM.parseMessages[0].find(L"Missing 't'"));
+	if(resM.parseMessages.size() > 0)
+		TestAssert(std::wstring::npos != resM.parseMessages[0].find(L"Missing 't'"));
 	resM.parseMessages.clear();
 
 	TestAssert(!p.ParseRetainingStateOnError(resM, CScriptReader(L"l")));
-	TestAssert(std::wstring::npos != resM.parseMessages[0].find(L"Missing 'w'"));
+	if(resM.parseMessages.size() > 0)
+		TestAssert(std::wstring::npos != resM.parseMessages[0].find(L"Missing 'w'"));
 	resM.parseMessages.clear();
 
 	TestAssert(!p.ParseRetainingStateOnError(resM, CScriptReader(L"wtfwtx")));
-	TestAssert(std::wstring::npos != resM.parseMessages[0].find(L"Missing 'f'"));
+	if(resM.parseMessages.size() > 0)
+		TestAssert(std::wstring::npos != resM.parseMessages[0].find(L"Missing 'f'"));
 	resM.parseMessages.clear();
 
 	p =
@@ -84,11 +91,13 @@ bool ParseTest()
 	resM.parseMessages.clear();
 
 	TestAssert(!p.ParseRetainingStateOnError(resM, CScriptReader(L"[l]")));
-	TestAssert(std::wstring::npos != resM.parseMessages[0].find(L"Failed to parse lol"));
+	if(resM.parseMessages.size() > 0)
+		TestAssert(std::wstring::npos != resM.parseMessages[0].find(L"Failed to parse lol"));
 	resM.parseMessages.clear();
 
 	TestAssert(!p.ParseRetainingStateOnError(resM, CScriptReader(L"[lol 8]")));
-	TestAssert(std::wstring::npos != resM.parseMessages[0].find(L"Failed to parse wtf"));// technically this is not defined. if this test fails well no biggie. just make sure the messages make sense.
+	if(resM.parseMessages.size() > 0)
+		TestAssert(std::wstring::npos != resM.parseMessages[0].find(L"Failed to parse wtf"));// technically this is not defined. if this test fails well no biggie. just make sure the messages make sense.
 	resM.parseMessages.clear();
 
 

@@ -1,6 +1,9 @@
 
 
 #include "test.h"
+#include "libcc\parse.hpp"
+using namespace LibCC::Parse;
+
 
 extern bool RegistryTest();
 extern bool StatusTest();
@@ -65,11 +68,12 @@ bool RunTest__(Fn f, const char* sz)
 
 #define RunTest(x) RunTest__(x, #x)
 
+
 void TestCollection()
 {
 	//RunTest(BlobTest);
 
-	//RunTest(ParseTest);
+	RunTest(ParseTest);
 	RunTest(ParseBenchmark);
 
 	//RunTest(LogTest);

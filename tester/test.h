@@ -2,6 +2,7 @@
 #pragma once
 
 #define _SECURE_SCL 0
+#define LIBCC_PARSE_TRACE_ENABLED 0
 
 #include <windows.h>
 #include <iostream>

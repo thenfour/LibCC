@@ -1566,6 +1566,38 @@ namespace LibCC
 			data->p = data->dynBuffer;
 		}
 
+		bool empty() const
+		{
+			return data->p[0] == 0;
+		}
+
+		typedef _Char* iterator;
+		typedef const _Char* const_iterator;
+		iterator begin()
+		{
+			return data->p;
+		}
+		iterator end()
+		{
+			return data->p + data->m_len;
+		}
+
+		const_iterator begin() const
+		{
+			return data->p;
+		}
+		const_iterator end() const
+		{
+			return data->p + data->m_len;
+		}
+
+		void assign(const _Char* rhs)
+		{
+			size_t inputLen = LibCC::StringLength(rhs) + 1;
+			reserve(inputLen);
+			memcpy(data->p, rhs, sizeof(_Char) * inputLen);
+		}
+
 	private:
 		inline void AddAlloc(size_t additional)
 		{

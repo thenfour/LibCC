@@ -1,5 +1,5 @@
 /*
-	THIS IS ADAPTED FROM REVISION 746 with local revisions to use quickstring instead of std::wstring in passthrough FROM FEB 2 2009
+	THIS IS ADAPTED FROM REVISION 748 FROM FEB 3 2009
 	OF PARSE.HPP FOR COMPARISON WITH THE LATEST VERSION.
 */
 
@@ -8,7 +8,13 @@
 #include <vector>
 #include <stack>
 
-namespace LibCC_746b
+#ifndef LIBCC_PARSE_TRACE_ENABLED
+#	define LIBCC_PARSE_TRACE_ENABLED 0
+#endif
+
+#pragma warning(disable:4503)// warning C4503: ...' : decorated name length exceeded, name was truncated
+
+namespace LibCC_748
 {
 	namespace Parse
 	{
@@ -245,6 +251,68 @@ namespace LibCC_746b
 			virtual void Trace(const std::wstring& msg) = 0;
 			virtual void RenderMessage(const std::wstring& msg) = 0;
 
+			virtual ~ParseResult()
+			{
+			}
+#if !LIBCC_PARSE_TRACE_ENABLED
+			ParseResult()
+			{
+			}
+#endif
+#if LIBCC_PARSE_TRACE_ENABLED
+
+			ParseResult() :
+				stackLow(0),
+				stackHigh(0),
+				maxStackSizeUsed(0)
+			{
+			}
+
+			void* stackLow;
+			void* stackHigh;
+			ptrdiff_t maxStackSizeUsed;
+			std::vector<std::wstring> myStack;
+			std::vector<std::wstring> maxStack;
+			std::wstring maxStackStr;
+
+			void EnterParse(const std::wstring& context)
+			{
+				// stack size metrics
+				int a;
+				void* myStackPtr = &a;
+				if(stackLow == 0 || myStackPtr < stackLow)
+					stackLow = myStackPtr;
+				if(stackHigh == 0 || myStackPtr > stackHigh)
+					stackHigh = myStackPtr;
+
+				ptrdiff_t currentStackUtilization = (uintptr_t)stackHigh - (uintptr_t)stackLow;
+				if(currentStackUtilization > maxStackSizeUsed)
+					maxStackSizeUsed = currentStackUtilization;
+
+				// stack snapshot
+				myStack.push_back(context);
+				if(myStack.size() > maxStack.size())
+				{
+					maxStack = myStack;
+					// render to a string
+					maxStackStr.clear();
+					for(std::vector<std::wstring>::reverse_iterator it = myStack.rbegin(); it != myStack.rend(); ++ it)
+					{
+						maxStackStr.append(*it);
+						maxStackStr.append(L"\r\n");
+					}
+				}
+
+				//if(myStack.size() == 100)
+				//{
+				//	OutputDebugStringW(maxStackStr.c_str());
+				//}
+			}
+			void ExitParse()
+			{
+				myStack.pop_back();
+			}
+#endif
 			void ParserMessage(const std::wstring& msg)
 			{
 				if(m_messagingStack.size() > 0)
@@ -299,6 +367,23 @@ namespace LibCC_746b
 			std::stack<std::vector<std::wstring>* > m_messagingStack;
 		};
 
+#if LIBCC_PARSE_TRACE_ENABLED
+		// only used by ParserBase, period
+		struct ParseDepthToken
+		{
+			ParseResult& result;
+			ParseDepthToken(ParseResult& result_, const std::wstring& context) :
+				result(result_)
+			{
+				result.EnterParse(context);
+			}
+			~ParseDepthToken()
+			{
+				result.ExitParse();
+			}
+		};
+#endif
+
 		// built in ParseResult class which holds all messages in memory.
 		struct ParseResultMem :
 			ParseResult
@@ -345,9 +430,11 @@ namespace LibCC_746b
 		struct ParserRoot
 		{
 			bool IsTraceEnabled;
+			bool IsOutputBackedUp;
 
 			ParserRoot() :
-				IsTraceEnabled(true)
+				IsTraceEnabled(true),
+				IsOutputBackedUp(false)
 			{
 			}
 
@@ -355,10 +442,21 @@ namespace LibCC_746b
 			{
 			}
 
+			void BackupOutput(ScriptReader& input)
+			{
+				if(!IsOutputBackedUp)
+				{
+					SaveOutputState(input);
+					IsOutputBackedUp = true;
+				}
+			}
+
 			virtual bool ParseRetainingStateOnError(ParseResult& result, ScriptReader& input)
 			{
 				ScriptCursor oldCursor = input.GetCursorCopy();
-				SaveOutputState(input);
+
+#if LIBCC_PARSE_TRACE_ENABLED
+				ParseDepthToken pdt(result, LibCC::FormatW(L"% at %") (GetParserName()) (_DebugCursorToString(oldCursor, input)).Str());
 
 				if(result.IsTraceEnabled() && IsTraceEnabled)
 				{
@@ -375,12 +473,17 @@ namespace LibCC_746b
 				{
 					result.SetTraceEnabled(false);
 				}
+#endif
 
 				bool ret = Parse(result, input);
+
+#if LIBCC_PARSE_TRACE_ENABLED
 				result.SetTraceEnabled(wasTracingEnabled);
+#endif
 
 				if(!ret)
 				{
+#if LIBCC_PARSE_TRACE_ENABLED
 					if(result.IsTraceEnabled() && IsTraceEnabled)
 					{
 						ScriptCursor newCursor = input.GetCursorCopy();
@@ -393,11 +496,16 @@ namespace LibCC_746b
 						result.DecrementTraceIndent();
 						result.Trace(L"}");
 					}
-					RestoreOutputState(input);
+#endif
+					if(IsOutputBackedUp)
+						RestoreOutputState(input);
+
 					input.SetCursor(oldCursor);
+
 					return false;
 				}
 
+#if LIBCC_PARSE_TRACE_ENABLED
 				if(result.IsTraceEnabled() && IsTraceEnabled)
 				{
 					ScriptCursor newCursor = input.GetCursorCopy();
@@ -410,6 +518,8 @@ namespace LibCC_746b
 					result.DecrementTraceIndent();
 					result.Trace(L"}");
 				}
+				return true;
+#endif
 				return true;
 			}
 
@@ -428,14 +538,7 @@ namespace LibCC_746b
 				return Parse(result, BasicStringReader(script));
 			}
 
-			virtual std::wstring Dump(int indentLevel)
-			{
-				return std::wstring(indentLevel, ' ') + L"(unnamed)\r\n";
-			}
-			virtual std::wstring GetParserName() const
-			{
-				return L"(unnamed)";
-			}
+			virtual std::wstring GetParserName() const = 0;
 		};
 
 
@@ -470,21 +573,19 @@ namespace LibCC_746b
 		public:
 			LibCC::QuickStringList<wchar_t> msgs;
 			bool isTrue;
-			//std::wstring falseMessage;
-			//std::wstring trueMessage;
 
 			PassthroughT(const Tchild& rhs, const std::wstring& trueMessage_, const std::wstring& falseMessage_) :
 				m_child(rhs)
 			{
-				msgs.push_back(trueMessage_);
-				msgs.push_back(falseMessage_);
+				msgs.push_back(trueMessage_.c_str());
+				msgs.push_back(falseMessage_.c_str());
 			}
 
 			PassthroughT(const Tchild& rhs, const std::wstring& msg, bool isTrueMsg) :
 				m_child(rhs),
 				isTrue(isTrueMsg)
 			{
-				msgs.push_back(msg);
+				msgs.push_back(msg.c_str());
 			}
 
 			PassthroughT(const Tchild& rhs, const wchar_t* trueMessage_, const wchar_t* falseMessage_) :
@@ -505,6 +606,8 @@ namespace LibCC_746b
 				m_child(rhs)
 			{
 			}
+
+			virtual std::wstring GetParserName() const { return L"Passthrough"; }
 
 			virtual void SaveOutputState(ScriptReader& input)
 			{
@@ -628,6 +731,8 @@ namespace LibCC_746b
 				m_child = 0;
 			}
 
+			virtual std::wstring GetParserName() const { return L"Parser"; }
+
 			virtual void SaveOutputState(ScriptReader& input)
 			{
 				if(!m_child)
@@ -656,6 +761,7 @@ namespace LibCC_746b
 		{
 			virtual void SaveOutputState(ScriptReader& input) { }
 			virtual void RestoreOutputState(ScriptReader& input) { }
+			virtual std::wstring GetParserName() const { return L"NothingParser"; }
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				return true;
@@ -676,6 +782,7 @@ namespace LibCC_746b
 			{
 			}
 
+			virtual std::wstring GetParserName() const { return L"Break"; }
 			virtual void SaveOutputState(ScriptReader& input) { m_child.SaveOutputState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { m_child.RestoreOutputState(input); }
 
@@ -684,13 +791,10 @@ namespace LibCC_746b
 				ScriptCursor oldCursor = input.GetCursorCopy();
 				std::wstring oldContext = _DebugCursorToString(oldCursor, input);
 				//__asm int 3;
-				if(m_child.IsEmpty())
-				{
-					return true;
-				}
-				bool r = m_child->ParseRetainingStateOnError(result, input);
+				bool r = m_child.ParseRetainingStateOnError(result, input);
 				ScriptCursor newCursor = input.GetCursorCopy();
 				std::wstring newContext = _DebugCursorToString(newCursor, input);
+				DoNotOptimize(r);
 				return r;
 			}
 		};
@@ -714,6 +818,7 @@ namespace LibCC_746b
 			{
 			}
 
+			virtual std::wstring GetParserName() const { return L"ParseMsg"; }
 			virtual void SaveOutputState(ScriptReader& input) { }
 			virtual void RestoreOutputState(ScriptReader& input) { }
 
@@ -739,6 +844,7 @@ namespace LibCC_746b
 			{
 			}
 
+			virtual std::wstring GetParserName() const { return L"Occurrences"; }
 			virtual void SaveOutputState(ScriptReader& input) { m_child.SaveOutputState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { m_child.RestoreOutputState(input); }
 
@@ -836,6 +942,7 @@ namespace LibCC_746b
 			{
 			}
 
+			virtual std::wstring GetParserName() const { return L"Not"; }
 			virtual void SaveOutputState(ScriptReader& input) { m_child.SaveOutputState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { m_child.RestoreOutputState(input); }
 
@@ -869,6 +976,7 @@ namespace LibCC_746b
 			{
 			}
 
+			virtual std::wstring GetParserName() const { return L"Optional"; }
 			virtual void SaveOutputState(ScriptReader& input) { m_child.SaveOutputState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { m_child.RestoreOutputState(input); }
 
@@ -915,7 +1023,7 @@ namespace LibCC_746b
 				0x205F,// MMSP (MEDIUM MATHEMATICAL SPACE)
 				0x3000,// IDEOGRAPHIC SPACE
 				0xFEFF,// ZERO WIDTH NO-BREAK SPACE
-				0
+				0// null terminate
  			};
 			return x;
 		}
@@ -933,6 +1041,7 @@ namespace LibCC_746b
 			{
 			}
 
+			virtual std::wstring GetParserName() const { return L"Sequence"; }
 			virtual void SaveOutputState(ScriptReader& input)
 			{
 				lhs.SaveOutputState(input);
@@ -1010,6 +1119,8 @@ namespace LibCC_746b
 				rhs(_rhs)
 			{
 			}
+
+			virtual std::wstring GetParserName() const { return L"Or"; }
 
 			virtual void SaveOutputState(ScriptReader& input)
 			{
@@ -1090,6 +1201,7 @@ namespace LibCC_746b
 		struct Eof :
 			public ParserBase<Eof>
 		{
+			virtual std::wstring GetParserName() const { return L"Eof"; }
 			virtual void SaveOutputState(ScriptReader& input) { }
 			virtual void RestoreOutputState(ScriptReader& input) { }
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
@@ -1367,6 +1479,7 @@ namespace LibCC_746b
 				}
 
 				parsed = input.CurrentChar();
+				BackupOutput(input);
 				output.Save(input, parsed);
 				input.Advance();
 
@@ -1507,6 +1620,7 @@ namespace LibCC_746b
 					parsed.push_back(ch);
 				}
 
+				BackupOutput(input);
 				output.Save(input, parsed);
 				return true;// made it all the way
 			}
@@ -1613,6 +1727,7 @@ namespace LibCC_746b
 					return false;
 				}
 
+				BackupOutput(input);
 				output.Save(input, parsed);
 				input.Advance();
 				return true;
@@ -1712,6 +1827,7 @@ namespace LibCC_746b
 						return false;
 				}
 
+				BackupOutput(input);
 				output.Save(input, parsed);
 				input.Advance();
 				return true;
@@ -1803,21 +1919,27 @@ namespace LibCC_746b
 				switch(escapeChar)
 				{
 				case 'r':
+					BackupOutput(input);
 					output.Save(input, '\r');
 					return true;
 				case 'n':
+					BackupOutput(input);
 					output.Save(input, '\n');
 					return true;
 				case 't':
+					BackupOutput(input);
 					output.Save(input, '\t');
 					return true;
 				case '\"':
+					BackupOutput(input);
 					output.Save(input, '\"');
 					return true;
 				case '\\':
+					BackupOutput(input);
 					output.Save(input, '\\');
 					return true;
 				case '\'':
+					BackupOutput(input);
 					output.Save(input, '\'');
 					return true;
 				// TODO: handle other escape sequences
@@ -1890,7 +2012,10 @@ namespace LibCC_746b
 				Parser p = Or(singleQuotes, doubleQuotes);
 				bool ret = p.ParseRetainingStateOnError(result, input);
 				if(ret)
+				{
+					BackupOutput(input);
 					output.Save(input, parsed);
+				}
 				return ret;
 			}
 		};
@@ -1964,6 +2089,7 @@ namespace LibCC_746b
 					out *= base;
 					out += CharToDigit(*it);
 				}
+				BackupOutput(input);
 				output.Save(input, out);
 				return true;
 			}
@@ -2134,6 +2260,7 @@ namespace LibCC_746b
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
+				BackupOutput(input);
 				output.Save(input, sign == '-' ? -temp : temp);
 				return true;
 			}
@@ -2176,6 +2303,7 @@ namespace LibCC_746b
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
+				BackupOutput(input);
 				output.Save(input, sign == '-' ? -temp : temp);
 				return true;
 			}
@@ -2216,6 +2344,7 @@ namespace LibCC_746b
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
+				BackupOutput(input);
 				output.Save(input, sign == '-' ? -temp : temp);
 				return true;
 			}
@@ -2255,6 +2384,7 @@ namespace LibCC_746b
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
+				BackupOutput(input);
 				output.Save(input, sign == '-' ? -temp : temp);
 				return true;
 			}
@@ -2397,6 +2527,7 @@ namespace LibCC_746b
 					}
 				}
 
+				BackupOutput(input);
 				output.Save(input, res);
 
 				return true;
@@ -2437,6 +2568,7 @@ namespace LibCC_746b
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
+				BackupOutput(input);
 				output.Save(input, sign == '-' ? -temp : temp);
 				return true;
 			}

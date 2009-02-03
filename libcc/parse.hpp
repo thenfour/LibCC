@@ -35,7 +35,7 @@
 	x remove the need for OutputPtr, reducing allocations (+30%)
 	x remove the need for ParserPtr, reducing allocations (+49%)
 	x use QuickStringList in Passthrough and reduce std::wstring copies (+10%)
-	- do not make an output backup EVERY parse; add a SaveOutput() function.
+	x do not make an output backup EVERY parse; add a SaveOutput() function.
 
 */
 
@@ -433,6 +433,11 @@ namespace LibCC
 				traceEnabled(false)
 			{
 			}
+
+			~ParseResultMem()
+			{
+			}
+
 			virtual void IncrementTraceIndent() { ++traceIndentLevel; }
 			virtual void DecrementTraceIndent() { --traceIndentLevel; }
 			virtual void SetTraceEnabled(bool b) { traceEnabled = b; }
@@ -535,7 +540,10 @@ namespace LibCC
 					}
 #endif
 					if(IsOutputBackedUp)
+					{
 						RestoreOutputState(input);
+						IsOutputBackedUp = false;
+					}
 
 					input.SetCursor(oldCursor);
 
@@ -555,8 +563,8 @@ namespace LibCC
 					result.DecrementTraceIndent();
 					result.Trace(L"}");
 				}
-				return true;
 #endif
+				IsOutputBackedUp = false;
 				return true;
 			}
 
@@ -1607,12 +1615,19 @@ namespace LibCC
 		template<bool TCaseSensitive, typename Toutput>
 		struct StrT : public ParserBase<StrT<TCaseSensitive, Toutput> >
 		{
-			std::wstring match;
-			Toutput output;
+		private:
+			StrT<TCaseSensitive, Toutput>& operator = (const StrT<TCaseSensitive, Toutput>& rhs)
+			{
+				return *this;
+			}
 
-			StrT(const std::wstring& match, const Toutput& out) :
-				match(match),
-				output(out)
+		public:
+			Toutput output;
+			std::wstring match;
+
+			StrT(const std::wstring& match_, const Toutput& out) :
+				output(out),
+				match(match_)
 			{
 			}
 
@@ -1633,8 +1648,8 @@ namespace LibCC
 					return match.empty();
 
 				std::wstring parsed;
-
-				for(std::wstring::const_iterator it = match.begin(); it != match.end(); ++ it)
+				std::wstring::iterator matchEnd = match.end();
+				for(std::wstring::iterator it = match.begin(); it != matchEnd; ++ it)
 				{
 					if(input.IsEOF())
 					{
@@ -1664,6 +1679,7 @@ namespace LibCC
 		};
 
 
+		// std::wstring overloads
 		template<typename Toutput>
 		inline StrT<true, Toutput> Str(const std::wstring& ch, const Toutput& output_)
 		{
