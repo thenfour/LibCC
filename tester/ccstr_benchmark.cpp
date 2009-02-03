@@ -21,7 +21,7 @@ void ReportBenchmark(LibCC::Timer& t, const std::string& name)
 {
 	const int nameColumn = 50;
 	t.Tick();
-	std::cout << LibCC::FormatA("%%: %\r\n").s<nameColumn>(name).c('.', nameColumn - name.size()).d<2>(t.GetLastDelta()).Str();
+	std::cout << LibCC::FormatA("%%: %\r\n").s<nameColumn>(name).c('.', nameColumn - name.size()).d<3>(t.GetLastDelta()).Str();
 }
 
 bool FormatBenchmark()

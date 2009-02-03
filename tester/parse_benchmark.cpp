@@ -8,6 +8,7 @@
 #include "parse-745.hpp"
 #include "parse-746.hpp"
 #include "parse-746b.hpp"
+#include "parse-747.hpp"
 #include "libcc\timer.hpp"
 
 #include <sstream>
@@ -86,6 +87,93 @@ struct Element
 
 
 namespace LibCC
+{
+	namespace Parse
+	{
+		template<typename Toutput>
+		struct AttributeParserT : ParserWithOutput<Toutput, AttributeParserT<Toutput> >
+		{
+			virtual std::wstring GetParserName() const { return L"AttributeParser"; }
+			AttributeParserT(const Toutput& output_) : ParserWithOutput(output_) { }
+			bool Parse(ParseResult& result, ScriptReader& input)
+			{
+				Attribute temp;
+				Parser identifier = OneOrMore(CharRangeI('a', 'z', CharToStringOutput(temp.name)) | CharRange('0', '9', CharToStringOutput(temp.name)));
+				Parser p = identifier + FalseMsg(L"Error; missing equal sign", Char('='))
+					+ Or
+					(
+						CInteger2(temp.intValue),
+						StringParser(temp.stringValue)
+					);
+				if(!p.ParseRetainingStateOnError(result, input))
+					return false;
+				BackupOutput(input);
+				output.Save(input, temp);
+				return true;
+			}
+		};
+		template<typename Toutput>
+		AttributeParserT<Toutput> AttributeParser(const Toutput& output_)
+		{
+			return AttributeParserT<Toutput>(output_);
+		}
+
+		template<typename Toutput>
+		struct ElementParserT : ParserWithOutput<Toutput, ElementParserT<Toutput> >
+		{
+			virtual std::wstring GetParserName() const { return L"ElementParser"; }
+			ElementParserT(const Toutput& output_) : ParserWithOutput(output_) { }
+			bool Parse(ParseResult& result, ScriptReader& input)
+			{
+				Element temp;
+
+				Parser openingIdentifier = FalseMsg(L"Error; error parsing opening tag name",
+					OneOrMore(CharRangeI('a', 'z', CharToStringOutput(temp.openingName)) | CharRange('0', '9', CharToStringOutput(temp.openingName))));
+
+				Parser closingIdentifier = FalseMsg(L"Error; error parsing closing tag name",
+					OneOrMore(CharRangeI('a', 'z', CharToStringOutput(temp.closingName)) | CharRange('0', '9', CharToStringOutput(temp.closingName))));
+
+				Parser p =
+					FalseMsg(L"Error; error parsing element.",
+					(
+						Char('<')
+						>> openingIdentifier
+						+ ZeroOrMoreS
+						(
+							AttributeParser(VectorOutput(temp.m_attributes))
+						)
+						+ Or
+						(
+							FalseMsg(L"Error; error parsing simple closing tag", Str(L"/>")),
+							(
+								Char('>')
+								+ ZeroOrMoreS(ElementParser(VectorOutput(temp.m_children)))
+								+ FalseMsg(L"Error; error parsing closing tag",
+								(
+									Str(L"</")
+									>> closingIdentifier
+									>> Char('>')
+								))
+							)
+						)
+					));
+				if(!p.ParseRetainingStateOnError(result, input))
+					return false;
+				BackupOutput(input);
+				output.Save(input, temp);
+				return true;
+			}
+		};
+
+		template<typename Toutput>
+		ElementParserT<Toutput> ElementParser(const Toutput& output_)
+		{
+			return ElementParserT<Toutput>(output_);
+		}
+	}
+}
+
+namespace LibCC_747
 {
 	namespace Parse
 	{
@@ -519,7 +607,7 @@ bool ParseBenchmark()
 #ifdef _DEBUG
   const int MaxNum = 5;
 #else
-  const int MaxNum = 50;
+  const int MaxNum = 500;
 #endif
 
 	std::cout << std::endl << "LibCC::Parse benchmarks, " << MaxNum << " passes." << std::endl;
@@ -527,64 +615,75 @@ bool ParseBenchmark()
 	//////////////////////////////////
 	std::cout << std::endl << "Parse big typical file:" << std::endl;
 
-	for(int overall = 0; overall < 2; ++ overall)
+	for(int overall = 0; overall < 1; ++ overall)
 	{
 		std::cout << std::endl;
 
-		StartBenchmark(t);
-		for(int n = 0; n < MaxNum; n ++)
-		{
-			LibCC_743::Parse::ParseResultMem result;
-			Element el;
-			LibCC_743::Parse::CScriptReader740 input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
-			bool r = (*LibCC_743::Parse::Space() + ElementParser743(LibCC_743::Parse::RefOutput(el)) + LibCC_743::Parse::Eof()).ParseRetainingStateOnError(result, input);
-			DoNotOptimize(el);
-		}
-		ReportBenchmark(t, "740 revision (original CScriptReader)");
+	//	StartBenchmark(t);
+	//	for(int n = 0; n < MaxNum; n ++)
+	//	{
+	//		LibCC_743::Parse::ParseResultMem result;
+	//		Element el;
+	//		LibCC_743::Parse::CScriptReader740 input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+	//		bool r = (*LibCC_743::Parse::Space() + ElementParser743(LibCC_743::Parse::RefOutput(el)) + LibCC_743::Parse::Eof()).ParseRetainingStateOnError(result, input);
+	//		DoNotOptimize(el);
+	//	}
+	//	ReportBenchmark(t, "740 revision (original CScriptReader)");
 
-		StartBenchmark(t);
-		for(int n = 0; n < MaxNum; n ++)
-		{
-			LibCC_743::Parse::ParseResultMem result;
-			Element el;
-			LibCC_743::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
-			bool r = (*LibCC_743::Parse::Space() + ElementParser743(LibCC_743::Parse::RefOutput(el)) + LibCC_743::Parse::Eof()).ParseRetainingStateOnError(result, input);
-			DoNotOptimize(el);
-		}
-		ReportBenchmark(t, "743 revision (optimized cursor)");
+	//	StartBenchmark(t);
+	//	for(int n = 0; n < MaxNum; n ++)
+	//	{
+	//		LibCC_743::Parse::ParseResultMem result;
+	//		Element el;
+	//		LibCC_743::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+	//		bool r = (*LibCC_743::Parse::Space() + ElementParser743(LibCC_743::Parse::RefOutput(el)) + LibCC_743::Parse::Eof()).ParseRetainingStateOnError(result, input);
+	//		DoNotOptimize(el);
+	//	}
+	//	ReportBenchmark(t, "743 revision (optimized cursor)");
 
-		StartBenchmark(t);
-		for(int n = 0; n < MaxNum; n ++)
-		{
-			LibCC_745::Parse::ParseResultMem result;
-			Element el;
-			LibCC_745::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
-			bool r = (*LibCC_745::Parse::Space() + ElementParser745(LibCC_745::Parse::RefOutput(el)) + LibCC_745::Parse::Eof()).ParseRetainingStateOnError(result, input);
-			DoNotOptimize(el);
-		}
-		ReportBenchmark(t, "745 revision (optimized outputs)");
+	//StartBenchmark(t);
+	//	for(int n = 0; n < MaxNum; n ++)
+	//	{
+	//		LibCC_745::Parse::ParseResultMem result;
+	//		Element el;
+	//		LibCC_745::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+	//		bool r = (*LibCC_745::Parse::Space() + ElementParser745(LibCC_745::Parse::RefOutput(el)) + LibCC_745::Parse::Eof()).ParseRetainingStateOnError(result, input);
+	//		DoNotOptimize(el);
+	//	}
+	//	ReportBenchmark(t, "745 revision (optimized outputs)");
 
-		StartBenchmark(t);
-		for(int n = 0; n < MaxNum; n ++)
-		{
-			LibCC_746::Parse::ParseResultMem result;
-			Element el;
-			LibCC_746::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
-			bool r = (*LibCC_746::Parse::Space() + LibCC_746::Parse::ElementParser(LibCC_746::Parse::RefOutput(el)) + LibCC_746::Parse::Eof()).ParseRetainingStateOnError(result, input);
-			DoNotOptimize(el);
-		}
-		ReportBenchmark(t, "746 revision (optimized parserBase)");
+	//	StartBenchmark(t);
+	//	for(int n = 0; n < MaxNum; n ++)
+	//	{
+	//		LibCC_746::Parse::ParseResultMem result;
+	//		Element el;
+	//		LibCC_746::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+	//		bool r = (*LibCC_746::Parse::Space() + LibCC_746::Parse::ElementParser(LibCC_746::Parse::RefOutput(el)) + LibCC_746::Parse::Eof()).ParseRetainingStateOnError(result, input);
+	//		DoNotOptimize(el);
+	//	}
+	//	ReportBenchmark(t, "746 revision (optimized parserBase)");
 
-		StartBenchmark(t);
-		for(int n = 0; n < MaxNum; n ++)
-		{
-			LibCC_746b::Parse::ParseResultMem result;
-			Element el;
-			LibCC_746b::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
-			bool r = (*LibCC_746b::Parse::Space() + LibCC_746b::Parse::ElementParser(LibCC_746b::Parse::RefOutput(el)) + LibCC_746b::Parse::Eof()).ParseRetainingStateOnError(result, input);
-			DoNotOptimize(el);
-		}
-		ReportBenchmark(t, "746b revision (QuickString passthrough and )");
+	//	StartBenchmark(t);
+	//	for(int n = 0; n < MaxNum; n ++)
+	//	{
+	//		LibCC_746b::Parse::ParseResultMem result;
+	//		Element el;
+	//		LibCC_746b::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+	//		bool r = (*LibCC_746b::Parse::Space() + LibCC_746b::Parse::ElementParser(LibCC_746b::Parse::RefOutput(el)) + LibCC_746b::Parse::Eof()).ParseRetainingStateOnError(result, input);
+	//		DoNotOptimize(el);
+	//	}
+	//	ReportBenchmark(t, "746b revision (QuickString passthrough)");
+
+	//	StartBenchmark(t);
+	//	for(int n = 0; n < MaxNum; n ++)
+	//	{
+	//		LibCC_747::Parse::ParseResultMem result;
+	//		Element el;
+	//		LibCC_747::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+	//		bool r = (*LibCC_747::Parse::Space() + LibCC_747::Parse::ElementParser(LibCC_747::Parse::RefOutput(el)) + LibCC_747::Parse::Eof()).ParseRetainingStateOnError(result, input);
+	//		DoNotOptimize(el);
+	//	}
+	//	ReportBenchmark(t, "747 revision (#define LIBCC_PARSE_TRACE_ENABLED)");
 
 		StartBenchmark(t);
 		for(int n = 0; n < MaxNum; n ++)

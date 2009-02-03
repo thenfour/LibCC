@@ -1,47 +1,10 @@
 /*
-  LibCC
-  Parse Module
-  (c) 2009 Carl Corcoran, carlco@gmail.com
-  Documentation: http://wiki.winprog.org/wiki/LibCC_Parse
-	Official source code: http://svn.winprog.org/personal/carl/LibCC
-
-	Original version: Jan 19, 2009
-
-	== License:
-
-  All software on this site is provided 'as-is', without any express or
-  implied warranty, by its respective authors and owners. In no event will
-  the authors be held liable for any damages arising from the use of this
-  software.
-
-  Permission is granted to anyone to use this software for any purpose,
-  including commercial applications, and to alter it and redistribute it
-  freely, subject to the following restrictions:
-
-  1. The origin of this software must not be misrepresented; you must not
-  claim that you wrote the original software. If you use this software in
-  a product, an acknowledgment in the product documentation would be
-  appreciated but is not required.
-
-  2. Altered source versions must be plainly marked as such, and must not
-  be misrepresented as being the original software.
-
-  3. This notice may not be removed or altered from any source distribution.
-*/
-/*
-
-	Optimizations
-	x remove std::wstring::find in CScriptReader (+27%)
-	x remove the need for OutputPtr, reducing allocations (+30%)
-	x remove the need for ParserPtr, reducing allocations (+49%)
-	x use QuickStringList in Passthrough and reduce std::wstring copies (+10%)
-	- do not make an output backup EVERY parse; add a SaveOutput() function.
-
+	THIS IS ADAPTED FROM REVISION 747 FROM FEB 2 2009
+	OF PARSE.HPP FOR COMPARISON WITH THE LATEST VERSION.
 */
 
 #pragma once
 
-#include "stringutil.hpp"
 #include <vector>
 #include <stack>
 
@@ -51,7 +14,7 @@
 
 #pragma warning(disable:4503)// warning C4503: ...' : decorated name length exceeded, name was truncated
 
-namespace LibCC
+namespace LibCC_747
 {
 	namespace Parse
 	{
@@ -467,11 +430,9 @@ namespace LibCC
 		struct ParserRoot
 		{
 			bool IsTraceEnabled;
-			bool IsOutputBackedUp;
 
 			ParserRoot() :
-				IsTraceEnabled(true),
-				IsOutputBackedUp(false)
+				IsTraceEnabled(true)
 			{
 			}
 
@@ -479,18 +440,10 @@ namespace LibCC
 			{
 			}
 
-			void BackupOutput(ScriptReader& input)
-			{
-				if(!IsOutputBackedUp)
-				{
-					SaveOutputState(input);
-					IsOutputBackedUp = true;
-				}
-			}
-
 			virtual bool ParseRetainingStateOnError(ParseResult& result, ScriptReader& input)
 			{
 				ScriptCursor oldCursor = input.GetCursorCopy();
+				SaveOutputState(input);
 
 #if LIBCC_PARSE_TRACE_ENABLED
 				ParseDepthToken pdt(result, LibCC::FormatW(L"% at %") (GetParserName()) (_DebugCursorToString(oldCursor, input)).Str());
@@ -534,11 +487,8 @@ namespace LibCC
 						result.Trace(L"}");
 					}
 #endif
-					if(IsOutputBackedUp)
-						RestoreOutputState(input);
-
+					RestoreOutputState(input);
 					input.SetCursor(oldCursor);
-
 					return false;
 				}
 
@@ -1516,7 +1466,6 @@ namespace LibCC
 				}
 
 				parsed = input.CurrentChar();
-				BackupOutput(input);
 				output.Save(input, parsed);
 				input.Advance();
 
@@ -1657,7 +1606,6 @@ namespace LibCC
 					parsed.push_back(ch);
 				}
 
-				BackupOutput(input);
 				output.Save(input, parsed);
 				return true;// made it all the way
 			}
@@ -1764,7 +1712,6 @@ namespace LibCC
 					return false;
 				}
 
-				BackupOutput(input);
 				output.Save(input, parsed);
 				input.Advance();
 				return true;
@@ -1864,7 +1811,6 @@ namespace LibCC
 						return false;
 				}
 
-				BackupOutput(input);
 				output.Save(input, parsed);
 				input.Advance();
 				return true;
@@ -1956,27 +1902,21 @@ namespace LibCC
 				switch(escapeChar)
 				{
 				case 'r':
-					BackupOutput(input);
 					output.Save(input, '\r');
 					return true;
 				case 'n':
-					BackupOutput(input);
 					output.Save(input, '\n');
 					return true;
 				case 't':
-					BackupOutput(input);
 					output.Save(input, '\t');
 					return true;
 				case '\"':
-					BackupOutput(input);
 					output.Save(input, '\"');
 					return true;
 				case '\\':
-					BackupOutput(input);
 					output.Save(input, '\\');
 					return true;
 				case '\'':
-					BackupOutput(input);
 					output.Save(input, '\'');
 					return true;
 				// TODO: handle other escape sequences
@@ -2049,10 +1989,7 @@ namespace LibCC
 				Parser p = Or(singleQuotes, doubleQuotes);
 				bool ret = p.ParseRetainingStateOnError(result, input);
 				if(ret)
-				{
-					BackupOutput(input);
 					output.Save(input, parsed);
-				}
 				return ret;
 			}
 		};
@@ -2126,7 +2063,6 @@ namespace LibCC
 					out *= base;
 					out += CharToDigit(*it);
 				}
-				BackupOutput(input);
 				output.Save(input, out);
 				return true;
 			}
@@ -2297,7 +2233,6 @@ namespace LibCC
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
-				BackupOutput(input);
 				output.Save(input, sign == '-' ? -temp : temp);
 				return true;
 			}
@@ -2340,7 +2275,6 @@ namespace LibCC
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
-				BackupOutput(input);
 				output.Save(input, sign == '-' ? -temp : temp);
 				return true;
 			}
@@ -2381,7 +2315,6 @@ namespace LibCC
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
-				BackupOutput(input);
 				output.Save(input, sign == '-' ? -temp : temp);
 				return true;
 			}
@@ -2421,7 +2354,6 @@ namespace LibCC
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
-				BackupOutput(input);
 				output.Save(input, sign == '-' ? -temp : temp);
 				return true;
 			}
@@ -2564,7 +2496,6 @@ namespace LibCC
 					}
 				}
 
-				BackupOutput(input);
 				output.Save(input, res);
 
 				return true;
@@ -2605,7 +2536,6 @@ namespace LibCC
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
-				BackupOutput(input);
 				output.Save(input, sign == '-' ? -temp : temp);
 				return true;
 			}
