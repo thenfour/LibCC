@@ -1,54 +1,14 @@
 /*
-  LibCC
-  Parse Module
-  (c) 2009 Carl Corcoran, carlco@gmail.com
-  Documentation: http://wiki.winprog.org/wiki/LibCC_Parse
-	Official source code: http://svn.winprog.org/personal/carl/LibCC
-
-	Original version: Jan 19, 2009
-
-	== License:
-
-  All software on this site is provided 'as-is', without any express or
-  implied warranty, by its respective authors and owners. In no event will
-  the authors be held liable for any damages arising from the use of this
-  software.
-
-  Permission is granted to anyone to use this software for any purpose,
-  including commercial applications, and to alter it and redistribute it
-  freely, subject to the following restrictions:
-
-  1. The origin of this software must not be misrepresented; you must not
-  claim that you wrote the original software. If you use this software in
-  a product, an acknowledgment in the product documentation would be
-  appreciated but is not required.
-
-  2. Altered source versions must be plainly marked as such, and must not
-  be misrepresented as being the original software.
-
-  3. This notice may not be removed or altered from any source distribution.
-*/
-/*
-	NOTE: the reason that I have to use a ParserBase with NewClone is because of
-	the overloaded operators. I cannot just use any old parser class and expect to use
-	operator * with it like
-
-	template<typename Tlhs, typename Trhs>
-	Sequence<Tlhs, Trhs> operator >> (const Tlhs& lhs, const Trhs& rhs)
-	{
-		... how could this possibly work? even if i can use a base class, i need to be able to copy (thus, store,)
-		a copy of lhs and rhs in the return parser. I need to know their full types.
-	}
-
+	THIS IS ADAPTED FROM REVISION 745 FROM FEB 2 2009
+	OF PARSE.HPP FOR COMPARISON WITH THE LATEST VERSION.
 */
 
 #pragma once
 
-#include "stringutil.hpp"
 #include <vector>
 #include <stack>
 
-namespace LibCC
+namespace LibCC_745
 {
 	namespace Parse
 	{
@@ -379,19 +339,16 @@ namespace LibCC
 			}
 		};
 
-		// Parser base classes ///////////////////////////////////////////////////////////////////////////////////////
-
-
-		struct ParserRoot
+		struct ParserBase
 		{
 			bool IsTraceEnabled;
 
-			ParserRoot() :
+			ParserBase() :
 				IsTraceEnabled(true)
 			{
 			}
 
-			virtual ~ParserRoot()
+			virtual ~ParserBase()
 			{
 			}
 
@@ -453,8 +410,7 @@ namespace LibCC
 				return true;
 			}
 
-			virtual ParserRoot* NewClone() const = 0;
-			virtual void Delete(ParserRoot*) const = 0;
+			virtual ParserBase* NewClone() const = 0;
 
 			virtual void SaveOutputState(ScriptReader& input) = 0;
 			virtual void RestoreOutputState(ScriptReader& input) = 0;
@@ -478,191 +434,212 @@ namespace LibCC
 			}
 		};
 
-
-		template<typename Tderived>
-		struct ParserBase :
-			public ParserRoot
+		struct ParserPtr
 		{
-			typedef Tderived Derived;
+			struct ParserBase* p;
 
-			virtual ~ParserBase() { }
-
-			virtual ParserRoot* NewClone() const
+			ParserPtr() : p(0)
 			{
-				return new Tderived(*(Tderived*)this);
+			}
+			ParserPtr(const ParserPtr& rhs) : p(0)
+			{
+				Assign(rhs);
+			}
+			ParserPtr(const ParserBase& rhs) : p(0)
+			{
+				Assign(rhs);
+			}
+			explicit ParserPtr(ParserBase* rhs) : p(0)
+			{
+				Assign(rhs);
 			}
 
-			virtual void Delete(ParserRoot* ptr) const
+			~ParserPtr()
 			{
-				delete (Tderived*)ptr;
+				Release();
+			}
+
+			bool IsEmpty() const { return p == 0; }
+			bool IsValid() const { return p != 0; }
+
+			void Assign(const ParserPtr& rhs)
+			{
+				Release();
+				if(rhs.IsValid())
+					p = rhs.p->NewClone();// copying creates a clone.
+			}
+
+			void Assign(const ParserBase& rhs)
+			{
+				Release();
+				p = rhs.NewClone();
+			}
+
+			void Assign(ParserBase* rhs)
+			{
+				Release();
+				p = rhs;
+			}
+
+			void Release()
+			{
+				delete p;
+				p = 0;
+			}
+
+			ParserBase* operator ->()
+			{
+				return p;
+			}
+
+			const ParserBase* operator ->() const
+			{
+				return p;
 			}
 		};
 
 		// basic framework parsers ///////////////////////////////////////////////////////////////////////////////////////
 
-		template<typename Tchild>
-		struct PassthroughT :
-			public ParserBase<PassthroughT<Tchild> >
+		struct Passthrough :
+			public ParserBase
 		{
 		private:
-			Tchild m_child;
+			ParserPtr m_child;
+			std::wstring m_name;
 
 		public:
 			std::wstring falseMessage;
 			std::wstring trueMessage;
 
-			PassthroughT(const Tchild& rhs, const std::wstring trueMessage_, const std::wstring falseMessage_) :
-				m_child(rhs),
-				trueMessage(trueMessage_),
-				falseMessage(falseMessage_)
+			Passthrough& operator =(const Passthrough& rhs)
 			{
-			}
-
-			virtual void SaveOutputState(ScriptReader& input)
-			{
-				m_child.SaveOutputState(input);
-			}
-
-			virtual void RestoreOutputState(ScriptReader& input)
-			{
-				m_child.RestoreOutputState(input);
-			}
-
-			virtual bool Parse(ParseResult& result, ScriptReader& input)
-			{
-				bool r = m_child.ParseRetainingStateOnError(result, input);
-				if(r && !trueMessage.empty())
-					result.ParserMessage(trueMessage, input.GetCursorCopy(), input);
-				if(!r && !falseMessage.empty())
-				result.ParserMessage(falseMessage, input.GetCursorCopy(), input);
-				return r;
-			}
-		};
-
-		template<typename Tchild>
-		inline PassthroughT<Tchild> Passthrough(const Tchild& child)
-		{
-			return PassthroughT<Tchild>(child, L"", L"");
-		}
-
-		template<typename Tchild>
-		inline PassthroughT<Tchild> FalseMsg(const std::wstring& msg, const Tchild& child)
-		{
-			return PassthroughT<Tchild>(child, L"", msg);
-		}
-
-		template<typename Tchild>
-		inline PassthroughT<Tchild> TrueMsg(const std::wstring& msg, const Tchild& child)
-		{
-			return PassthroughT<Tchild>(child, msg, L"");
-		}
-
-		// basically this is a smart ptr for parsers allowing you to do Parser p = <any kind of parser here>;
-		// to assign a parser to a variable. Causes a new/copy/delete though so don't do this when it could
-		// be passed a million times.
-		struct Parser :
-			public ParserBase<Parser>
-		{
-			ParserRoot* m_child;
-
-			Parser() :
-				m_child(0)
-			{
-			}
-
-			Parser(const Parser& rhs) :
-				m_child(0)
-			{
-				if(rhs.m_child == 0)
-					return;
-				m_child = rhs.m_child->NewClone();
-			}
-
-			Parser(const ParserRoot& rhs)
-			{
-				m_child = rhs.NewClone();
-			}
-
-			Parser& operator = (const Parser& rhs)
-			{
-				Release();
-				if(rhs.m_child != 0)
-				{
-					m_child = rhs.m_child->NewClone();
-				}
+				m_name = rhs.m_name;
+				m_child = rhs.m_child;
 				return *this;
 			}
 
-			Parser& operator = (const ParserRoot& rhs)
+			Passthrough& operator =(const ParserBase& rhs)
 			{
-				Release();
-				m_child = rhs.NewClone();
+				m_name = L"Passthrough";
+				m_child.Assign(rhs);
 				return *this;
 			}
 
-			~Parser()
+			Passthrough()
 			{
-				Release();
+				m_name = L"Passthrough";
 			}
 
-			void Release()
+			Passthrough(const ParserBase& rhs)
 			{
-				if(!m_child)
-					return;
-				m_child->Delete(m_child);
-				m_child = 0;
+				m_child.Assign(rhs);
+				m_name = L"Passthrough";
 			}
+
+			Passthrough(const std::wstring& subName, const ParserBase& rhs)
+			{
+				m_child.Assign(rhs);
+				m_name = subName;
+			}
+
+			Passthrough(const std::wstring& subName, bool enableVerboseLoggingForChild_, const ParserBase& rhs)
+			{
+				m_child.Assign(rhs);
+				m_child->IsTraceEnabled = enableVerboseLoggingForChild_;
+				m_name = subName;
+			}
+
+			virtual ParserBase* NewClone() const { return new Passthrough(*this); }
+			virtual std::wstring GetParserName() const { return m_name; }
 
 			virtual void SaveOutputState(ScriptReader& input)
 			{
-				if(!m_child)
+				if(m_child.IsEmpty())
 					return;
 				m_child->SaveOutputState(input);
 			}
 
 			virtual void RestoreOutputState(ScriptReader& input)
 			{
-				if(!m_child)
+				if(m_child.IsEmpty())
 					return;
 				m_child->RestoreOutputState(input);
 			}
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
-				if(!m_child)
+				if(m_child.IsEmpty())
+				{
+					if(!trueMessage.empty())
+						result.ParserMessage(trueMessage, input.GetCursorCopy(), input);
 					return true;
-				return m_child->ParseRetainingStateOnError(result, input);
+				}
+				bool r = m_child->ParseRetainingStateOnError(result, input);
+				if(r && !trueMessage.empty())
+					result.ParserMessage(trueMessage, input.GetCursorCopy(), input);
+				if(!r && !falseMessage.empty())
+				result.ParserMessage(falseMessage, input.GetCursorCopy(), input);
+				return r;
 			}
-		};
 
-		// sentinel so that parsers like SequenceT or OrT don't have to always check if the child is valid.
-		struct NothingParser :
-			public ParserBase<Parser>
-		{
-			virtual void SaveOutputState(ScriptReader& input) { }
-			virtual void RestoreOutputState(ScriptReader& input) { }
-			virtual bool Parse(ParseResult& result, ScriptReader& input)
+			virtual std::wstring Dump(int indentLevel)
 			{
-				return true;
+				std::wstring ret;
+				ret += std::wstring(indentLevel, ' ') + L"Passthrough\r\n";
+				ret += std::wstring(indentLevel, ' ') + L"{\r\n";
+				if(m_child.IsValid())
+					ret += m_child->Dump(indentLevel + 1);
+				ret += std::wstring(indentLevel, ' ') + L"}\r\n";
+				return ret;
 			}
 		};
 
-		// acts as a breakpoint during the parsing process.
-		template<typename Tchild>
-		struct BreakT :
-			public ParserBase<BreakT<Tchild> >
+		typedef Passthrough Parser;
+
+		inline Passthrough FalseMsg(const std::wstring& msg, const ParserBase& child)
+		{
+			Passthrough ret(child);
+			ret.falseMessage = msg;
+			return ret;
+		}
+
+		inline Passthrough TrueMsg(const std::wstring& msg, const ParserBase& child)
+		{
+			Passthrough ret(child);
+			ret.trueMessage = msg;
+			return ret;
+		}
+
+
+		// acts as a breakpoint during the parsing process. other than that, it simply 
+		struct Break :
+			public ParserBase
 		{
 		private:
-			Tchild m_child;
+			ParserPtr m_child;
 
 		public:
-			BreakT(const Tchild& rhs) :
+			Break(const ParserBase& rhs) :
 				m_child(rhs)
 			{
 			}
 
-			virtual void SaveOutputState(ScriptReader& input) { m_child.SaveOutputState(input); }
-			virtual void RestoreOutputState(ScriptReader& input) { m_child.RestoreOutputState(input); }
+			virtual ParserBase* NewClone() const { return new Break(*this); }
+			virtual std::wstring GetParserName() const { return L"Breakpoint"; }
+
+			virtual void SaveOutputState(ScriptReader& input)
+			{
+				if(m_child.IsEmpty())
+					return;
+				m_child->SaveOutputState(input);
+			}
+
+			virtual void RestoreOutputState(ScriptReader& input)
+			{
+				if(m_child.IsEmpty())
+					return;
+				m_child->RestoreOutputState(input);
+			}
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
@@ -678,17 +655,19 @@ namespace LibCC
 				std::wstring newContext = _DebugCursorToString(newCursor, input);
 				return r;
 			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				if(m_child.IsValid())
+					return m_child->Dump(indentLevel);
+				return L"break";
+			}
 		};
 
-		template<typename Tchild>
-		BreakT<Tchild> Break(const Tchild& child)
-		{
-			return BreakT<Tchild>(child);
-		}
 
-
-		struct ParseMsg :
-			public ParserBase<ParseMsg>
+		// acts as a breakpoint during the parsing process. other than that, it simply 
+		struct ParseMsg:
+			public ParserBase
 		{
 			std::wstring msg;
 			bool ret;
@@ -699,6 +678,8 @@ namespace LibCC
 			{
 			}
 
+			virtual ParserBase* NewClone() const { return new ParseMsg(*this); }
+			virtual std::wstring GetParserName() const { return L"ParseMsg"; }
 			virtual void SaveOutputState(ScriptReader& input) { }
 			virtual void RestoreOutputState(ScriptReader& input) { }
 
@@ -708,27 +689,57 @@ namespace LibCC
 					result.ParserMessage(msg, input.GetCursorCopy(), input);
 				return ret;
 			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				return L"ParseMessage";
+			}
 		};
 
 
-		template<typename Tchild, int MinimumOccurrences, bool skipWhitespaceBetween, bool suppressParseMessages = false>
-		struct OccurrencesT :
-			public ParserBase<OccurrencesT<Tchild, MinimumOccurrences, skipWhitespaceBetween, suppressParseMessages> >
+		template<int MinimumOccurrences, bool skipWhitespaceBetween, bool suppressParseMessages = false>
+		struct Occurrences :
+			public ParserBase
 		{
 		private:
-			Tchild m_child;
+			ParserPtr m_child;
 
 		public:
-			OccurrencesT(const Tchild& rhs) :
-					m_child(rhs)
+			Occurrences()
 			{
 			}
 
-			virtual void SaveOutputState(ScriptReader& input) { m_child.SaveOutputState(input); }
-			virtual void RestoreOutputState(ScriptReader& input) { m_child.RestoreOutputState(input); }
+			Occurrences(const Occurrences<MinimumOccurrences, skipWhitespaceBetween>& rhs)
+			{
+				if(rhs.m_child.IsEmpty())
+					return;
+				m_child.Assign(rhs.m_child->NewClone());
+			}
+
+			Occurrences(const ParserBase& rhs)
+			{
+				m_child.Assign(rhs);
+			}
+
+			virtual ParserBase* NewClone() const { return new Occurrences<MinimumOccurrences, skipWhitespaceBetween>(*this); }
+			virtual std::wstring GetParserName() const
+			{
+				std::wstring skipBehavior = skipWhitespaceBetween ? L"skip" : L"no skip";
+				if(MinimumOccurrences == 0)
+					return LibCC::FormatW(L"Zero or more (%)").s(skipBehavior).Str();
+				if(MinimumOccurrences == 1)
+					return LibCC::FormatW(L"One or more (%)").s(skipBehavior).Str();
+				return LibCC::FormatW(L"Occurrences<%,%>").i(MinimumOccurrences).s(skipBehavior).Str();
+			}
+
+			virtual void SaveOutputState(ScriptReader& input) { if(m_child.IsValid()) m_child->SaveOutputState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { if(m_child.IsValid()) m_child->RestoreOutputState(input); }
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
+				if(m_child.IsEmpty())
+					return true;
+				
 				int count = 0;
 				
 				while(true)
@@ -736,7 +747,7 @@ namespace LibCC
 					int oldCursor = input.GetCursorCopy().pos;
 					std::vector<std::wstring> parserMessages;
 					result.PushParserMessaging(&parserMessages);
-					if(!m_child.ParseRetainingStateOnError(result, input))
+					if(!m_child->ParseRetainingStateOnError(result, input))
 					{
 						if(count < MinimumOccurrences)
 						{
@@ -762,118 +773,137 @@ namespace LibCC
 
 					if(skipWhitespaceBetween)
 					{
-						while(!input.IsEOF() && StringContains(WhitespaceChars(), input.CurrentChar()))
+						while(!input.IsEOF() && LibCC::StringContains(WhitespaceChars(), input.CurrentChar()))
 						{
 							input.Advance();
 						}
 					}
 				}
 			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				std::wstring ret;
+				ret += std::wstring(indentLevel, ' ') + L"Occurrences<>\r\n";
+				ret += std::wstring(indentLevel, ' ') + L"{\r\n";
+				if(m_child.IsValid())
+					ret += m_child->Dump(indentLevel + 1);
+				ret += std::wstring(indentLevel, ' ') + L"}\r\n";
+				return ret;
+			}
 		};
 
-		template<int MinimumOccurrences, bool skipWhitespaceBetween, typename Tchild>
-		OccurrencesT<Tchild, MinimumOccurrences, skipWhitespaceBetween, false> Occurrences(const Tchild& ch)
-		{
-			return OccurrencesT<Tchild, MinimumOccurrences, skipWhitespaceBetween, false>(ch);
-		}
+		typedef Occurrences<0, false> ZeroOrMore;
+		typedef Occurrences<0, true> ZeroOrMoreS;
+		typedef Occurrences<1, false> OneOrMore;
+		typedef Occurrences<1, true> OneOrMoreS;
 
-		template<int MinimumOccurrences, bool skipWhitespaceBetween, bool suppressParseMessages, typename Tchild>
-		OccurrencesT<Tchild, MinimumOccurrences, skipWhitespaceBetween, suppressParseMessages> Occurrences(const Tchild& ch)
-		{
-			return OccurrencesT<Tchild, MinimumOccurrences, skipWhitespaceBetween, suppressParseMessages>(ch);
-		}
-
-		template<typename Tchild>
-		OccurrencesT<Tchild, 0, false> ZeroOrMore(const Tchild& ch)
-		{
-			return OccurrencesT<Tchild, 0, false>(ch);
-		}
-
-		template<typename Tchild>
-		OccurrencesT<Tchild, 0, true> ZeroOrMoreS(const Tchild& ch)
-		{
-			return OccurrencesT<Tchild, 0, true>(ch);
-		}
-
-		template<typename Tchild>
-		OccurrencesT<Tchild, 1, false> OneOrMore(const Tchild& ch)
-		{
-			return OccurrencesT<Tchild, 1, false>(ch);
-		}
-
-		template<typename Tchild>
-		OccurrencesT<Tchild, 1, true> OneOrMoreS(const Tchild& ch)
-		{
-			return OccurrencesT<Tchild, 1, true>(ch);
-		}
-
-
-		template<typename Tchild>
-		struct NotT :
-			public ParserBase<NotT<Tchild> >
+		struct Not :
+			public ParserBase
 		{
 		private:
-			Tchild m_child;
+			ParserPtr m_child;
 
 		public:
-			NotT(const Tchild& rhs) :
-					m_child(rhs)
+			Not()
 			{
 			}
 
-			virtual void SaveOutputState(ScriptReader& input) { m_child.SaveOutputState(input); }
-			virtual void RestoreOutputState(ScriptReader& input) { m_child.RestoreOutputState(input); }
+			Not(const Not& rhs)
+			{
+				if(rhs.m_child.IsEmpty())
+					return;
+				m_child.Assign(rhs.m_child->NewClone());
+			}
+
+			Not(const ParserBase& rhs)
+			{
+				m_child.Assign(rhs);
+			}
+
+			virtual ParserBase* NewClone() const { return new Not(*this); }
+			virtual std::wstring GetParserName() const { return L"Not"; }
+
+			virtual void SaveOutputState(ScriptReader& input) { if(m_child.IsValid()) m_child->SaveOutputState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { if(m_child.IsValid()) m_child->RestoreOutputState(input); }
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
+				if(m_child.IsEmpty())
+					return true;
+
 				std::vector<std::wstring> parseMessages;
 				result.PushParserMessaging(&parseMessages);
-				bool r = m_child.ParseRetainingStateOnError(result, input);
+				bool r = m_child->ParseRetainingStateOnError(result, input);
 				result.PopParserMessaging(false);// never output messaging from INSIDE m_child. it won't make sense because it will all be negative to the actual interpretation.
 				return !r;// <-- this is the NOT.
 			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				std::wstring ret;
+				ret += std::wstring(indentLevel, ' ') + L"Not\r\n";
+				ret += std::wstring(indentLevel, ' ') + L"{\r\n";
+				if(m_child.IsValid())
+					ret += m_child->Dump(indentLevel + 1);
+				ret += std::wstring(indentLevel, ' ') + L"}\r\n";
+				return ret;
+			}
 		};
 
-		template<typename Tchild>
-		NotT<Tchild> Not(const Tchild& child)
-		{
-			return NotT<Tchild>(child);
-		}
-
-
-		template<typename Tchild>
-		struct OptionalT :
-			public ParserBase<OptionalT<Tchild> >
+		struct Optional :
+			public ParserBase
 		{
 		private:
-			Tchild m_child;
+			ParserPtr m_child;
 
 		public:
-			OptionalT(const Tchild& rhs) :
-				m_child(rhs)
+			Optional()
 			{
 			}
 
-			virtual void SaveOutputState(ScriptReader& input) { m_child.SaveOutputState(input); }
-			virtual void RestoreOutputState(ScriptReader& input) { m_child.RestoreOutputState(input); }
+			Optional(const Optional& rhs)
+			{
+				if(rhs.m_child.IsEmpty())
+					return;
+				m_child.Assign(rhs.m_child->NewClone());
+			}
+
+			Optional(const ParserBase& rhs)
+			{
+				m_child.Assign(rhs);
+			}
+
+			virtual ParserBase* NewClone() const { return new Optional(*this); }
+			virtual std::wstring GetParserName() const { return L"Optional"; }
+
+			virtual void SaveOutputState(ScriptReader& input) { if(m_child.IsValid()) m_child->SaveOutputState(input); }
+			virtual void RestoreOutputState(ScriptReader& input) { if(m_child.IsValid()) m_child->RestoreOutputState(input); }
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
+				if(m_child.IsEmpty())
+					return true;
+
 				// if the child fails to parse, then don't emit error messages. it was optional.
 				std::vector<std::wstring> parseMessages;
 				result.PushParserMessaging(&parseMessages);
-				bool r = m_child.ParseRetainingStateOnError(result, input);
+				bool r = m_child->ParseRetainingStateOnError(result, input);
 				result.PopParserMessaging(r);
 				return true;
 			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				std::wstring ret;
+				ret += std::wstring(indentLevel, ' ') + L"Optional\r\n";
+				ret += std::wstring(indentLevel, ' ') + L"{\r\n";
+				if(m_child.IsValid())
+					ret += m_child->Dump(indentLevel + 1);
+				ret += std::wstring(indentLevel, ' ') + L"}\r\n";
+				return ret;
+			}
 		};
-
-		template<typename Tchild>
-		OptionalT<Tchild> Optional(const Tchild& child)
-		{
-			return OptionalT<Tchild>(child);
-		}
-
 
 		inline const wchar_t* WhitespaceChars()
 		{
@@ -904,107 +934,125 @@ namespace LibCC
 			return x;
 		}
 
-		template<bool skipWhitespaceBetween, typename Tlhs, typename Trhs>
-		struct SequenceT :
-			public ParserBase<SequenceT<skipWhitespaceBetween, Tlhs, Trhs> >
+		template<bool skipWhitespaceBetween>
+		struct Sequence :
+			public ParserBase
 		{
-			Tlhs lhs;
-			Trhs rhs;
+			ParserPtr lhs;
+			ParserPtr rhs;
 
-			SequenceT(const Tlhs& _lhs, const Trhs& _rhs) :
-				lhs(_lhs),
-				rhs(_rhs)
+			Sequence(const ParserBase& _lhs, const ParserBase& _rhs)
 			{
+				lhs.Assign(_lhs);
+				rhs.Assign(_rhs);
+			}
+
+			virtual ParserBase* NewClone() const { return new Sequence(*this); }
+			virtual std::wstring GetParserName() const
+			{
+				return LibCC::FormatW(L"Sequence<%>").s(skipWhitespaceBetween ? L"skip" : L"no skip").Str();
 			}
 
 			virtual void SaveOutputState(ScriptReader& input)
 			{
-				lhs.SaveOutputState(input);
-				rhs.SaveOutputState(input);
+				lhs->SaveOutputState(input);
+				rhs->SaveOutputState(input);
 			}
 
 			virtual void RestoreOutputState(ScriptReader& input)
 			{
-				lhs.RestoreOutputState(input);
-				rhs.RestoreOutputState(input);
+				lhs->RestoreOutputState(input);
+				rhs->RestoreOutputState(input);
 			}
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
-				if(!lhs.ParseRetainingStateOnError(result, input))
+				if(!lhs->ParseRetainingStateOnError(result, input))
 					return false;
 				if(skipWhitespaceBetween)
 				{
-					while(!input.IsEOF() && StringContains(WhitespaceChars(), input.CurrentChar()))
+					while(!input.IsEOF() && LibCC::StringContains(WhitespaceChars(), input.CurrentChar()))
 					{
 						input.Advance();
 					}
 				}
-				if(!rhs.ParseRetainingStateOnError(result, input))
+				if(!rhs->ParseRetainingStateOnError(result, input))
 					return false;
 				return true;
 			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				std::wstring ret;
+				ret += std::wstring(indentLevel, ' ') + L"Sequence\r\n";
+				ret += std::wstring(indentLevel, ' ') + L"{\r\n";
+				if(lhs.IsValid())
+					ret += lhs->Dump(indentLevel + 1);
+				if(rhs.IsValid())
+					ret += rhs->Dump(indentLevel + 1);
+				ret += std::wstring(indentLevel, ' ') + L"}\r\n";
+				return ret;
+			}
 		};
 
-		template<bool skipWhitespaceBetween, typename Ta, typename Tb>
-		SequenceT<skipWhitespaceBetween, Ta, Tb> Sequence(const Ta& a, const Tb& b)
-		{
-			return SequenceT<skipWhitespaceBetween, Ta, Tb>(a,b);
-		}
-
-		template<bool skipWhitespaceBetween, typename Ta, typename Tb, typename Tc>
-		SequenceT<skipWhitespaceBetween, Ta, SequenceT<skipWhitespaceBetween, Tb, Tc> >
-			Sequence(const Ta& a, const Tb& b, const Tc& c)
+		template<bool skipWhitespaceBetween>
+		Sequence<skipWhitespaceBetween> Sequence3(const ParserBase& a, const ParserBase& b, const ParserBase& c)
 		{
 			return
 				Sequence<skipWhitespaceBetween>(
-					a, Sequence<skipWhitespaceBetween>(b,c));
+					Sequence<skipWhitespaceBetween>(a,b),
+					c);
 		}
 
-		template<bool skipWhitespaceBetween, typename Ta, typename Tb, typename Tc, typename Td>
-		SequenceT<skipWhitespaceBetween, Ta, SequenceT<skipWhitespaceBetween, Tb, SequenceT<skipWhitespaceBetween, Tc, Td> > >
-			Sequence(const Ta& a, const Tb& b, const Tc& c, const Td& d)
+		template<bool skipWhitespaceBetween>
+		Sequence<skipWhitespaceBetween> Sequence4(const ParserBase& a, const ParserBase& b, const ParserBase& c, const ParserBase& d)
 		{
 			return
 				Sequence<skipWhitespaceBetween>(
-					a, Sequence<skipWhitespaceBetween>(
-						b, Sequence<skipWhitespaceBetween>(c,d)));
+					Sequence<skipWhitespaceBetween>(
+						Sequence<skipWhitespaceBetween>(a,b),
+						c),
+					d);
 		}
 
-		template<bool skipWhitespaceBetween, typename Ta, typename Tb, typename Tc, typename Td, typename Te>
-		SequenceT<skipWhitespaceBetween, Ta, SequenceT<skipWhitespaceBetween, Tb, SequenceT<skipWhitespaceBetween, Tc, SequenceT<skipWhitespaceBetween, Td, Te> > > >
-			Sequence(const Ta& a, const Tb& b, const Tc& c, const Td& d, const Te& e)
+		template<bool skipWhitespaceBetween>
+		Sequence<skipWhitespaceBetween> Sequence5(const ParserBase& a, const ParserBase& b, const ParserBase& c, const ParserBase& d, const ParserBase& e)
 		{
 			return
 				Sequence<skipWhitespaceBetween>(
-					a, Sequence<skipWhitespaceBetween>(
-						b, Sequence<skipWhitespaceBetween>(
-							c, Sequence<skipWhitespaceBetween>(d,e))));
+					Sequence<skipWhitespaceBetween>(
+						Sequence<skipWhitespaceBetween>(
+							Sequence<skipWhitespaceBetween>(a,b),
+							c),
+						d),
+					e);
 		}
 
-		template<typename Tlhs, typename Trhs>
-		struct OrT :
-			public ParserBase<OrT<Tlhs, Trhs> >
+		struct Or :
+			public ParserBase
 		{
-			Tlhs lhs;
-			Trhs rhs;
+			ParserPtr lhs;
+			ParserPtr rhs;
 
-			OrT(const Tlhs& _lhs, const Trhs& _rhs) :
-				lhs(_lhs),
-				rhs(_rhs)
+			Or(const ParserBase& _lhs, const ParserBase& _rhs)
 			{
+				lhs.Assign(_lhs);
+				rhs.Assign(_rhs);
 			}
+
+			virtual ParserBase* NewClone() const { return new Or(*this); }
+			virtual std::wstring GetParserName() const { return L"Or"; }
 
 			virtual void SaveOutputState(ScriptReader& input)
 			{
-				lhs.SaveOutputState(input);
-				rhs.SaveOutputState(input);
+				lhs->SaveOutputState(input);
+				rhs->SaveOutputState(input);
 			}
 
 			virtual void RestoreOutputState(ScriptReader& input)
 			{
-				lhs.RestoreOutputState(input);
-				rhs.RestoreOutputState(input);
+				lhs->RestoreOutputState(input);
+				rhs->RestoreOutputState(input);
 			}
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
@@ -1014,7 +1062,7 @@ namespace LibCC
 				std::vector<std::wstring> lhsParseMessages;
 				result.PushParserMessaging(&lhsParseMessages);
 				input.PushMeasure();
-				if(lhs.ParseRetainingStateOnError(result, input))
+				if(lhs->ParseRetainingStateOnError(result, input))
 				{
 					input.PopMeasure();
 					result.PopParserMessaging(true);
@@ -1026,7 +1074,7 @@ namespace LibCC
 				std::vector<std::wstring> rhsParseMessages;
 				result.PushParserMessaging(&rhsParseMessages);
 				input.PushMeasure();
-				if(rhs.ParseRetainingStateOnError(result, input))
+				if(rhs->ParseRetainingStateOnError(result, input))
 				{
 					input.PopMeasure();
 					result.PopParserMessaging(true);
@@ -1046,39 +1094,50 @@ namespace LibCC
 
 				return false;
 			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				std::wstring ret;
+				ret += std::wstring(indentLevel, ' ') + L"Or\r\n";
+				ret += std::wstring(indentLevel, ' ') + L"{\r\n";
+				if(lhs.IsValid())
+					ret += lhs->Dump(indentLevel + 1);
+				if(rhs.IsValid())
+					ret += rhs->Dump(indentLevel + 1);
+				ret += std::wstring(indentLevel, ' ') + L"}\r\n";
+				return ret;
+			}
 		};
 
-		// or, or3, or4
-
-		template<typename Ta, typename Tb>
-		OrT<Ta, Tb> Or(const Ta& a, const Tb& b)
+		inline Or Or3(const ParserBase& a, const ParserBase& b, const ParserBase& c)
 		{
-			return OrT<Ta, Tb>(a,b);
+			return Or(Or(a,b),c);
 		}
 
-		template<typename Ta, typename Tb, typename Tc>
-		OrT<Ta, OrT<Tb, Tc> >
-			Or(const Ta& a, const Tb& b, const Tc& c)
+		inline Or Or4(const ParserBase& a, const ParserBase& b, const ParserBase& c, const ParserBase& d)
 		{
-			return Or(a, Or(b,c));
+			return Or(Or(Or(a,b),c),d);
 		}
-
-		template<typename Ta, typename Tb, typename Tc, typename Td>
-		OrT<Ta, OrT<Tb, OrT<Tc, Td> > >
-			Or(const Ta& a, const Tb& b, const Tc& c, const Td& d)
-		{
-			return Or(a, Or(b, Or(c, d)));
-		}
-
 
 		struct Eof :
-			public ParserBase<Eof>
+			public ParserBase
 		{
+			virtual ParserBase* NewClone() const { return new Eof(*this); }
+			virtual std::wstring GetParserName() const { return L"EOF"; }
+
 			virtual void SaveOutputState(ScriptReader& input) { }
 			virtual void RestoreOutputState(ScriptReader& input) { }
+
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				return input.IsEOF();
+			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				std::wstring ret;
+				ret += std::wstring(indentLevel, ' ') + L"Eof\r\n";
+				return ret;
 			}
 		};
 
@@ -1306,14 +1365,14 @@ namespace LibCC
 		template<typename Tin>
 		ContextOutputT<Tin, RefOutputT<ScriptCursor> > ContextOutput(const Tin& throwaway, ScriptCursor& output_)
 		{
-			return ContextOutputT<Tin, RefOutputT<ScriptCursor> >(RefOutput(output_));
+			return ContextOutputT<Tin, RefOutputT<ScriptCursor> >(throwaway, RefOutput(output_));
 		}
 
 		// Some basic utility parsers ///////////////////////////////////////////////////////////////////////////////////////
 		// this class used to end on line 711
 		template<bool TCaseSensitive, typename Toutput>
 		struct CharT :
-			public ParserBase<CharT<TCaseSensitive, Toutput> >
+			public ParserBase
 		{
 			wchar_t match;
 			Toutput output;
@@ -1330,6 +1389,7 @@ namespace LibCC
 			{
 			}
 
+			virtual ParserBase* NewClone() const { return new CharT<TCaseSensitive, Toutput>(*this); }
 			virtual std::wstring GetParserName() const
 			{
 				return LibCC::FormatW(L"Char%('%')")
@@ -1364,11 +1424,21 @@ namespace LibCC
 
 				if(!TCaseSensitive)
 				{
-					if(CharToLower(parsed) == CharToLower(match))
+					if(LibCC::CharToLower(parsed) == LibCC::CharToLower(match))
 						return true;
 				}
 				//result.Message(L"Unexpected character");
 				return false;
+			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				std::wstring ret;
+				if(match == 0)
+					ret += std::wstring(indentLevel, ' ') + L"Char(any)\r\n";
+				else
+					ret += std::wstring(indentLevel, ' ') + std::wstring(L"Char('") + std::wstring(1, match) + std::wstring(L"')\r\n");
+				return ret;
 			}
 		};
 
@@ -1439,7 +1509,7 @@ namespace LibCC
 
 
 		template<bool TCaseSensitive, typename Toutput>
-		struct StrT : public ParserBase<StrT<TCaseSensitive, Toutput> >
+		struct StrT : public ParserBase
 		{
 			std::wstring match;
 			Toutput output;
@@ -1450,6 +1520,7 @@ namespace LibCC
 			{
 			}
 
+			virtual ParserBase* NewClone() const { return new StrT<TCaseSensitive, Toutput>(*this); }
 			virtual std::wstring GetParserName() const
 			{
 				return LibCC::FormatW(L"Str%(%)")
@@ -1484,7 +1555,7 @@ namespace LibCC
 						//result.Message(L"Unexpected character searching for string ...");
 						return false;
 					}
-					if(!TCaseSensitive && (CharToLower(ch) != CharToLower(*it)))
+					if(!TCaseSensitive && (LibCC::CharToLower(ch) != LibCC::CharToLower(*it)))
 					{
 						return false;
 					}
@@ -1493,6 +1564,13 @@ namespace LibCC
 
 				output.Save(input, parsed);
 				return true;// made it all the way
+			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				std::wstring ret;
+				ret += std::wstring(indentLevel, ' ') + L"Str(" + match + L")\r\n";
+				return ret;
 			}
 		};
 
@@ -1531,9 +1609,9 @@ namespace LibCC
 
 
 		// matches exactly 1 whitespace char
-		struct Space :
-			public ParserBase<Space>
+		struct Space : public ParserBase
 		{
+			virtual ParserBase* NewClone() const { return new Space(*this); }
 			virtual std::wstring GetParserName() const { return L"Space"; }
 
 			virtual void SaveOutputState(ScriptReader& input) { }
@@ -1545,7 +1623,7 @@ namespace LibCC
 				if(input.IsEOF())
 					return false;
 				parsed = input.CurrentChar();
-				if(!StringContains(WhitespaceChars(), parsed))
+				if(!LibCC::StringContains(WhitespaceChars(), parsed))
 				{
 					// non-matching char
 					return false;
@@ -1554,11 +1632,17 @@ namespace LibCC
 				input.Advance();
 				return true;
 			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				std::wstring ret;
+				ret += std::wstring(indentLevel, ' ') + L"Space\r\n";
+				return ret;
+			}
 		};
 
 		template<bool TCaseSensitive, typename Toutput>
-		struct CharOfT :
-			public ParserBase<CharOfT<TCaseSensitive, Toutput> >
+		struct CharOfT : public ParserBase
 		{
 			std::wstring chars;
 			Toutput output;
@@ -1568,9 +1652,13 @@ namespace LibCC
 				output(output_)
 			{
 				if(!TCaseSensitive)
-					chars = StringToLower(chars);
+					chars = LibCC::StringToLower(chars);
 			}
 
+			virtual ParserBase* NewClone() const
+			{
+				return new CharOfT<TCaseSensitive, Toutput>(*this);
+			}
 			virtual std::wstring GetParserName() const
 			{
 				return LibCC::FormatW(L"CharOf%(%)")
@@ -1592,7 +1680,7 @@ namespace LibCC
 				{
 					return false;
 				}
-				if(!TCaseSensitive && (std::wstring::npos == chars.find(CharToLower(parsed))))
+				if(!TCaseSensitive && (std::wstring::npos == chars.find(LibCC::CharToLower(parsed))))
 				{
 					return false;
 				}
@@ -1600,6 +1688,13 @@ namespace LibCC
 				output.Save(input, parsed);
 				input.Advance();
 				return true;
+			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				std::wstring ret;
+				ret += std::wstring(indentLevel, ' ') + L"CharOf(\"" + chars + L"\")\r\n";
+				return ret;
 			}
 		};
 
@@ -1649,8 +1744,7 @@ namespace LibCC
 
 
 		template<bool TCaseSensitive, typename Toutput>
-		struct CharRangeT :
-			public ParserBase<CharRangeT<TCaseSensitive, Toutput> >
+		struct CharRangeT : public ParserBase
 		{
 			wchar_t lower;
 			wchar_t upper;
@@ -1663,11 +1757,15 @@ namespace LibCC
 			{
 				if(!TCaseSensitive)
 				{
-					lower = CharToLower(lower);
-					upper = CharToLower(upper);
+					lower = LibCC::CharToLower(lower);
+					upper = LibCC::CharToLower(upper);
 				}
 			}
 
+			virtual ParserBase* NewClone() const
+			{
+				return new CharRangeT<TCaseSensitive, Toutput>(*this);
+			}
 			virtual std::wstring GetParserName() const
 			{
 				return LibCC::FormatW(L"CharRange%('%'-'%')")
@@ -1691,7 +1789,7 @@ namespace LibCC
 				}
 				if(!TCaseSensitive)
 				{
-					wchar_t chL = CharToLower(parsed);
+					wchar_t chL = LibCC::CharToLower(parsed);
 					if((chL < lower) || (chL > upper))// lower & upper are already lowercase
 						return false;
 				}
@@ -1699,6 +1797,13 @@ namespace LibCC
 				output.Save(input, parsed);
 				input.Advance();
 				return true;
+			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				std::wstring ret;
+				ret += std::wstring(indentLevel, ' ') + L"CharRange('" + std::wstring(1, lower) + L"'-'" + std::wstring(1,upper) + L"')\r\n";
+				return ret;
 			}
 		};
 
@@ -1747,9 +1852,9 @@ namespace LibCC
 		}
 
 
-		struct Eol :
-			public ParserBase<Eol>
+		struct Eol : public ParserBase
 		{
+			virtual ParserBase* NewClone() const { return new Eol(*this); }
 			virtual std::wstring GetParserName() const { return L"EOL"; }
 
 			virtual void SaveOutputState(ScriptReader& input) { }
@@ -1762,13 +1867,20 @@ namespace LibCC
 					return true;
 				return (Or(Or(Str(L"\r\n"), Char('\r')), Char('\n'))).ParseRetainingStateOnError(result, input);
 			}
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				std::wstring ret;
+				ret += std::wstring(indentLevel, ' ') + L"Eol\r\n";
+				return ret;
+			}
 		};
 
 		// utility string parsers ///////////////////////////////////////////////////////////////////////////////////////
 		// parses C++-style string escape sequences
 		template<typename Toutput>
 		struct StringEscapeParserT :
-			public ParserBase<StringEscapeParserT<Toutput> >
+			public ParserBase
 		{
 			Toutput output;
 			StringEscapeParserT(const Toutput& output_) :
@@ -1777,7 +1889,11 @@ namespace LibCC
 			}
 			virtual void SaveOutputState(ScriptReader& input) { output.SaveState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { output.RestoreState(input); }
+			virtual ParserBase* NewClone() const { return new StringEscapeParserT(*this); }
 			virtual std::wstring GetParserName() const { return L"StringEscapeParserT"; }
+
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"StringEscapeParser\r\n"; }
+
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				wchar_t escapeChar = 0;
@@ -1822,13 +1938,15 @@ namespace LibCC
 		// helps parsing javascript-style strings
 		template<typename Toutput>
 		struct StringParserT :
-			public ParserBase<StringParserT<Toutput> >
+			public ParserBase
 		{
 			Toutput output;
 			StringParserT(const Toutput& output_) : output(output_) { }
 
 			virtual void SaveOutputState(ScriptReader& input) { output.SaveState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { output.RestoreState(input); }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"StringParserT\r\n"; }
+			virtual ParserBase* NewClone() const { return new StringParserT<Toutput>(*this); }
 			virtual std::wstring GetParserName() const { return L"StringParser"; }
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
@@ -1836,7 +1954,7 @@ namespace LibCC
 				std::wstring parsed;
 
 				Parser singleQuotes =
-					Sequence<false>
+					Sequence3<false>
 					(
 						Char('\''),
 						Occurrences<0, false>
@@ -1854,7 +1972,7 @@ namespace LibCC
 						Char('\'')
 					);
 				Parser doubleQuotes =
-					Sequence<false>
+					Sequence3<false>
 					(
 						Char('\"'),
 						Occurrences<0, false>
@@ -1871,7 +1989,7 @@ namespace LibCC
 						),
 						Char('\"')
 					);
-				Parser p = Or(singleQuotes, doubleQuotes);
+				Parser p = Passthrough(L"*StringParser", false, Or(singleQuotes, doubleQuotes));
 				bool ret = p.ParseRetainingStateOnError(result, input);
 				if(ret)
 					output.Save(input, parsed);
@@ -1893,7 +2011,7 @@ namespace LibCC
 		template<typename Tch>
 		inline int CharToDigit(Tch ch)
 		{
-			ch = CharToLower(ch);
+			ch = LibCC::CharToLower(ch);
 			if(ch >= '0' && ch <= '9')
 			{
 				return ch - '0';
@@ -1908,7 +2026,7 @@ namespace LibCC
 		// integer parsers ///////////////////////////////////////////////////////////////////////////////////////
 		template<typename IntT, typename Toutput>
 		struct UnsignedIntegerParserT :
-			public ParserBase<UnsignedIntegerParserT<IntT, Toutput> >
+			public ParserBase
 		{
 			std::wstring digits;
 			int base;
@@ -1926,12 +2044,21 @@ namespace LibCC
 				digits = std::wstring(L"0123456789abcdefghijklmnopqrstuvwxyz", base);
 			}
 
+			virtual ParserBase* NewClone() const
+			{
+				return new UnsignedIntegerParserT<IntT, Toutput>(*this);
+			}
 			virtual std::wstring GetParserName() const
 			{
 				return LibCC::FormatW(L"UnsignedIntegerParser(base=%)").i(base).Str();
 			}
 			virtual void SaveOutputState(ScriptReader& input) { output.SaveState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { output.RestoreState(input); }
+
+			virtual std::wstring Dump(int indentLevel)
+			{
+				return std::wstring(indentLevel, ' ') + L"UnsignedIntegerParser\r\n";
+			}
 
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
@@ -1968,10 +2095,11 @@ namespace LibCC
 		// UIntegerHexT (signed 16-bit integer parser with prefix of 0x)
 		template<typename IntT, typename Toutput>
 		struct UIntegerHexT :
-			public ParserBase<UIntegerHexT<IntT, Toutput> >
+			public ParserBase
 		{
 			Toutput output;
 			UIntegerHexT(const Toutput& output_) : output(output_) { }
+			virtual ParserBase* NewClone() const { return new UIntegerHexT<IntT, Toutput>(*this); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"UIntegerHexT\r\n"; }
 			virtual void SaveOutputState(ScriptReader& input) { output.SaveState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { output.RestoreState(input); }
@@ -1996,10 +2124,11 @@ namespace LibCC
 		// UIntegerOct (signed 8-bit integer parser with prefix of 0)
 		template<typename IntT, typename Toutput>
 		struct UIntegerOctT :
-			public ParserBase<UIntegerOctT<IntT, Toutput> >
+			public ParserBase
 		{
 			Toutput output;
 			UIntegerOctT(const Toutput& output_) : output(output_) { }
+			virtual ParserBase* NewClone() const { return new UIntegerOctT<IntT, Toutput>(*this); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"UIntegerOctT\r\n"; }
 			virtual void SaveOutputState(ScriptReader& input) { output.SaveState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { output.RestoreState(input); }
@@ -2012,7 +2141,7 @@ namespace LibCC
 			virtual bool Parse(ParseResult& result, ScriptReader& input)
 			{
 				return
-					Sequence<false>
+					Sequence4<false>
 					(
 						Char('0'),
 						Not(Char('x')),
@@ -2032,10 +2161,11 @@ namespace LibCC
 		// UIntegerDecT (signed 10-bit integer parser)
 		template<typename IntT, typename Toutput>
 		struct UIntegerDecT :
-			public ParserBase<UIntegerDecT<IntT, Toutput> >
+			public ParserBase
 		{
 			Toutput output;
 			UIntegerDecT(const Toutput& output_) : output(output_) { }
+			virtual ParserBase* NewClone() const { return new UIntegerDecT<IntT, Toutput>(*this); }
 			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"UIntegerDecT\r\n"; }
 			virtual void SaveOutputState(ScriptReader& input) { output.SaveState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { output.RestoreState(input); }
@@ -2060,10 +2190,12 @@ namespace LibCC
 		// UIntegerBinT (signed 2-bit integer parser with suffix of 'b')
 		template<typename IntT, typename Toutput>
 		struct UIntegerBinT :
-			public ParserBase<UIntegerBinT<IntT, Toutput> >
+			public ParserBase
 		{
 			Toutput output;
 			UIntegerBinT(const Toutput& output_) : output(output_) { }
+			virtual ParserBase* NewClone() const { return new UIntegerBinT<IntT, Toutput>(*this); }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"UIntegerBinT\r\n"; }
 			virtual void SaveOutputState(ScriptReader& input) { output.SaveState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { output.RestoreState(input); }
 
@@ -2092,10 +2224,12 @@ namespace LibCC
 		// SIntegerHexT (signed or unsigned 16-bit integer parser with prefix of 0x)
 		template<typename IntT, typename Toutput>
 		struct SIntegerHexT :
-			public ParserBase<SIntegerHexT<IntT, Toutput> >
+			public ParserBase
 		{
 			Toutput output;
 			SIntegerHexT(const Toutput& output_) : output(output_) { }
+			virtual ParserBase* NewClone() const { return new SIntegerHexT<IntT, Toutput>(*this); }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"SIntegerHexT\r\n"; }
 			virtual void SaveOutputState(ScriptReader& input) { output.SaveState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { output.RestoreState(input); }
 
@@ -2110,7 +2244,7 @@ namespace LibCC
 				const int base = 16;
 				wchar_t sign = '+';// default to positive
 				Parser p =
-					Sequence<false>
+					Sequence3<false>
 					(
 						Optional(CharOf(L"+-", sign)),
 						Str(L"0x"),
@@ -2132,10 +2266,12 @@ namespace LibCC
 		// SIntegerOctT (signed or unsigned 8-bit integer parser with prefix of 0)
 		template<typename IntT, typename Toutput>
 		struct SIntegerOctT :
-			public ParserBase<SIntegerOctT<IntT, Toutput> >
+			public ParserBase
 		{
 			Toutput output;
 			SIntegerOctT(const Toutput& output_) : output(output_) { }
+			virtual ParserBase* NewClone() const { return new SIntegerOctT<IntT, Toutput>(*this); }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"SIntegerOctT\r\n"; }
 			virtual void SaveOutputState(ScriptReader& input) { output.SaveState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { output.RestoreState(input); }
 
@@ -2150,7 +2286,7 @@ namespace LibCC
 				const int base = 8;
 				wchar_t sign = '+';// default to positive
 				Parser p =
-					Sequence<false>
+					Sequence5<false>
 					(
 						Optional(CharOf(L"+-", sign)),
 						Char('0'),
@@ -2174,10 +2310,12 @@ namespace LibCC
 		// SIntegerBinT (signed or unsigned 2-bit integer parser with suffix of 'b')
 		template<typename IntT, typename Toutput>
 		struct SIntegerBinT :
-			public ParserBase<SIntegerBinT<IntT, Toutput> >
+			public ParserBase
 		{
 			Toutput output;
 			SIntegerBinT(const Toutput& output_) : output(output_) { }
+			virtual ParserBase* NewClone() const { return new SIntegerBinT<IntT, Toutput>(*this); }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"SIntegerBinT\r\n"; }
 			virtual void SaveOutputState(ScriptReader& input) { output.SaveState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { output.RestoreState(input); }
 
@@ -2192,7 +2330,7 @@ namespace LibCC
 				const int base = 2;
 				wchar_t sign = '+';// default to positive
 				Parser p =
-					Sequence<false>
+					Sequence3<false>
 					(
 						Optional(CharOf(L"+-", sign)),
 						UnsignedIntegerParserT<IntT, RefOutputT<IntT> >(base, RefOutput(temp)),
@@ -2214,10 +2352,12 @@ namespace LibCC
 		// SIntegerDecT (signed or unsigned 10-bit integer parser)
 		template<typename IntT, typename Toutput>
 		struct SIntegerDecT :
-			public ParserBase<SIntegerDecT<IntT, Toutput> >
+			public ParserBase
 		{
 			Toutput output;
 			SIntegerDecT(const Toutput& output_) : output(output_) { }
+			virtual ParserBase* NewClone() const { return new SIntegerDecT<IntT, Toutput>(*this); }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"SIntegerDecT\r\n"; }
 			virtual void SaveOutputState(ScriptReader& input) { output.SaveState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { output.RestoreState(input); }
 
@@ -2254,19 +2394,19 @@ namespace LibCC
 		template<typename IntT, typename Toutput>
 		Parser CSignedInteger(const Toutput& output)// these are all signed or unsigned.
 		{
-			return Or(SIntegerHex<IntT>(output), SIntegerOct<IntT>(output), SIntegerBin<IntT>(output), SIntegerDec<IntT>(output));
+			return Or4(SIntegerHex<IntT>(output), SIntegerOct<IntT>(output), SIntegerBin<IntT>(output), SIntegerDec<IntT>(output));
 		}
 
 		template<typename IntT, typename Toutput>
 		Parser CUnsignedInteger(const Toutput& output)
 		{
-			return Or(UIntegerHex<IntT>(output), UIntegerOct<IntT>(output), UIntegerBin<IntT>(output), UIntegerDec<IntT>(output));
+			return Or4(UIntegerHex<IntT>(output), UIntegerOct<IntT>(output), UIntegerBin<IntT>(output), UIntegerDec<IntT>(output));
 		}
 
 		template<typename IntT, typename Toutput>
 		Parser CInteger(const Toutput& output)// same as CSignedInteger
 		{
-			return Or(SIntegerHex<IntT>(output), SIntegerOct<IntT>(output), SIntegerBin<IntT>(output), SIntegerDec<IntT>(output));
+			return Or4(SIntegerHex<IntT>(output), SIntegerOct<IntT>(output), SIntegerBin<IntT>(output), SIntegerDec<IntT>(output));
 		}
 
 		// if this is named CInteger, then the compiler gets it confused with the overload CInteger(const OutputPtr<IntT>& output)
@@ -2283,7 +2423,7 @@ namespace LibCC
 		// bases which use 'e' as a digit character won't be able to use exponents
 		template<typename T, typename Toutput>
 		struct UnsignedRationalParserT :
-			public ParserBase<UnsignedRationalParserT<T, Toutput> >
+			public ParserBase
 		{
 			int base;
 			std::wstring digits;
@@ -2301,6 +2441,8 @@ namespace LibCC
 				digits = std::wstring(L"0123456789abcdefghijklmnopqrstuvwxyz", base);
 			}
 
+			virtual ParserBase* NewClone() const { return new UnsignedRationalParserT<T>(*this); }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"UnsignedRationalParserT\r\n"; }
 			virtual void SaveOutputState(ScriptReader& input) { output.SaveState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { output.RestoreState(input); }
 
@@ -2390,7 +2532,7 @@ namespace LibCC
 		// matches signed or unsigned rationals
 		template<typename T, typename Toutput>
 		struct SignedRationalParserT :
-			public ParserBase<SignedRationalParserT<T, Toutput> >
+			public ParserBase
 		{
 			int base;
 			Toutput output;
@@ -2401,6 +2543,8 @@ namespace LibCC
 			{
 			}
 
+			virtual ParserBase* NewClone() const { return new SignedRationalParserT<T, Toutput>(*this); }
+			virtual std::wstring Dump(int indentLevel) { return std::wstring(indentLevel, ' ') + L"SignedRationalParserT\r\n"; }
 			virtual void SaveOutputState(ScriptReader& input) { output.SaveState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { output.RestoreState(input); }
 
@@ -2611,11 +2755,12 @@ namespace LibCC
 		// and implement constructors and bool Parse(ParseResult& result, ScriptReader& input)
 		template<typename Toutput, typename Tderived>
 		struct ParserWithOutput :
-			public ParserBase<Tderived>
+			public ParserBase
 		{
 			Toutput output;
 			ParserWithOutput() { }
 			ParserWithOutput(const Toutput& output_) : output(output_) { }
+			virtual ParserBase* NewClone() const { return new Tderived(*(Tderived*)this); }
 			virtual void SaveOutputState(ScriptReader& input) { output.SaveState(input); }
 			virtual void RestoreOutputState(ScriptReader& input) { output.RestoreState(input); }
 		};
@@ -2650,58 +2795,49 @@ namespace LibCC
 			x [ function expression ]	Execute the function/functor if x is matched  -- would require a custom parser
 			x % y	Match x one or more times, separated by occurrences of y          -- would require a custom parser
 		*/
-		template<typename Tlhs>
-		inline OccurrencesT<Tlhs, 0, false> operator * (const ParserBase<Tlhs>& lhs)
+		inline ZeroOrMore operator * (const ParserBase& lhs)
 		{
-			return ZeroOrMore(static_cast<const Tlhs&>(lhs));
+			return ZeroOrMore(lhs);
 		}
 
-		template<typename Tlhs>
-		inline OccurrencesT<Tlhs, 0, true> operator & (const ParserBase<Tlhs>& lhs)
+		inline ZeroOrMoreS operator & (const ParserBase& lhs)
 		{
-			return ZeroOrMoreS(static_cast<const Tlhs&>(lhs));
+			return ZeroOrMoreS(lhs);
 		}
 
-		template<typename Tlhs>
-		inline OccurrencesT<Tlhs, 1, false> operator + (const ParserBase<Tlhs>& lhs)
+		inline OneOrMore operator + (const ParserBase& lhs)
 		{
-			return OneOrMore(static_cast<const Tlhs&>(lhs));
+			return OneOrMore(lhs);
 		}
 
-		template<typename Tlhs>
-		inline OccurrencesT<Tlhs, 1, true> operator ++ (const ParserBase<Tlhs>& lhs)
+		inline OneOrMoreS operator ++ (const ParserBase& lhs)
 		{
-			return OneOrMoreS(static_cast<const Tlhs&>(lhs));
+			return OneOrMoreS(lhs);
 		}
 
-		template<typename Tlhs>
-		inline NotT<Tlhs> operator - (const ParserBase<Tlhs>& lhs)
+		inline Not operator - (const ParserBase& lhs)
 		{
-			return Not(static_cast<const Tlhs&>(lhs));
+			return Not(lhs);
 		}
 
-		template<typename Tlhs>
-		inline OptionalT<Tlhs> operator ! (const ParserBase<Tlhs>& lhs)
+		inline Optional operator ! (const ParserBase& lhs)
 		{
-			return Optional(static_cast<const Tlhs&>(lhs));
+			return Optional(lhs);
 		}
 
-		template<typename Tlhs, typename Trhs>
-		inline SequenceT<false, Tlhs, Trhs> operator >> (const ParserBase<Tlhs>& lhs, const ParserBase<Trhs>& rhs)
+		inline Sequence<false> operator >> (const ParserBase& lhs, const ParserBase& rhs)
 		{
-			return Sequence<false>(static_cast<const Tlhs&>(lhs), static_cast<const Trhs&>(rhs));
+			return Sequence<false>(lhs, rhs);
 		}
 
-		template<typename Tlhs, typename Trhs>
-		inline SequenceT<true, Tlhs, Trhs> operator + (const ParserBase<Tlhs>& lhs, const ParserBase<Trhs>& rhs)
+		inline Sequence<true> operator + (const ParserBase& lhs, const ParserBase& rhs)
 		{
-			return Sequence<true>(static_cast<const Tlhs&>(lhs), static_cast<const Trhs&>(rhs));
+			return Sequence<true>(lhs, rhs);
 		}
 
-		template<typename Tlhs, typename Trhs>
-		inline OrT<Tlhs, Trhs> operator | (const ParserBase<Tlhs>& lhs, const ParserBase<Trhs>& rhs)
+		inline Or operator | (const ParserBase& lhs, const ParserBase& rhs)
 		{
-			return Or<Tlhs, Trhs>(static_cast<const Tlhs&>(lhs), static_cast<const Trhs&>(rhs));
+			return Or(lhs, rhs);
 		}
 #endif
 	}

@@ -70,7 +70,7 @@ void TestCollection()
 	//RunTest(BlobTest);
 
 	RunTest(ParseTest);
-	//RunTest(ParseBenchmark);
+	RunTest(ParseBenchmark);
 
 	//RunTest(LogTest);
 	//RunTest(AllocationTrackerTest);

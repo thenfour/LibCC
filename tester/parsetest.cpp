@@ -5,7 +5,88 @@
 #include "libcc\parse.hpp"
 
 
+
+
+//// prototype for the ability to get rid of ParserPtr and having to create clones for every single instantiation.
+//// with 2 base classes - one that doesn't have any template args and another which understands the derived class,
+//// i can accomplish everything i need.
+//namespace Lame
+//{
+//	// need operators to work
+//	// need to have a Parser object that i can use
+//
+//	// the base base class does not contain any template arguments, for simplicity.
+//	struct ParserRoot
+//	{
+//		virtual ~ParserRoot() { }
+//		virtual bool Parse() = 0;
+//		virtual void* Clone() = 0;// still needed simply for struct Parser. Implemented by PArserBase2 anyway though.
+//		virtual void Destroy(void* ptr) = 0;
+//	};
+//
+//	template<typename Tderived>
+//	struct ParserBase : public ParserRoot
+//	{
+//		typedef Tderived Derived;
+//		virtual ~ParserBase() { }
+//		virtual void* Clone()
+//		{
+//			return new Tderived(*(Tderived*)this);
+//		}
+//		virtual void Destroy(void* ptr)
+//		{
+//			delete ptr;
+//		}
+//	};
+//
+//	// basically this is just a smart pointer / parser hybrid.
+//	struct Parser : public ParserBase<Parser>
+//	{
+//		ParserRoot* child;
+//
+//		template<typename Tchild>
+//		Parser(ParserRoot* child_)
+//		{
+//			child = child_->Clone();
+//		}
+//		virtual bool Parse()
+//		{
+//			return true;
+//		}
+//	};
+//
+//	template<typename Tlhs, typename Trhs>
+//	struct Sequence :
+//		public ParserBase<Sequence<Tlhs, Trhs> >
+//	{
+//		Tlhs lhs;
+//		Trhs rhs;
+//
+//		Sequence(const Tlhs& lhs_, const Trhs& rhs_) :
+//			lhs(lhs_),
+//			rhs(rhs_)
+//		{
+//		}
+//		virtual bool Parse()
+//		{
+//			return true;
+//		}
+//	};
+//
+//
+//	template<typename Tlhs, typename Trhs>
+//	Sequence<Tlhs, Trhs> operator + (const ParserBase<Tlhs>& lhs, const ParserBase<Tlhs>& rhs)
+//	{
+//		return Sequence<Tlhs, Trhs>(lhs, rhs);
+//	}
+//}
+//
+
 using namespace LibCC::Parse;
+
+
+
+
 
 
 bool ParseTest()
