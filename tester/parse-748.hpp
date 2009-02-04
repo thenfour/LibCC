@@ -498,7 +498,10 @@ namespace LibCC_748
 					}
 #endif
 					if(IsOutputBackedUp)
+					{
 						RestoreOutputState(input);
+						IsOutputBackedUp = false;
+					}
 
 					input.SetCursor(oldCursor);
 
@@ -518,8 +521,8 @@ namespace LibCC_748
 					result.DecrementTraceIndent();
 					result.Trace(L"}");
 				}
-				return true;
 #endif
+				IsOutputBackedUp = false;
 				return true;
 			}
 

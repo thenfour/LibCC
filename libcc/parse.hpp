@@ -394,7 +394,7 @@ namespace LibCC
 					return;
 
 				// there are still other messages
-				for(std::vector<std::wstring>::iterator it = poppedMessages.begin(); it != poppedMessages.end(); ++ it)
+				for(std::vector<std::wstring>::const_iterator it = poppedMessages.begin(); it != poppedMessages.end(); ++ it)
 				{
 					ParserMessage(*it);
 				}
@@ -431,10 +431,6 @@ namespace LibCC
 			ParseResultMem() :
 				traceIndentLevel(0),
 				traceEnabled(false)
-			{
-			}
-
-			~ParseResultMem()
 			{
 			}
 
@@ -1111,7 +1107,12 @@ namespace LibCC
 					}
 				}
 				if(!rhs.ParseRetainingStateOnError(result, input))
+				{
+					// if the 2nd one failed but the first one succeeded, the whole thing failed.
+					// we need to make sure the success of the 1st one is reversed.
+					lhs.RestoreOutputState(input);
 					return false;
+				}
 				return true;
 			}
 		};
@@ -1615,19 +1616,12 @@ namespace LibCC
 		template<bool TCaseSensitive, typename Toutput>
 		struct StrT : public ParserBase<StrT<TCaseSensitive, Toutput> >
 		{
-		private:
-			StrT<TCaseSensitive, Toutput>& operator = (const StrT<TCaseSensitive, Toutput>& rhs)
-			{
-				return *this;
-			}
-
-		public:
-			Toutput output;
 			std::wstring match;
+			Toutput output;
 
 			StrT(const std::wstring& match_, const Toutput& out) :
-				output(out),
-				match(match_)
+				match(match_),
+				output(out)
 			{
 			}
 
@@ -1648,8 +1642,7 @@ namespace LibCC
 					return match.empty();
 
 				std::wstring parsed;
-				std::wstring::iterator matchEnd = match.end();
-				for(std::wstring::iterator it = match.begin(); it != matchEnd; ++ it)
+				for(std::wstring::const_iterator it = match.begin(); it != match.end(); ++ it)
 				{
 					if(input.IsEOF())
 					{
@@ -1679,7 +1672,6 @@ namespace LibCC
 		};
 
 
-		// std::wstring overloads
 		template<typename Toutput>
 		inline StrT<true, Toutput> Str(const std::wstring& ch, const Toutput& output_)
 		{

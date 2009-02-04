@@ -702,7 +702,7 @@ bool ParseBenchmark()
 	//////////////////////////////////
 	std::cout << std::endl << "Parse big typical file:" << std::endl;
 
-	for(int overall = 0; overall < 2; ++ overall)
+	for(int overall = 0; overall < 1; ++ overall)
 	{
 		std::cout << std::endl;
 
@@ -728,7 +728,7 @@ bool ParseBenchmark()
 		}
 		ReportBenchmark(t, "743 revision (optimized cursor)");
 
-	StartBenchmark(t);
+		StartBenchmark(t);
 		for(int n = 0; n < MaxNum; n ++)
 		{
 			LibCC_745::Parse::ParseResultMem result;
@@ -786,7 +786,7 @@ bool ParseBenchmark()
 		StartBenchmark(t);
 		for(int n = 0; n < MaxNum; n ++)
 		{
-			ParseResultStdout result;
+			LibCC::Parse::ParseResultMem result;
 			//result.SetTraceEnabled(true);
 			Element el;
 			LibCC::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
@@ -794,6 +794,98 @@ bool ParseBenchmark()
 			DoNotOptimize(el);
 		}
 		ReportBenchmark(t, "HEAD revision");
+
+
+
+		StartBenchmark(t);
+		for(int n = 0; n < MaxNum; n ++)
+		{
+			LibCC::Parse::ParseResultMem result;
+			//result.SetTraceEnabled(true);
+			Element el;
+			LibCC::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+			bool r = (*LibCC::Parse::Space() + LibCC::Parse::ElementParser(LibCC::Parse::RefOutput(el)) + LibCC::Parse::Eof()).ParseRetainingStateOnError(result, input);
+			DoNotOptimize(el);
+		}
+		ReportBenchmark(t, "HEAD revision");
+
+		StartBenchmark(t);
+		for(int n = 0; n < MaxNum; n ++)
+		{
+			LibCC_748::Parse::ParseResultMem result;
+			Element el;
+			LibCC_748::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+			bool r = (*LibCC_748::Parse::Space() + LibCC_748::Parse::ElementParser(LibCC_748::Parse::RefOutput(el)) + LibCC_748::Parse::Eof()).ParseRetainingStateOnError(result, input);
+			DoNotOptimize(el);
+		}
+		ReportBenchmark(t, "748 revision (fewer output backups)");
+
+		StartBenchmark(t);
+		for(int n = 0; n < MaxNum; n ++)
+		{
+			LibCC_747::Parse::ParseResultMem result;
+			Element el;
+			LibCC_747::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+			bool r = (*LibCC_747::Parse::Space() + LibCC_747::Parse::ElementParser(LibCC_747::Parse::RefOutput(el)) + LibCC_747::Parse::Eof()).ParseRetainingStateOnError(result, input);
+			DoNotOptimize(el);
+		}
+		ReportBenchmark(t, "747 revision (#define LIBCC_PARSE_TRACE_ENABLED)");
+
+		StartBenchmark(t);
+		for(int n = 0; n < MaxNum; n ++)
+		{
+			LibCC_746b::Parse::ParseResultMem result;
+			Element el;
+			LibCC_746b::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+			bool r = (*LibCC_746b::Parse::Space() + LibCC_746b::Parse::ElementParser(LibCC_746b::Parse::RefOutput(el)) + LibCC_746b::Parse::Eof()).ParseRetainingStateOnError(result, input);
+			DoNotOptimize(el);
+		}
+		ReportBenchmark(t, "746b revision (QuickString passthrough)");
+
+		StartBenchmark(t);
+		for(int n = 0; n < MaxNum; n ++)
+		{
+			LibCC_746::Parse::ParseResultMem result;
+			Element el;
+			LibCC_746::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+			bool r = (*LibCC_746::Parse::Space() + LibCC_746::Parse::ElementParser(LibCC_746::Parse::RefOutput(el)) + LibCC_746::Parse::Eof()).ParseRetainingStateOnError(result, input);
+			DoNotOptimize(el);
+		}
+		ReportBenchmark(t, "746 revision (optimized parserBase)");
+
+		StartBenchmark(t);
+		for(int n = 0; n < MaxNum; n ++)
+		{
+			LibCC_745::Parse::ParseResultMem result;
+			Element el;
+			LibCC_745::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+			bool r = (*LibCC_745::Parse::Space() + ElementParser745(LibCC_745::Parse::RefOutput(el)) + LibCC_745::Parse::Eof()).ParseRetainingStateOnError(result, input);
+			DoNotOptimize(el);
+		}
+		ReportBenchmark(t, "745 revision (optimized outputs)");
+
+		StartBenchmark(t);
+		for(int n = 0; n < MaxNum; n ++)
+		{
+			LibCC_743::Parse::ParseResultMem result;
+			Element el;
+			LibCC_743::Parse::CScriptReader input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+			bool r = (*LibCC_743::Parse::Space() + ElementParser743(LibCC_743::Parse::RefOutput(el)) + LibCC_743::Parse::Eof()).ParseRetainingStateOnError(result, input);
+			DoNotOptimize(el);
+		}
+		ReportBenchmark(t, "743 revision (optimized cursor)");
+
+		StartBenchmark(t);
+		for(int n = 0; n < MaxNum; n ++)
+		{
+			LibCC_743::Parse::ParseResultMem result;
+			Element el;
+			LibCC_743::Parse::CScriptReader740 input(LoadTextFileResource(GetModuleHandle(0), MAKEINTRESOURCE(IDR_TEXT1), _T("TEXT")));
+			bool r = (*LibCC_743::Parse::Space() + ElementParser743(LibCC_743::Parse::RefOutput(el)) + LibCC_743::Parse::Eof()).ParseRetainingStateOnError(result, input);
+			DoNotOptimize(el);
+		}
+		ReportBenchmark(t, "740 revision (original CScriptReader)");
+
 	}
 
 	return true;
