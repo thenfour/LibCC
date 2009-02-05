@@ -978,7 +978,10 @@ namespace LibCC_743
 					}
 				}
 				if(!rhs->ParseRetainingStateOnError(result, input))
+				{
+					rhs->RestoreOutputState(input);
 					return false;
+				}
 				return true;
 			}
 

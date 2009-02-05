@@ -901,6 +901,7 @@ bool ParseTest()
 	TestAssert(si64 == -0xafff);
 
 
+
 	// CInteger
 	// CInteger2
 
@@ -910,6 +911,28 @@ bool ParseTest()
 	// Rational2
 
 	// output
+	{
+		// tests the output preservation in Sequence() when the first arg succeeds but the 2nd fails, the 1st one needs to be backed out.
+		wchar_t a = 0;
+		wchar_t b = 0;
+		wchar_t aprefix = 0;
+		wchar_t bprefix = 0;
+
+		// do the real parse
+		BasicStringReader input(L"-b");
+		ParseResultMem result;
+
+		Or
+		(
+			Sequence<false>(Char('-', RefOutput(aprefix)), Char('a', RefOutput(a))),
+			Sequence<false>(Char('-', RefOutput(bprefix)), Char('b', RefOutput(b)))
+		).ParseRetainingStateOnError(result, input);
+
+		TestAssert(a == 0);
+		TestAssert(b == 'b');
+		TestAssert(aprefix == 0);
+		TestAssert(bprefix == '-');
+	}
 
 	// debugging & error messaging
   return true;

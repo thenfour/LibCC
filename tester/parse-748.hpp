@@ -1069,7 +1069,10 @@ namespace LibCC_748
 					}
 				}
 				if(!rhs.ParseRetainingStateOnError(result, input))
+				{
+					rhs.RestoreOutputState(input);
 					return false;
+				}
 				return true;
 			}
 		};

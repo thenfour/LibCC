@@ -73,7 +73,7 @@ void TestCollection()
 {
 	//RunTest(BlobTest);
 
-	RunTest(ParseTest);
+	//RunTest(ParseTest);
 	RunTest(ParseBenchmark);
 
 	//RunTest(LogTest);
@@ -91,7 +91,7 @@ void TestCollection()
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	//_CrtSetBreakAlloc(489);
+	_CrtSetBreakAlloc(133546);
   SetUnhandledExceptionFilter(CCUnhandledExceptionFilter);
 	RunTest(TestCollection);
 	_CrtDumpMemoryLeaks();
