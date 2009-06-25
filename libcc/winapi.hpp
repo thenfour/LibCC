@@ -38,7 +38,7 @@
 
 #include <windows.h>// for windows types
 #include <shlwapi.h>// for Path* functions
-
+#include <shlobj.h>// for SHGetFolderPath
 
 // Set up inline option
 #ifdef _MSC_VER
@@ -452,19 +452,17 @@ namespace LibCC
     return TRUE == PathFileExistsW(path);
   }
 
-  // SHGetSpecialFolderPath
   template<typename Char, typename Traits, typename Alloc>
-  inline bool SHGetSpecialFolderPathX(HWND hOwner, std::basic_string<Char, Traits, Alloc>& sOut, int nFolder, bool create)
+  inline HRESULT SHGetFolderPathX(std::basic_string<Char, Traits, Alloc>& sOut, int nFolder)
   {
-    // TODO support pathnames longer than 300 chars
     bool r = false;
-    BlobTypes<wchar_t>::PathBlob buf;
-    if(TRUE == SHGetSpecialFolderPathW(hOwner, buf.GetWritableBuffer(), nFolder, create))
+		Blob<wchar_t, BlobTraits<true, MAX_PATH> > buf;
+		HRESULT hr;
+		if(SUCCEEDED(hr = SHGetFolderPathW(NULL, nFolder, NULL, SHGFP_TYPE_CURRENT, buf.GetBuffer())))
     {
-      XLastDitchStringCopy(sOut, buf.GetBuffer());
-      r = true;
+			StringConvert(buf.GetBuffer(), sOut);
     }
-    return r;
+		return hr;
   }
 
   template<typename Char, typename HandleType>// handle can be either HINSTANCE or HMODULE
