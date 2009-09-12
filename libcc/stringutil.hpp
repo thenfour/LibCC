@@ -1431,6 +1431,20 @@ namespace LibCC
 		return InternalStringEqualsI2<CharL, CharR>(lhs, rhs);
   }
 
+	// StringStartsWith (unfinished) --------------------------------------------------------------------------------------
+	template<typename CharL, typename CharR>
+	inline bool StringStartsWith(const CharL* str, const CharR* find)
+	{
+		while(*find != 0)
+		{
+			if(*str != *find)
+				return false;
+			str ++;
+			find ++;
+		}
+		return true;
+	}
+
 
 
 #endif
