@@ -603,6 +603,64 @@ namespace LibCC
 		};
 
 		// basic framework parsers ///////////////////////////////////////////////////////////////////////////////////////
+		template<typename Tchild>
+		struct SetTraceEnabledT :
+			public ParserBase<SetTraceEnabledT<Tchild> >
+		{
+		private:
+			Tchild m_child;
+			std::wstring traceName;
+			bool isTraceEnabled;
+
+		public:
+			SetTraceEnabledT(bool b, Tchild rhs) :
+				isTraceEnabled(b),
+				m_child(rhs)
+			{
+				traceName = L"SetTraceEnabled";
+			}
+
+			SetTraceEnabledT(bool b, const std::wstring& traceName_, Tchild rhs) :
+				isTraceEnabled(b),
+				m_child(rhs),
+				traceName(traceName_)
+			{
+			}
+
+			virtual std::wstring GetParserName() const { return traceName; }
+
+			virtual void SaveOutputState(ScriptReader& input)
+			{
+				m_child.SaveOutputState(input);
+			}
+
+			virtual void RestoreOutputState(ScriptReader& input)
+			{
+				m_child.RestoreOutputState(input);
+			}
+
+			virtual bool Parse(ParseResult& result, ScriptReader& input)
+			{
+				bool wasItEnabled = result.IsTraceEnabled();
+				result.SetTraceEnabled(isTraceEnabled);
+				bool r = m_child.ParseRetainingStateOnError(result, input);
+				result.SetTraceEnabled(wasItEnabled);
+				return r;
+			}
+		};
+
+		template<typename Tchild>
+		inline SetTraceEnabledT<Tchild> SetTraceEnabled(bool b, const Tchild& child)
+		{
+			return SetTraceEnabledT<Tchild>(b, child);
+		}
+
+		template<typename Tchild>
+		inline SetTraceEnabledT<Tchild> SetTraceEnabled(bool b, const std::wstring& traceName_, const Tchild& child)
+		{
+			return SetTraceEnabledT<Tchild>(b, traceName_, child);
+		}
+
 
 		template<typename Tchild>
 		struct PassthroughT :
@@ -1343,6 +1401,40 @@ namespace LibCC
 		{
 			return ExistsOutputT<Tin, bool>(outputVar, valToSet);
 		}
+
+
+		template<typename Tin>
+		struct RefExistsOutputT
+		{
+			Tin& output;
+			bool& exists;
+			Tin outputBackup;
+			bool existsBackup;
+
+			RefExistsOutputT(bool& existsRef, Tin& outputRef) :
+				exists(existsRef),
+				output(outputRef)
+			{
+				exists = false;
+			}
+
+			void Save(ScriptReader& input, const Tin& val)
+			{
+				output = val;
+				exists = true;
+			}
+			void SaveState(ScriptReader& input) { outputBackup = output; existsBackup = exists; }
+			void RestoreState(ScriptReader& input) { output = outputBackup; exists = existsBackup; }
+			const Tin& Value() const { return output; }
+		};
+
+		template<typename Tin>
+		inline RefExistsOutputT<Tin> RefExistsOutput(bool& existsRef, Tin& outputVar)
+		{
+			return RefExistsOutputT<Tin>(existsRef, outputVar);
+		}
+
+
 
 		// InserterOutput
 		// std::list<wchar_t> l;   Parser p = *CharOf(L"abc", InserterOutput<wchar_t>(l, std::back_inserter(l)));
@@ -2509,16 +2601,16 @@ namespace LibCC
 				std::wstring exponentPart;
 
 				Parser preDecimalP = ZeroOrMore(CharOfI(digits, preDecimalPart));
-				Parser decimalP = Sequence(Char('.'), ZeroOrMore(CharOfI(digits, decimalPart)));
+				Parser decimalP = Sequence<false>(Char('.'), ZeroOrMore(CharOfI(digits, decimalPart)));
 				Parser exponentP =
-					Sequence3<false>
+					Sequence<false>
 					(
 						CharI('e'),
 						Optional(CharOf(L"+-", exponentSign)),
 						OneOrMore(CharOfI(digits, exponentPart))
 					);
 
-				Parser rationalParserP = Sequence3(preDecimalP, Optional(decimalP), Optional(exponentP));
+				Parser rationalParserP = Sequence<false>(preDecimalP, Optional(decimalP), Optional(exponentP));
 				
 				if(!rationalParserP.ParseRetainingStateOnError(result, input))
 					return false;
@@ -2606,10 +2698,10 @@ namespace LibCC
 				T temp;
 				wchar_t sign = '+';// default to positive
 				Parser p =
-					Sequence
+					Sequence<false>
 					(
 						Optional(CharOf(L"+-", sign)),
-						UnsignedRationalParserT<T>(RefOutput(temp), base)
+						UnsignedRationalParserT<T, RefOutputT<T> >(RefOutput(temp), base)
 					);
 				if(!p.ParseRetainingStateOnError(result, input))
 					return false;
@@ -2622,7 +2714,7 @@ namespace LibCC
 		template<typename T, typename Toutput>
 		SignedRationalParserT<T, Toutput> Rational(const Toutput& output)
 		{
-			return SignedRationalParserT<T, Toutput>(output);
+			return SignedRationalParserT<T, Toutput>(output, 10);
 		}
 
 		// Utility Script readers ///////////////////////////////////////////////////////////////////////////////////////
