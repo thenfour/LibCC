@@ -174,8 +174,11 @@ namespace LibCC
 			m_enableStdOut = enableStdOut;
 			m_writeHeader = writeHeader;
 			if(EnabledAtAll())
-			{			
-				StringConvert(fileName, m_fileName);
+			{
+				std::wstring fileNameW;
+				StringConvert(fileName, fileNameW);
+				m_fileNames.push_back(fileNameW);
+
 				m_hInstance = hInstance;
 				m_hInitialized = CreateEvent(0, FALSE, FALSE, 0);
 				m_hThread = (HANDLE)_beginthread(Log::ThreadProc, 0, this);
@@ -196,6 +199,17 @@ namespace LibCC
     void Create(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false, bool writeHeader = true)
 		{
 			Create(std::basic_string<XChar>(fileName), hInstance, enableDebug, enableWindow, enableFile, unicodeFileFormat, enableStdOut, writeHeader);
+		}
+
+		// if you want your logs to go to multiple places...
+		void AddFilename(const std::wstring& path)
+		{
+			m_fileNames.push_back(path);
+		}
+
+		std::vector<std::wstring> GetFilenames() const
+		{
+			return m_fileNames;
 		}
 
     void Destroy()
@@ -340,7 +354,7 @@ namespace LibCC
 			wc.hInstance = m_hInstance;
 			wc.hCursor = LoadCursor(0, IDC_ARROW);
 			wc.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);
-			wc.lpszClassName =  m_fileName.c_str();
+			wc.lpszClassName =  m_fileNames[0].c_str();
 			RegisterClassW(&wc);
 
 			// determine placement.
@@ -355,7 +369,7 @@ namespace LibCC
 			m_x = m_width * (i % screenColumns);
 			m_y = m_height * (i / screenColumns);
 
-			m_hMain = CreateWindowExW(0, m_fileName.c_str(), PathFindFileNameW(m_fileName.c_str()), WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_OVERLAPPEDWINDOW,
+			m_hMain = CreateWindowExW(0, m_fileNames[0].c_str(), PathFindFileNameW(m_fileNames[0].c_str()), WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_OVERLAPPEDWINDOW,
 				m_x, m_y, m_width, m_height, 0, 0, m_hInstance, this);
 
 			if(WindowEnabled())
@@ -463,29 +477,33 @@ namespace LibCC
 					// do file
 					if(pThis->FileEnabled())
 					{
-						HANDLE h = CreateFileW(pThis->m_fileName.c_str(), GENERIC_WRITE, FILE_SHARE_READ, 0, OPEN_ALWAYS, 0, 0);
-						if(h && h != INVALID_HANDLE_VALUE)
+						for(std::vector<std::wstring>::iterator it = pThis->m_fileNames.begin(); it != pThis->m_fileNames.end(); ++ it)
 						{
-							DWORD br;
-							if(pThis->m_unicodeFileFormat)
+							std::wstring& fileName = *it;
+							HANDLE h = CreateFileW(fileName.c_str(), GENERIC_WRITE, FILE_SHARE_READ, 0, OPEN_ALWAYS, 0, 0);
+							if(h && h != INVALID_HANDLE_VALUE)
 							{
-								DWORD oldptr = SetFilePointer(h, 0, 0, FILE_END);
-								if(oldptr == 0)
+								DWORD br;
+								if(pThis->m_unicodeFileFormat)
 								{
-									// the file is new. write the Unicode BOM if necessary.
-									WORD bom = 0xfeff;// doing it like this is compatible with other byte-order
-									DWORD bw;
-									WriteFile(h, &bom, 2, &bw, 0);
+									DWORD oldptr = SetFilePointer(h, 0, 0, FILE_END);
+									if(oldptr == 0)
+									{
+										// the file is new. write the Unicode BOM if necessary.
+										WORD bom = 0xfeff;// doing it like this is compatible with other byte-order
+										DWORD bw;
+										WriteFile(h, &bom, 2, &bw, 0);
+									}
+									WriteFile(h, file.c_str(), (DWORD)(sizeof(wchar_t) * file.size()), &br, 0);
 								}
-								WriteFile(h, file.c_str(), (DWORD)(sizeof(wchar_t) * file.size()), &br, 0);
+								else
+								{
+									std::string a;
+									StringConvert(file, a);
+									WriteFile(h, a.c_str(), (DWORD)a.size(), &br, 0);
+								}
+								CloseHandle(h);
 							}
-							else
-							{
-								std::string a;
-								StringConvert(file, a);
-								WriteFile(h, a.c_str(), (DWORD)a.size(), &br, 0);
-							}
-							CloseHandle(h);
 						}
 					}
 
@@ -707,7 +725,7 @@ namespace LibCC
     std::vector<ThreadInfo> m_threads;
 
     HINSTANCE m_hInstance;
-    std::wstring m_fileName;
+		std::vector<std::wstring> m_fileNames;
   };
 
 	extern Log* g_pLog;

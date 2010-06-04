@@ -675,8 +675,10 @@ namespace LibCC
 
 
 	// StringContains. --------------------------------------------------------------------------------------
+
+	// find a char in a string.
 	template<typename TiteratorType, typename TstrType, typename Trhs>
-	inline bool InternalStringContains(TstrType str, Trhs x)// not practical for most uses because it would be too ambiguous. this houses the basic generic algorithm
+	inline bool InternalStringContainsChar(TstrType str, Trhs x)// not practical for most uses because it would be too ambiguous. this houses the basic generic algorithm
   {
 		for(TiteratorType it = StringBegin(str); !StringIsEnd(it, str); ++ it)
 		{
@@ -686,45 +688,79 @@ namespace LibCC
 	}
 	// no-conversion cases
   template<typename Char>
-  inline bool StringContains(const Char* source, Char x)
+  inline bool StringContainsChar(const Char* source, Char x)
   {
-		return InternalStringContains<const Char*, const Char*, Char>(source, x);
+		return InternalStringContainsChar<const Char*, const Char*, Char>(source, x);
 	}
   template<typename Char>
-	inline bool StringContains(const std::basic_string<Char>& source, Char x)
+	inline bool StringContainsChar(const std::basic_string<Char>& source, Char x)
   {
-		return InternalStringContains<std::basic_string<Char>::const_iterator, const std::basic_string<Char>&, Char>(source, x);
+		return InternalStringContainsChar<std::basic_string<Char>::const_iterator, const std::basic_string<Char>&, Char>(source, x);
 	}
-	// requires conversion
   template<typename CharL, typename CharR>
-  inline bool StringContains(const CharL* source, CharR x, int codepageLeft = CP_ACP)
+  inline bool StringContainsChar(const CharL* source, CharR x, int codepageLeft = CP_ACP)
   {
 		if(sizeof(CharL) > sizeof(CharR))
 		{
-			return StringContains(source, CharConvert<CharL>(x));
+			return StringContainsChar(source, CharConvert<CharL>(x));
 		}
 		else
 		{
 			std::basic_string<CharR> temp;
 			StringConvert(source, temp, codepageLeft);
-			return StringContains(temp, x);
+			return StringContainsChar(temp, x);
 		}
 	}
+
 	template<typename CharL, typename CharR>
-	inline bool StringContains(const std::basic_string<CharL>& source, CharR x, int codepageLeft = CP_ACP)
+	inline bool StringContainsChar(const std::basic_string<CharL>& source, CharR x, int codepageLeft = CP_ACP)
   {
 		if(sizeof(CharL) > sizeof(CharR))
 		{
-			return StringContains(source, CharConvert<CharL>(x));
+			return StringContainsChar(source, CharConvert<CharL>(x));
 		}
 		else
 		{
 			std::basic_string<CharR> temp;
 			StringConvert(source, temp, codepageLeft);
-			return StringContains(temp, x);
+			return StringContainsChar(temp, x);
 		}
   }
 
+	// requires conversion
+  template<typename Char>
+  inline bool StringContainsString(const Char* source, const Char* x)
+  {
+		if(*x == 0)
+			return true;
+		while(true)
+		{
+			if(*source == 0)
+				return false;
+			if(StringStartsWith(source, x))
+				return true;
+			source ++;
+		}
+	}
+
+	template<typename CharL, typename CharR>
+	inline bool StringContainsString(const std::basic_string<CharL>& source, const std::basic_string<CharR>& x, int codepageLeft = CP_ACP)
+  {
+		__asm int 3;// this function is here to disambiguate template argument matching. it's not currently implemented.
+		return false;
+  }
+
+	template<typename Char>
+	inline bool StringContainsString(const std::basic_string<Char>& source, const std::basic_string<Char>& x)
+  {
+		return StringContainsString(source.c_str(), x.c_str());
+  }
+
+	template<typename Char>
+	inline bool StringContainsString(const std::basic_string<Char>& source, const Char* x)
+  {
+		return StringContainsString(source.c_str(), x);
+  }
 
 	// StringFindFirstOf, returning index --------------------------------------------------------------------------------------
 
@@ -736,7 +772,7 @@ namespace LibCC
 		std::string::size_type ret = 0;
 		for(TiteratorType it = StringBegin(str); !StringIsEnd(it, str); ++ it)
 		{
-			if(StringContains(chars, *it))// we don't want to do a conversion here
+			if(StringContainsChar(chars, *it))// we don't want to do a conversion here
 				return ret;
 			ret ++;
 		}
@@ -814,7 +850,7 @@ namespace LibCC
 		TiteratorType it = StringBegin(str) + ret;// last char
 		while(true)
 		{
-			if(StringContains(chars, *it))// we don't want to do a conversion here
+			if(StringContainsChar(chars, *it))// we don't want to do a conversion here
 				return ret;
 			if(ret == 0)
 				break;
@@ -1051,7 +1087,7 @@ namespace LibCC
 		{
 			if(StringIsEnd(it, s))// hit the end of the string during skipping; it only contains trim chars!
 				return ret;
-			if(!StringContains(chars, *it))
+			if(!StringContainsChar(chars, *it))
 				break;
 			++ it;
 		}
@@ -1062,7 +1098,7 @@ namespace LibCC
 		{
 			if(StringIsEnd(itTemp, s))
 				break;
-			if(!StringContains(chars, *itTemp))
+			if(!StringContainsChar(chars, *itTemp))
 				lastNonTrimChar = itTemp;
 			++ itTemp;
 		}
@@ -2534,6 +2570,15 @@ namespace LibCC
 			return s(arg);
 		}
 
+		LIBCC_INLINE _This& p(const void* v)
+		{
+			static const int Digits = (sizeof(uintptr_t) * 2);// number of digits (32-bit == 4 bytes == 8 digits)
+			_Char arg[Digits + 3] = { '0', 'x' };// +2 for prefix, +1 for null term.
+			uintptr_t temp = *(reinterpret_cast<uintptr_t*>(&v));
+			_UnsignedNumberToString<_Char, 16, Digits, '0'>(arg + 2 + Digits, temp);
+			return s(arg);
+		}
+
     // CHARACTER (count) -----------------------------
     template<typename T>
     LIBCC_INLINE _This& c(T v)
@@ -2599,6 +2644,12 @@ namespace LibCC
 				return s(native);
 			}
 			return *this;
+		}
+
+    template<typename fChar, typename fTraits, typename fAlloc>
+		LIBCC_INLINE _This& s(const LibCC::FormatX<fChar, fTraits, fAlloc>& str)
+		{
+			return s(str.Str());
 		}
 
 		/*
@@ -2907,7 +2958,9 @@ namespace LibCC
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, size_t Base>
     LIBCC_INLINE _This& f(float val)
 		{
-	    _AppendFloat<_Char, SinglePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val, m_Composite);
+			QuickString<_Char> back = AddArg();
+	    _AppendFloat<_Char, SinglePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val, back);
+			m_argumentCharSize += back.size();
 			return *this;
 		}
 
@@ -3113,19 +3166,25 @@ namespace LibCC
     {
       return d(n, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, Base);
     }
-    _This& operator ()(char* n)
+    _This& operator ()(const char* n)
     {
       return s(n);
     }
-    _This& operator ()(wchar_t* n)
+    _This& operator ()(const wchar_t* n)
     {
       return s(n);
     }
-    _This& operator ()(const std::string& n)
+    _This& operator ()(const void* n)
+    {
+      return p(n);
+    }
+		template<typename RChar>
+    _This& operator ()(const std::basic_string<RChar>& n)
     {
       return s(n);
     }
-    _This& operator ()(const std::wstring& n)
+		template<typename RChar>
+    _This& operator ()(const FormatX<RChar>& n)
     {
       return s(n);
     }

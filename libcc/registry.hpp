@@ -214,15 +214,24 @@ namespace LibCC
       __Close();
     }
 
-    bool Delete()
+    bool Delete(int& gle)
     {
       // delete recursively
       for(SubKeyIterator it = EnumSubKeysBegin(); it != EnumSubKeysEnd(); ++ it)
       {
-        it->Delete();
+        if(!it->Delete(gle))
+					return false;
       }
       __Close();
-      return ERROR_SUCCESS == RegDeleteKeyX(m_hRoot, m_subKey.c_str());
+      bool ret = ERROR_SUCCESS == RegDeleteKeyX(m_hRoot, m_subKey.c_str());
+			gle = GetLastError();
+			return ret;
+    }
+
+    bool Delete()
+    {
+			int gle = 0;
+			return Delete(gle);
     }
 
     bool Exists()
@@ -315,11 +324,19 @@ namespace LibCC
       return ERROR_SUCCESS == RegQueryValueExX(m_hKey, name.length() ? name.c_str() : 0, &type, 0, 0);
     }
 
-    bool DeleteValue(const _String& name)
+    bool DeleteValue(const _String& name, int& gle)
     {
       m_bNeedWriteAccess = true;
-      if(!__Open()) return false;
-      return ERROR_SUCCESS == RegDeleteValueX(m_hKey, name.length() ? name.c_str() : 0);
+      if(!__Open(gle)) return false;
+      bool ret = ERROR_SUCCESS == RegDeleteValueX(m_hKey, name.length() ? name.c_str() : 0);
+			gle = GetLastError();
+			return ret;
+    }
+
+    bool DeleteValue(const _String& name)
+    {
+			int gle;
+			return DeleteValue(name, gle);
     }
 
     Value GetValue(const _String& name)
@@ -350,12 +367,20 @@ namespace LibCC
       if(!__Open()) return false;
       return (ERROR_SUCCESS == RegSetValueExX(m_hKey, name.length() ? name.c_str() : 0, REG_DWORD, reinterpret_cast<BYTE*>(&value), sizeof(DWORD)));
     }
-    bool SetValue(const _String& name, const _String& value)
+    bool SetValueGle(const _String& name, const _String& value, int& gle)
     {
       m_bNeedWriteAccess = true;
-      if(!__Open()) return false;
-	    return (ERROR_SUCCESS == RegSetValueExStringX(m_hKey, name.length() ? name.c_str() : 0, 0, REG_SZ, value.c_str()));
+      if(!__Open(gle))
+				return false;
+	    bool ret = (ERROR_SUCCESS == RegSetValueExStringX(m_hKey, name.length() ? name.c_str() : 0, 0, REG_SZ, value.c_str()));
+			gle = GetLastError();
+			return ret;
     }
+		bool SetValue(const _String& name, const _String& value)
+		{
+			int gle;
+			return SetValueGle(name, value, gle);
+		}
 
     // get string / dword / int
     bool GetValue(const _String& name, bool& val)
@@ -371,11 +396,19 @@ namespace LibCC
       DWORD size = sizeof(val);
 	    return (ERROR_SUCCESS == RegQueryValueExX(m_hKey, name.length() ? name.c_str() : 0, 0, reinterpret_cast<BYTE*>(&val), &size));
     }
+    bool GetValue(const _String& name, DWORD& val, int& gle)
+    {
+			gle = ERROR_SUCCESS;
+      if(!__Open(gle)) return false;
+      DWORD size = sizeof(val);
+	    bool ret = (ERROR_SUCCESS == RegQueryValueExX(m_hKey, name.length() ? name.c_str() : 0, 0, reinterpret_cast<BYTE*>(&val), &size));
+			gle = GetLastError();
+			return ret;
+    }
     bool GetValue(const _String& name, DWORD& val)
     {
-      if(!__Open()) return false;
-      DWORD size = sizeof(val);
-	    return (ERROR_SUCCESS == RegQueryValueExX(m_hKey, name.length() ? name.c_str() : 0, 0, reinterpret_cast<BYTE*>(&val), &size));
+			int gle;
+			return GetValue(name, val, gle);
     }
     bool GetValue(const _String& name, _String& value)
     {
@@ -477,10 +510,11 @@ namespace LibCC
       return true;
     }
 
-    bool __Open()
+    bool __Open(int& gle)
     {
       if(__IsSufficientlyOpen())
       {
+				gle = ERROR_SUCCESS;
         return true;
       }
       __Close();
@@ -488,13 +522,21 @@ namespace LibCC
       access |= KEY_QUERY_VALUE | KEY_READ;
 		  if(ERROR_SUCCESS != RegOpenKeyExX(m_hRoot, m_subKey.c_str(), 0, access, &m_hKey))
       {
+				gle = GetLastError();
         return false;
       }
       if((access & KEY_WRITE) == KEY_WRITE)
       {
         m_bOpenedForWrite = true;
       }
+			gle = ERROR_SUCCESS;
       return true;
+    }
+
+    bool __Open()
+		{
+			int gle;
+      return __Open(gle);
     }
 
 	  HKEY m_hKey;// Null when the key's not opened.

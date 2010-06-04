@@ -374,9 +374,8 @@ namespace LibCC
     size = GetTempPathW(1, temp);
     if(size)
     {
-      BlobTypes<wchar_t>::PathBlob buf;
-      buf.Alloc(size + 1);
-      if(GetTempPathW(buf.Size(), buf.GetWritableBuffer()))
+      Blob<wchar_t> buf(size + 1);
+			if(GetTempPathW(buf.Size(), buf.GetBuffer()))
       {
         XLastDitchStringCopy(buf.GetBuffer(), sOut);
         r = true;
@@ -480,6 +479,11 @@ namespace LibCC
 	inline std::wstring GetModuleFilenameW(HandleType h)
 	{
 		return GetModuleFilenameX<wchar_t>(h);
+	}
+
+	inline std::wstring GetModuleFilenameW()
+	{
+		return GetModuleFilenameX<wchar_t>((HMODULE)0);
 	}
 }
 
@@ -599,6 +603,124 @@ namespace LibCC
 		LibCC::StringConvert(s, A);
 		StdOutPrint(A);
 	}
+
+	template<typename Char>
+	inline bool RevealInExplorer(const std::basic_string<Char>& path)
+	{
+		std::wstring cmdLine = LibCC::FormatW(L"explorer /select, %").qs(path).Str();
+
+		PROCESS_INFORMATION pi;
+		STARTUPINFO si;
+		GetStartupInfo(&si);
+		LibCC::Blob<wchar_t> stupidBullshit(cmdLine.size() + 1);
+		wcscpy(stupidBullshit.GetBuffer(), cmdLine.c_str());
+		if(!CreateProcess(0, stupidBullshit.GetBuffer(), 0, 0, FALSE, 0, 0, 0, &si, &pi))
+			return false;
+
+		CloseHandle(pi.hThread);
+		CloseHandle(pi.hProcess);
+
+		return true;
+	}
+
+
+#ifdef LIBCC_INCLUDE_VERSION
+#pragma comment(lib, "version.lib")
+	class Version
+	{
+	public:
+		struct LANGANDCODEPAGE
+		{
+			WORD wLanguage;
+			WORD wCodePage;
+		};
+
+		Version() :
+			m_a(0),
+			m_b(0),
+			m_c(0),
+			m_d(0)
+		{
+		}
+
+		void FromFile(const std::basic_string<WCHAR>& pathW)
+		{
+			DWORD wtf;
+			DWORD size;
+
+			Translations.clear();
+
+			size = GetFileVersionInfoSizeW(pathW.c_str(), &wtf);
+			if(!size)
+				return;
+
+			if(!data.Alloc(size+1))// why +1 ?  just for fun i guess.... no good reason.
+				return;
+			if(!GetFileVersionInfoW(pathW.c_str(), 0, size, data.GetBuffer()))
+				return;
+
+			// fixed info (main shit)
+			VS_FIXEDFILEINFO* ffi = 0;
+			UINT ffilen = 0;
+			if(!VerQueryValueW(data.GetBuffer(), L"\\", (void**)&ffi, &ffilen))
+				return;
+			m_a = HIWORD(ffi->dwFileVersionMS);
+			m_b = LOWORD(ffi->dwFileVersionMS);
+			m_c = HIWORD(ffi->dwProductVersionLS);
+			m_d = LOWORD(ffi->dwProductVersionLS);
+
+			// Read the list of languages and code pages.
+			LANGANDCODEPAGE* lpTranslate;
+			VerQueryValueW(data.GetBuffer(), L"\\VarFileInfo\\Translation", (LPVOID*)&lpTranslate, &ffilen);
+
+			for(int i = 0; i < (ffilen / sizeof(LANGANDCODEPAGE)); i++)
+			{
+				Translations.push_back(lpTranslate[i]);
+			}
+		}
+
+		WORD GetA() const { return m_a; }
+		WORD GetB() const { return m_b; }
+		WORD GetC() const { return m_c; }
+		WORD GetD() const { return m_d; }
+
+		std::wstring GetRegisteredTo(WORD lang, WORD codepage)
+		{
+			return GetString(LibCC::Format(L"\\StringFileInfo\\%%\\RegisteredTo").ul<16,4>(lang).ul<16,4>(codepage).Str());
+		}
+
+		std::wstring GetLegalCopyright(WORD lang, WORD codepage)
+		{
+			return GetString(LibCC::Format(L"\\StringFileInfo\\%%\\LegalCopyright").ul<16,4>(lang).ul<16,4>(codepage).Str());
+		}
+
+		std::wstring GetFileDescription(WORD lang, WORD codepage)
+		{
+			return GetString(LibCC::Format(L"\\StringFileInfo\\%%\\FileDescription").ul<16,4>(lang).ul<16,4>(codepage).Str());
+		}
+		
+		std::vector<LANGANDCODEPAGE> Translations;
+
+	private:
+
+		std::wstring GetString(const std::wstring& name)
+		{
+			PCWSTR pStr;
+			UINT ffilen = 0;
+			if(!VerQueryValueW(data.GetBuffer(), name.c_str(), (void**)&pStr, &ffilen))
+				return L"";
+			return pStr;
+		}
+
+		LibCC::Blob<BYTE> data;
+
+		WORD m_a;
+		WORD m_b;
+		WORD m_c;
+		WORD m_d;
+	};
+#endif
+
 }
 
 

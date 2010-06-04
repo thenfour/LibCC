@@ -84,17 +84,17 @@ namespace LibCC
 		{
 		}
 
-		TimeSpan(long hours, long minutes, long seconds) :
+		TimeSpan(DWORD64 hours, DWORD64 minutes, DWORD64 seconds) :
 			m_ticks(HoursToTicks(hours) + MinutesToTicks(minutes) + SecondsToTicks(seconds))
 		{
 		}
 
-		TimeSpan(long days, long hours, long minutes, long seconds) :
+		TimeSpan(DWORD64 days, DWORD64 hours, DWORD64 minutes, DWORD64 seconds) :
 			m_ticks(DaysToTicks(days) + HoursToTicks(hours) + MinutesToTicks(minutes) + SecondsToTicks(seconds))
 		{
 		}
 
-		TimeSpan(long days, long hours, long minutes, long seconds, long milliseconds) :
+		TimeSpan(DWORD64 days, DWORD64 hours, DWORD64 minutes, DWORD64 seconds, DWORD64 milliseconds) :
 			m_ticks(DaysToTicks(days) + HoursToTicks(hours) + MinutesToTicks(minutes) + SecondsToTicks(seconds) + MillisecondsToTicks(milliseconds))
 		{
 		}
@@ -102,6 +102,42 @@ namespace LibCC
 		TimeSpan(const TimeSpan& r) :
 			m_ticks(r.m_ticks)
 		{
+		}
+
+		bool operator < (const TimeSpan& rhs) const
+		{
+			return m_ticks < rhs.m_ticks;
+		}
+		bool operator <= (const TimeSpan& rhs) const
+		{
+			return m_ticks <= rhs.m_ticks;
+		}
+		bool operator > (const TimeSpan& rhs) const
+		{
+			return m_ticks > rhs.m_ticks;
+		}
+		bool operator >= (const TimeSpan& rhs) const
+		{
+			return m_ticks >= rhs.m_ticks;
+		}
+		bool operator == (const TimeSpan& rhs) const
+		{
+			return m_ticks == rhs.m_ticks;
+		}
+		bool operator != (const TimeSpan& rhs) const
+		{
+			return m_ticks != rhs.m_ticks;
+		}
+
+
+		static TimeSpan FromMilliseconds(__int64 dw)
+		{
+			return TimeSpan(MillisecondsToTicks(dw));
+		}
+
+		static TimeSpan FromMilliseconds(DWORD64 dw)
+		{
+			return TimeSpan(MillisecondsToTicks(dw));
 		}
 
 	  void Add(const TimeSpan& r)
@@ -187,9 +223,47 @@ namespace LibCC
 			m_ticks = (static_cast<__int64>(ft.dwHighDateTime) << 32) | ft.dwLowDateTime;
 		}
 
-	  static long TicksToSeconds(__int64 t)
+		double ToMilliseconds() const
 		{
-		  return static_cast<long>(t / SecondsToTicks(__int64(1)));
+			return (double)m_ticks / MillisecondsToTicks(1ULL);
+		}
+		double ToSeconds() const
+		{
+			return (double)m_ticks / SecondsToTicks(1ULL);
+		}
+		double ToMinutes() const
+		{
+			return (double)m_ticks / MinutesToTicks(1ULL);
+		}
+		double ToHours() const
+		{
+			return (double)m_ticks / HoursToTicks(1ULL);
+		}
+
+		// gets the MS part of HH:MM:SS:MS
+		long GetMillisecondsComponent() const
+		{
+			return (long)ToMilliseconds() % 1000;
+		}
+		// gets the SS part of HH:MM:SS:MS
+		long GetSecondsComponent() const
+		{
+			return (long)ToSeconds() % 60;
+		}
+		// gets the MM part of HH:MM:SS:MS
+		long GetMinutesComponent() const
+		{
+			return (long)ToMinutes() % 60;
+		}
+		// gets the HH part of HH:MM:SS:MS
+		long GetHoursComponent() const
+		{
+			return (long)ToHours();
+		}
+
+	  static double TicksToSeconds(__int64 t)
+		{
+		  return static_cast<double>(t) / SecondsToTicks(1);
 		}
 
 		template<typename T>
@@ -321,7 +395,7 @@ namespace LibCC
 			m_ticks -= r.GetTicks();
 		}
 
-		TimeSpan Subtract(const DateTime& r)
+		TimeSpan Subtract(const DateTime& r) const
 		{
 			return TimeSpan(m_ticks - r.m_ticks);
 		}
@@ -330,36 +404,31 @@ namespace LibCC
 		//void AddDays(__int16 d)
 	  //void AddMonths(__int16 d);
 
-		template<typename T>
-		void AddHours(T d)
+		void AddHours(DWORD64 d)
 		{
 			m_stDirty = true;
 			m_ticks += TimeSpan::HoursToTicks( d);
 		}
 
-		template<typename T>
-		void AddMilliseconds(T d)
+		void AddMilliseconds(DWORD64 d)
 		{
 			m_stDirty = true;
 			m_ticks += TimeSpan::MillisecondsToTicks(d);
 		}
 
-		template<typename T>
-		void AddMinutes(T d)
+		void AddMinutes(DWORD64 d)
 		{
 			m_stDirty = true;
 			m_ticks += TimeSpan::MinutesToTicks(d);
 		}
 
-		template<typename T>
-	  void AddSeconds(T v)
+	  void AddSeconds(DWORD64 v)
 		{
 			m_stDirty = true;
 			m_ticks += TimeSpan::SecondsToTicks(v);
 		}
 
-		template<typename T>
-	  void AddTicks(T ticks)
+	  void AddTicks(DWORD64 ticks)
 		{
 			m_stDirty = true;
 			m_ticks += ticks;
@@ -371,13 +440,13 @@ namespace LibCC
 			__FromCachedSystemTime();
 		}
 
-    long GetYear() { return __GetCachedSystemTime().wYear; };
-    Month GetMonth() { return Month(__GetCachedSystemTime().wMonth); };
-    long GetDay() { return __GetCachedSystemTime().wDay; };
-    long GetHour() { return __GetCachedSystemTime().wHour; };
-    long GetMinute() { return __GetCachedSystemTime().wMinute; };
-    long GetSecond() { return __GetCachedSystemTime().wSecond; };
-    long GetMillisecond() { return __GetCachedSystemTime().wMilliseconds; };
+    long GetYear() const { return __GetCachedSystemTime().wYear; };
+    Month GetMonth() const { return Month(__GetCachedSystemTime().wMonth); };
+    long GetDay() const { return __GetCachedSystemTime().wDay; };
+    long GetHour() const { return __GetCachedSystemTime().wHour; };
+    long GetMinute() const { return __GetCachedSystemTime().wMinute; };
+    long GetSecond() const { return __GetCachedSystemTime().wSecond; };
+    long GetMillisecond() const { return __GetCachedSystemTime().wMilliseconds; };
 
 	  long Compare(const DateTime& s) const
 		{
@@ -392,13 +461,39 @@ namespace LibCC
 			return 0;
 		}
 
+		bool operator < (const DateTime& rhs) const
+		{
+			return m_ticks < rhs.m_ticks;
+		}
+		bool operator <= (const DateTime& rhs) const
+		{
+			return m_ticks <= rhs.m_ticks;
+		}
+		bool operator > (const DateTime& rhs) const
+		{
+			return m_ticks > rhs.m_ticks;
+		}
+		bool operator >= (const DateTime& rhs) const
+		{
+			return m_ticks >= rhs.m_ticks;
+		}
+		bool operator == (const DateTime& rhs) const
+		{
+			return m_ticks == rhs.m_ticks;
+		}
+		bool operator != (const DateTime& rhs) const
+		{
+			return m_ticks != rhs.m_ticks;
+		}
+
+
 	  bool Equals(const DateTime& s)
 		{
 			return m_ticks == s.m_ticks;
 		}
 
 	  //bool IsDaylightSavingTime();
-	  unsigned __int64 ToBinary()
+	  unsigned __int64 ToBinary() const
 		{
 			return m_ticks;
 		}
@@ -491,7 +586,7 @@ namespace LibCC
     static DateTime UtcNow()
 		{
 			SYSTEMTIME st;
-			GetLocalTime(&st);
+			GetSystemTime(&st);
 			return DateTime(st, DateTimeKind_UTC);
 		}
 
@@ -509,7 +604,7 @@ namespace LibCC
       memset(&m_st, 0, sizeof(m_st));
     }
 
-    SYSTEMTIME& __GetCachedSystemTime()
+    SYSTEMTIME& __GetCachedSystemTime() const
     {
       if(m_stDirty)
       {
@@ -522,8 +617,9 @@ namespace LibCC
 
 	  unsigned __int64 m_ticks;
 	  DateTimeKind m_kind;
-    SYSTEMTIME m_st;
-    bool m_stDirty;// true if m_st is set;
+
+    mutable SYSTEMTIME m_st;
+    mutable bool m_stDirty;// true if m_st is set;
   };
 
 }
