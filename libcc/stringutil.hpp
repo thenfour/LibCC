@@ -1962,7 +1962,7 @@ namespace LibCC
 	}
 
     template<typename _Char>
-		inline void _RuntimeAppendZeroFloat(size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QuickString<_Char>& output)
+		inline void _RuntimeAppendZeroFloat(size_t DecimalWidthMax, size_t DecimalWidthMin, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QuickString<_Char>& output)
 		{
 			// zero.
 			// pre-decimal part.
@@ -1983,12 +1983,15 @@ namespace LibCC
 				// if there are any decimal digits to set, then just append ".0"
 				output.reserve(output.size() + 2);
 				output.push_back('.');
-				output.push_back('0');
+				for(size_t i = 0; i < DecimalWidthMin; ++ i)
+				{
+					output.push_back('0');
+				}
 			}
 		}
 
     template<typename FloatType, typename _Char>
-    inline void _RuntimeAppendNormalizedFloat(FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QuickString<_Char>& output)
+    inline void _RuntimeAppendNormalizedFloat(FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t DecimalWidthMin, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QuickString<_Char>& output)
 		{
 			// how do we know how many chars we will use?  we don't right now.
 			_Char* buf = reinterpret_cast<_Char*>(_alloca(sizeof(_Char) * (2200 + IntegralWidthMin + DecimalWidthMax)));
@@ -2030,12 +2033,13 @@ namespace LibCC
 				if(DecimalWidthMax)
 				{
 					size_t DecimalWidthLeft = DecimalWidthMax;
+					size_t DecimalUsed = 0;
 					middle[0] = '.';
 					FloatType::Mantissa denominator = (FloatType::Mantissa)1 << DecBits;// same as 'capacity'.
 					FloatType::Mantissa& numerator(_dec);
 					numerator *= static_cast<FloatType::Mantissa>(Base);
 					FloatType::Mantissa digit;
-					while(numerator && DecimalWidthLeft)
+					while((numerator || (DecimalUsed < DecimalWidthMin)) && DecimalWidthLeft)
 					{
 						digit = numerator / denominator;// integer division
 						// add the digit, and drill down into the remainder.
@@ -2043,6 +2047,7 @@ namespace LibCC
 						numerator -= digit * denominator;
 						numerator *= static_cast<FloatType::Mantissa>(Base);
 						-- DecimalWidthLeft;
+						DecimalUsed ++;
 					}
 				}
 				else
@@ -2081,6 +2086,7 @@ namespace LibCC
 				if(DecimalWidthMax)
 				{
 					size_t DecimalWidthLeft = DecimalWidthMax;
+					size_t DecimalUsed = 0;
 					middle[0] = '.';
 					FloatType::This val(_f);
 					val.AbsoluteValue();
@@ -2091,6 +2097,7 @@ namespace LibCC
 					do
 					{
 						DecimalWidthLeft --;
+						DecimalUsed ++;
 						val.m_BasicVal *= Base;
 						// isolate the integral part
 						integerPart.m_BasicVal = val.m_BasicVal;
@@ -2099,7 +2106,7 @@ namespace LibCC
 						// use the integral part to leave only the decimal part.
 						val.m_BasicVal -= integerPart.m_BasicVal;
 					}
-					while((val.m_BasicVal > 0) && DecimalWidthLeft);
+					while(((val.m_BasicVal > 0) || (DecimalUsed < DecimalWidthMin)) && DecimalWidthLeft);
 				}
 				else
 				{
@@ -2127,7 +2134,7 @@ namespace LibCC
       Converts any floating point (LibCC::IEEEFloat<>) number to a string, and appends it just like any other string.
     */
     template<typename FloatType, typename _Char>
-		inline void _RuntimeAppendFloat(const FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QuickString<_Char>& output)
+		inline void _RuntimeAppendFloat(const FloatType& _f, size_t Base, size_t DecimalWidthMax, size_t DecimalWidthMin, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QuickString<_Char>& output)
 		{
 			if(!(_f.m_val & _f.ExponentMask))
 			{
@@ -2140,7 +2147,7 @@ namespace LibCC
 				else
 				{
 					// zero
-					return _RuntimeAppendZeroFloat(DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, output);
+					return _RuntimeAppendZeroFloat(DecimalWidthMax, DecimalWidthMin, IntegralWidthMin, PaddingChar, ForceSign, output);
 				}
 			}
 			else if((_f.m_val & _f.ExponentMask) == _f.ExponentMask)
@@ -2165,13 +2172,13 @@ namespace LibCC
 			}
 
 			// normalized number.
-			_RuntimeAppendNormalizedFloat(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, output);
+			_RuntimeAppendNormalizedFloat(_f, Base, DecimalWidthMax, DecimalWidthMin, IntegralWidthMin, PaddingChar, ForceSign, output);
 		}
 
-    template<typename _Char, typename FloatType, size_t Base, size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign>
+    template<typename _Char, typename FloatType, size_t Base, size_t DecimalWidthMax, size_t DecimalWidthMin, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign>
     inline void _AppendFloat(const FloatType& _f, QuickString<_Char>& output)
 		{
-	    return _RuntimeAppendFloat<FloatType>(_f, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, output);
+	    return _RuntimeAppendFloat<FloatType>(_f, Base, DecimalWidthMax, DecimalWidthMin, IntegralWidthMin, PaddingChar, ForceSign, output);
 		}
 
     template<size_t Width, typename T>
@@ -2955,11 +2962,11 @@ namespace LibCC
 
     // FLOAT ----------------------------- 3.14   [intwidth].[decwidth]
     // integralwidth is the MINIMUM digits.  Decimalwidth is the MAXIMUM digits.
-    template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, size_t Base>
+    template<size_t DecimalWidthMax, size_t DecimalWidthMin, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, size_t Base>
     LIBCC_INLINE _This& f(float val)
 		{
 			QuickString<_Char> back = AddArg();
-	    _AppendFloat<_Char, SinglePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val, back);
+	    _AppendFloat<_Char, SinglePrecisionFloat, Base, DecimalWidthMax, DecimalWidthMin, IntegralWidthMin, PaddingChar, ForceSign>(val, back);
 			m_argumentCharSize += back.size();
 			return *this;
 		}
@@ -2967,30 +2974,30 @@ namespace LibCC
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign>
     LIBCC_INLINE _This& f(float val)
 		{
-	    return f<DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, 10>(val);
+	    return f<DecimalWidthMax, 1, IntegralWidthMin, PaddingChar, ForceSign, 10>(val);
 		}
 
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar>
     LIBCC_INLINE _This& f(float val)
 		{
-	    return f<DecimalWidthMax, IntegralWidthMin, PaddingChar, false, 10>(val);
+	    return f<DecimalWidthMax, 1, IntegralWidthMin, PaddingChar, false, 10>(val);
 		}
 
     template<size_t DecimalWidthMax, size_t IntegralWidthMin>
     LIBCC_INLINE _This& f(float val)
 		{
-	    return f<DecimalWidthMax, IntegralWidthMin, '0', false, 10>(val);
+	    return f<DecimalWidthMax, 1, IntegralWidthMin, '0', false, 10>(val);
 		}
 
     template<size_t DecimalWidthMax>
     LIBCC_INLINE _This& f(float val)
 		{
-	    return f<DecimalWidthMax, 1, '0', false, 10>(val);
+	    return f<DecimalWidthMax, 1, 1, '0', false, 10>(val);
 		}
 
     LIBCC_INLINE _This& f(float val)
 		{
-	    return f<2, 1, '0', false, 10>(val);
+	    return f<2, 1, 1, '0', false, 10>(val);
 		}
 
     LIBCC_INLINE _This& f(float val, size_t DecimalWidthMax, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
@@ -3004,7 +3011,7 @@ namespace LibCC
     LIBCC_INLINE _This& d(double val)
 		{
 			QuickString<_Char> back = AddArg();
-	    _AppendFloat<_Char, DoublePrecisionFloat, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign>(val, back);
+	    _AppendFloat<_Char, DoublePrecisionFloat, Base, DecimalWidthMax, 1, IntegralWidthMin, PaddingChar, ForceSign>(val, back);
 			m_argumentCharSize += back.size();
 			return *this;
 		}

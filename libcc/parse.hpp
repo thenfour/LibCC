@@ -924,7 +924,7 @@ namespace LibCC
 
 					if(skipWhitespaceBetween)
 					{
-						while(!input.IsEOF() && LibCC::StringContains(WhitespaceChars(), input.CurrentChar()))
+						while(!input.IsEOF() && LibCC::StringContainsChar(WhitespaceChars(), input.CurrentChar()))
 						{
 							input.Advance();
 						}
@@ -1101,7 +1101,7 @@ namespace LibCC
 					return false;
 				if(skipWhitespaceBetween)
 				{
-					while(!input.IsEOF() && LibCC::StringContains(WhitespaceChars(), input.CurrentChar()))
+					while(!input.IsEOF() && LibCC::StringContainsChar(WhitespaceChars(), input.CurrentChar()))
 					{
 						input.Advance();
 					}
@@ -1720,7 +1720,7 @@ namespace LibCC
 				if(input.IsEOF())
 					return false;
 				parsed = input.CurrentChar();
-				if(!LibCC::StringContains(WhitespaceChars(), parsed))
+				if(!LibCC::StringContainsChar(WhitespaceChars(), parsed))
 				{
 					// non-matching char
 					return false;
