@@ -7,6 +7,8 @@
 
 #include <vector>
 #include <stack>
+#undef max// WinDef.h can go to hell.
+#undef min// WinDef.h can go to hell.
 
 namespace LibCC_746
 {
@@ -128,7 +130,7 @@ namespace LibCC_746
 			{
 				for(std::vector<std::pair<int, int> >::iterator it = m_measurements.begin(); it != m_measurements.end(); ++ it)
 				{
-					it->second = max(it->second, m_cursor.pos);
+					it->second = std::max(it->second, m_cursor.pos);
 				}
 			}
 
@@ -189,10 +191,10 @@ namespace LibCC_746
 		{
 			const int amount = 6;
 			const std::wstring& script(input.GetRawInput());
-			int nleft = min(cur.pos, amount);
+			int nleft = std::min(cur.pos, amount);
 			std::wstring left = script.substr(cur.pos - nleft, nleft);
 			int nright = (int)script.size() - cur.pos;
-			nright = min(nright, amount);
+			nright = std::min(nright, amount);
 			std::wstring right = script.substr(cur.pos, nright);
 			left = _DebugSanitize(left);
 			right = _DebugSanitize(right);
@@ -722,7 +724,7 @@ namespace LibCC_746
 
 					if(skipWhitespaceBetween)
 					{
-						while(!input.IsEOF() && LibCC::StringContains(WhitespaceChars(), input.CurrentChar()))
+						while(!input.IsEOF() && LibCC::StringContainsChar(WhitespaceChars(), input.CurrentChar()))
 						{
 							input.Advance();
 						}
@@ -896,7 +898,7 @@ namespace LibCC_746
 					return false;
 				if(skipWhitespaceBetween)
 				{
-					while(!input.IsEOF() && LibCC::StringContains(WhitespaceChars(), input.CurrentChar()))
+					while(!input.IsEOF() && LibCC::StringContainsChar(WhitespaceChars(), input.CurrentChar()))
 					{
 						input.Advance();
 					}
@@ -1509,7 +1511,7 @@ namespace LibCC_746
 				if(input.IsEOF())
 					return false;
 				parsed = input.CurrentChar();
-				if(!LibCC::StringContains(WhitespaceChars(), parsed))
+				if(!LibCC::StringContainsChar(WhitespaceChars(), parsed))
 				{
 					// non-matching char
 					return false;
@@ -2481,7 +2483,7 @@ namespace LibCC_746
 			{
 				for(std::vector<std::pair<int, int> >::iterator it = m_measurements.begin(); it != m_measurements.end(); ++ it)
 				{
-					it->second = max(it->second, m_cursor.pos);
+					it->second = std::max(it->second, m_cursor.pos);
 				}
 			}
 

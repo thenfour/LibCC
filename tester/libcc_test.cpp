@@ -73,20 +73,20 @@ void TestCollection()
 {
 	//RunTest(BlobTest);
 
-	//RunTest(ParseTest);
-	RunTest(ParseBenchmark);
+	RunTest(ParseTest);
+	//RunTest(ParseBenchmark);
 
 	//RunTest(LogTest);
-	//RunTest(AllocationTrackerTest);
+	RunTest(AllocationTrackerTest);
 
-	//RunTest(StringTest);
-	//RunTest(StringCompilationTest);
-	//RunTest(FormatTest);
+	RunTest(StringTest);
+	RunTest(StringCompilationTest);
+	RunTest(FormatTest);
 	// RunTest(FormatBenchmark);
 
 	//RunTest(RegistryTest); // careful with this of course.
 	//RunTest(StatusTest);
-	//RunTest(PathMatchSpecTest);
+	RunTest(PathMatchSpecTest);
 }
 
 int _tmain(int argc, _TCHAR* argv[])

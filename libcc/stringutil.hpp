@@ -99,6 +99,7 @@
 # include <windows.h>// for GetLastError() / LoadStrin / FormatMessage...
 #endif
 
+#undef max// WinDef.h can go to hell.
 
 #pragma warning(push)
 
@@ -733,6 +734,7 @@ namespace LibCC
   {
 		if(*x == 0)
 			return true;
+		//return wcsstr(source, x) != 0;
 		while(true)
 		{
 			if(*source == 0)
@@ -743,12 +745,12 @@ namespace LibCC
 		}
 	}
 
-	template<typename CharL, typename CharR>
-	inline bool StringContainsString(const std::basic_string<CharL>& source, const std::basic_string<CharR>& x, int codepageLeft = CP_ACP)
-  {
-		__asm int 3;// this function is here to disambiguate template argument matching. it's not currently implemented.
-		return false;
-  }
+	//template<typename CharL, typename CharR>
+	//inline bool StringContainsString(const std::basic_string<CharL>& source, const std::basic_string<CharR>& x, int codepageLeft = CP_ACP)
+ // {
+	//	__asm int 3;// this function is here to disambiguate template argument matching. it's not currently implemented.
+	//	return false;
+ // }
 
 	template<typename Char>
 	inline bool StringContainsString(const std::basic_string<Char>& source, const std::basic_string<Char>& x)
@@ -760,6 +762,13 @@ namespace LibCC
 	inline bool StringContainsString(const std::basic_string<Char>& source, const Char* x)
   {
 		return StringContainsString(source.c_str(), x);
+  }
+
+	// StringContains(case-insensitive). --------------------------------------------------------------------------------------
+	template<typename Char>
+	inline bool StringContainsStringI(const std::basic_string<Char>& source, const std::basic_string<Char>& x)
+  {
+		return StringContainsString(StringToLower(source), StringToLower(x));
   }
 
 	// StringFindFirstOf, returning index --------------------------------------------------------------------------------------
@@ -1473,10 +1482,28 @@ namespace LibCC
 	{
 		while(*find != 0)
 		{
+			if(str == 0)
+				return false;
 			if(*str != *find)
 				return false;
 			str ++;
 			find ++;
+		}
+		return true;
+	}
+
+	template<typename CharL, typename CharR>
+	inline bool StringStartsWith(const std::basic_string<CharL>& str, const CharR* find)
+	{
+		std::basic_string<CharL>::const_iterator it = str.begin();
+		while(*find != 0)
+		{
+			if(it == str.end())
+				return false;// str is ended, but find has not.
+			if(*it != *find)
+				return false;
+			++ it;
+			++ find;
 		}
 		return true;
 	}
@@ -1653,7 +1680,7 @@ namespace LibCC
 		{
 			if(data->m_allocated < (data->m_len + 1 + additional))// 1 for null term
 			{
-				data->m_allocated = max(additional + 1, data->m_allocated << 1);
+				data->m_allocated = std::max(additional + 1, data->m_allocated << 1);
 				_Char* newp = (_Char*)HeapAlloc(GetProcessHeap(), 0, data->m_allocated * sizeof(_Char));
 				memcpy(newp, data->p, data->m_len * sizeof(_Char));
 				if(data->p != data->staticBuffer)
@@ -1779,7 +1806,7 @@ namespace LibCC
 			if(m_listAllocated < (m_listLen + additional))
 			{
 				// realloc. todo: actually use realloc
-				size_t newAllocated = max(m_listAllocated * 2, m_listLen + additional);
+				size_t newAllocated = std::max(m_listAllocated * 2, m_listLen + additional);
 				QuickStringData<_Char>* newp = (QuickStringData<_Char>*)HeapAlloc(GetProcessHeap(), 0, sizeof(QuickStringData<_Char>) * newAllocated);
 				// copy dynBuffer to newp
 				memcpy(newp, listp, m_listLen * sizeof(QuickStringData<_Char>));
@@ -1844,7 +1871,7 @@ namespace LibCC
 		{
 			size_t inputLen = s == 0 ? 0 : LibCC::StringLength(s);
 			data->m_len = inputLen + 2;
-			data->m_allocated = max(data->m_len + 1, QuickStringData<_Char>::staticBufferSize);
+			data->m_allocated = std::max(data->m_len + 1, QuickStringData<_Char>::staticBufferSize);
 			ConstructAlloc(data);
 
 			_Char* i = data->p;
@@ -1867,7 +1894,7 @@ namespace LibCC
 		void ConstructQuickString(QuickStringData<_Char>* data, const _Char* s, int maxLen)
 		{
 			data->m_len = s == 0 ? 0 : min((int)LibCC::StringLength(s), maxLen);
-			data->m_allocated = max(data->m_len + 1, QuickStringData<_Char>::staticBufferSize);
+			data->m_allocated = std::max(data->m_len + 1, QuickStringData<_Char>::staticBufferSize);
 			ConstructAlloc(data);
 
 			_Char* i = data->p;
@@ -1886,7 +1913,7 @@ namespace LibCC
 		void ConstructQuickString(QuickStringData<_Char>* data, const _Char* s)
 		{
 			data->m_len = s == 0 ? 0 : LibCC::StringLength(s);
-			data->m_allocated = max(data->m_len + 1, QuickStringData<_Char>::staticBufferSize);
+			data->m_allocated = std::max(data->m_len + 1, QuickStringData<_Char>::staticBufferSize);
 			ConstructAlloc(data);
 
 			_Char* i = data->p;
@@ -1905,7 +1932,7 @@ namespace LibCC
 		void ConstructQuickString(QuickStringData<_Char>* data, _Char ch, size_t count)
 		{
 			data->m_len = count;
-			data->m_allocated = max(data->m_len + 1, QuickStringData<_Char>::staticBufferSize);
+			data->m_allocated = std::max(data->m_len + 1, QuickStringData<_Char>::staticBufferSize);
 			ConstructAlloc(data);
 
 			_Char* i = data->p;
@@ -1928,7 +1955,7 @@ namespace LibCC
 		void ConstructQuickString(QuickStringData<_Char>* data, const _Char* s, int maxLen, _Char open, _Char close)
 		{
 			data->m_len = s == 0 ? min(maxLen, 2) : min((int)LibCC::StringLength(s) + 2, maxLen);
-			data->m_allocated = max(data->m_len + 1, QuickStringData<_Char>::staticBufferSize);
+			data->m_allocated = std::max(data->m_len + 1, QuickStringData<_Char>::staticBufferSize);
 			ConstructAlloc(data);
 
 			_Char* i = data->p;
@@ -3002,7 +3029,9 @@ namespace LibCC
 
     LIBCC_INLINE _This& f(float val, size_t DecimalWidthMax, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
 		{
-	    _RuntimeAppendFloat<SinglePrecisionFloat>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, m_Composite);
+			QuickString<_Char> back = AddArg();
+			_RuntimeAppendFloat<SinglePrecisionFloat>(val, Base, DecimalWidthMax, 1, IntegralWidthMin, PaddingChar, ForceSign, back);
+			m_argumentCharSize += back.size();
 			return *this;
 		}
 
@@ -3048,7 +3077,7 @@ namespace LibCC
     LIBCC_INLINE _This& d(double val, size_t DecimalWidthMax, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
 		{
 			QuickString<_Char> n = AddArg();
-	    _RuntimeAppendFloat<DoublePrecisionFloat, _Char>(val, Base, DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, n);
+	    _RuntimeAppendFloat<DoublePrecisionFloat, _Char>(val, Base, DecimalWidthMax, 1, IntegralWidthMin, PaddingChar, ForceSign, n);
 			m_argumentCharSize += n.size();
 			return *this;
 		}
@@ -3236,7 +3265,7 @@ namespace LibCC
 					else
 					{
 						m_rendered.append(GetArg(currentSequentialArg).c_str());
-						highestUsedSequentialArg = max(highestUsedSequentialArg, currentSequentialArg);
+						highestUsedSequentialArg = std::max(highestUsedSequentialArg, currentSequentialArg);
 						++ currentSequentialArg;
 					}
 					break;
@@ -3264,7 +3293,7 @@ namespace LibCC
 								{
 									// success!
 									m_rendered.append(GetArg(argIndex).c_str());
-									highestUsedSequentialArg = max(highestUsedSequentialArg, (int)argIndex);
+									highestUsedSequentialArg = std::max(highestUsedSequentialArg, (int)argIndex);
 									it = it2;// advance the cursor.
 								}
 								else

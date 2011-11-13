@@ -475,6 +475,12 @@ namespace LibCC
 		return ret;
 	}
 
+  template<typename Char>
+	inline std::basic_string<Char> GetModuleFilenameX()
+	{
+		return GetModuleFilenameX<Char, HMODULE>(0);
+	}
+
   template<typename HandleType>// handle can be either HINSTANCE or HMODULE
 	inline std::wstring GetModuleFilenameW(HandleType h)
 	{
@@ -673,7 +679,7 @@ namespace LibCC
 			LANGANDCODEPAGE* lpTranslate;
 			VerQueryValueW(data.GetBuffer(), L"\\VarFileInfo\\Translation", (LPVOID*)&lpTranslate, &ffilen);
 
-			for(int i = 0; i < (ffilen / sizeof(LANGANDCODEPAGE)); i++)
+			for(unsigned i = 0; i < (ffilen / sizeof(LANGANDCODEPAGE)); i++)
 			{
 				Translations.push_back(lpTranslate[i]);
 			}

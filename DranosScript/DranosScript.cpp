@@ -1,4 +1,6 @@
 
+// bugs:
+// unary minus doesn't work on parens like "-(1)"
 
 
 #include "stdafx.h"
@@ -352,7 +354,7 @@ public:
 		Parser p =
 			(
 				Operand<NAryExpressionT<Toutput> >(InserterOutput<NodePtr>(operands, std::back_inserter(operands))) +
-				*
+				&
 				(
 					CharOf(L"+-/*%", InserterOutput<wchar_t>(opers, std::back_inserter(opers)))
 					+ Operand<NAryExpressionT<Toutput> >(InserterOutput<NodePtr>(operands, std::back_inserter(operands)))

@@ -167,10 +167,22 @@ namespace LibCC
     typedef RegistryKeyX<_Char> _RegistryKey;
 
     // x = RegistryKey(HKEY_LOCAL_MACHINE, "software\\crap")
+    RegistryKeyX(HKEY key, const _String& subkey, bool bWriteAccess, REGSAM additionalAccessFlags) :
+	    m_hKey(0),
+      m_bOpenedForWrite(false),
+      m_bNeedWriteAccess(bWriteAccess),
+			m_additionalAccessFlags(additionalAccessFlags)
+    {
+      m_hRoot = key;
+      m_subKey = subkey;
+    }
+
+    // x = RegistryKey(HKEY_LOCAL_MACHINE, "software\\crap")
     RegistryKeyX(HKEY key, const _String& subkey, bool bWriteAccess = false) :
 	    m_hKey(0),
       m_bOpenedForWrite(false),
-      m_bNeedWriteAccess(bWriteAccess)
+      m_bNeedWriteAccess(bWriteAccess),
+			m_additionalAccessFlags(0)
     {
       m_hRoot = key;
       m_subKey = subkey;
@@ -180,7 +192,8 @@ namespace LibCC
     RegistryKeyX(const _String& key, bool bWriteAccess = false) :
 	    m_hKey(0),
       m_bOpenedForWrite(false),
-      m_bNeedWriteAccess(bWriteAccess)
+      m_bNeedWriteAccess(bWriteAccess),
+			m_additionalAccessFlags(0)
     {
 	    m_hRoot = InterpretRegHiveName(key, m_subKey);
     }
@@ -190,7 +203,8 @@ namespace LibCC
 	    m_hKey(0),
       m_bNeedWriteAccess(false),
       m_bOpenedForWrite(false),
-      m_hRoot(0)
+      m_hRoot(0),
+			m_additionalAccessFlags(0)
     {
       Assign(rhs);
     }
@@ -204,6 +218,7 @@ namespace LibCC
     {
 	    __Close();
       m_bNeedWriteAccess = rhs.m_bNeedWriteAccess;
+			m_additionalAccessFlags = rhs.m_additionalAccessFlags;
       m_hRoot = rhs.m_hRoot;
       m_subKey = rhs.m_subKey;
       return *this;
@@ -244,6 +259,7 @@ namespace LibCC
       if(m_hKey) return false;
 	    REGSAM access = m_bNeedWriteAccess ? KEY_WRITE : 0;
       access |= KEY_QUERY_VALUE | KEY_READ;
+			access |= m_additionalAccessFlags;
       if(ERROR_SUCCESS != RegCreateKeyExX(m_hRoot, m_subKey.c_str(), 0, access, &m_hKey, 0))
       {
         return false;
@@ -259,7 +275,7 @@ namespace LibCC
     {
       _String subkeyCopy(m_subKey);
       subkeyCopy = PathAppendX(subkeyCopy, subkey);
-      return _RegistryKey(m_hRoot, subkeyCopy, m_bNeedWriteAccess);
+      return _RegistryKey(m_hRoot, subkeyCopy, m_bNeedWriteAccess, m_additionalAccessFlags);
     }
 
     class Value
@@ -478,7 +494,7 @@ namespace LibCC
         {
           subkey = m_subKey;
           subkey = PathAppendX(subkey, justKey);
-          m_subKeys.push_back(_RegistryKey(m_hRoot, subkey, m_bNeedWriteAccess));
+          m_subKeys.push_back(_RegistryKey(m_hRoot, subkey, m_bNeedWriteAccess, m_additionalAccessFlags));
           i ++;
         }
       }
@@ -520,6 +536,7 @@ namespace LibCC
       __Close();
 	    REGSAM access = m_bNeedWriteAccess ? KEY_WRITE : 0;
       access |= KEY_QUERY_VALUE | KEY_READ;
+			access |= m_additionalAccessFlags;
 		  if(ERROR_SUCCESS != RegOpenKeyExX(m_hRoot, m_subKey.c_str(), 0, access, &m_hKey))
       {
 				gle = GetLastError();
@@ -545,6 +562,7 @@ namespace LibCC
     // these are from the constructor
     _String m_subKey;
     bool m_bNeedWriteAccess;
+		REGSAM m_additionalAccessFlags;
     HKEY m_hRoot;
 
     std::vector<_RegistryKey> m_subKeys;

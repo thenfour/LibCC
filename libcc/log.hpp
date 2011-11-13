@@ -67,9 +67,9 @@
 
 namespace LibCC
 {
+	class Log
+	{
 
-  class Log
-  {
 		friend struct LogReference;
 
 		bool m_unicodeFileFormat;
@@ -82,6 +82,10 @@ namespace LibCC
 		static const DWORD m_height = LIBCC_LOG_WINDOW_HEIGHT;
 
 		static const size_t IndentSize = 2;
+
+		bool m_enableRotate;
+		DWORD m_rotateKeepCount;
+		DWORD m_rotateByteSize;
 
 		// ref count stuff only used by LogReference
 		int m_refcount;
@@ -121,7 +125,7 @@ namespace LibCC
 			return DebugEnabled() || FileEnabled() || WindowEnabled() || StdOutEnabled();
 		}
 		
-  public:
+	public:
 		typedef std::wstring _String;
 
 		Log() :
@@ -134,16 +138,17 @@ namespace LibCC
 			m_enableFile(false),
 			m_enableDebug(false),
 			m_enableStdOut(false),
-			m_writeHeader(false)
+			m_writeHeader(false),
+			m_enableRotate(false)
 		{
 		}
 		template<typename XChar>
-    Log(const std::basic_string<XChar>& fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false, bool writeHeader = true)
+		Log(const std::basic_string<XChar>& fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false, bool writeHeader = true)
 		{
 			Create(fileName, hInstance, enableDebug, enableWindow, enableFile, unicodeFileFormat, enableStdOut, writeHeader);
 		}
 		template<typename XChar>
-    Log(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false, bool writeHeader = true)
+		Log(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false, bool writeHeader = true)
 		{
 			Create(fileName, hInstance, enableDebug, enableWindow, enableFile, unicodeFileFormat, enableStdOut, writeHeader);
 		}
@@ -160,8 +165,8 @@ namespace LibCC
 
 		// filename
 		template<typename XChar>
-    void Create(const std::basic_string<XChar>& fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false, bool writeHeader = true)
-    {
+		void Create(const std::basic_string<XChar>& fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false, bool writeHeader = true)
+		{
 			m_hMain = 0;
 			m_hEdit = 0;
 			m_hThread = 0;
@@ -173,6 +178,7 @@ namespace LibCC
 			m_unicodeFileFormat = unicodeFileFormat;
 			m_enableStdOut = enableStdOut;
 			m_writeHeader = writeHeader;
+			m_enableRotate = false;
 			if(EnabledAtAll())
 			{
 				std::wstring fileNameW;
@@ -194,9 +200,9 @@ namespace LibCC
 				CloseHandle(m_hInitialized);
 				m_hInitialized = 0;
 			}
-    }
+		}
 		template<typename XChar>
-    void Create(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false, bool writeHeader = true)
+		void Create(const XChar* fileName, HINSTANCE hInstance, bool enableDebug = true, bool enableWindow = true, bool enableFile = true, bool unicodeFileFormat = true, bool enableStdOut = false, bool writeHeader = true)
 		{
 			Create(std::basic_string<XChar>(fileName), hInstance, enableDebug, enableWindow, enableFile, unicodeFileFormat, enableStdOut, writeHeader);
 		}
@@ -212,8 +218,8 @@ namespace LibCC
 			return m_fileNames;
 		}
 
-    void Destroy()
-    {
+		void Destroy()
+		{
 			if(m_hThread)
 			{
 				if(m_writeHeader)
@@ -224,7 +230,7 @@ namespace LibCC
 				WaitForSingleObject(m_hThread, INFINITE);
 				m_hThread = 0;
 			}
-    }
+		}
 
 		void Indent()
 		{
@@ -338,6 +344,16 @@ namespace LibCC
 				Message(s.Str(), std::string(""));
 			}
     }
+
+	void EnableRotation(bool enable, DWORD count, DWORD size)
+	{
+		m_enableRotate = enable;
+		if(m_enableRotate)
+		{
+			m_rotateKeepCount = count;
+			m_rotateByteSize = size;
+		}
+	}
 
   private:
     static void __cdecl ThreadProc(void* p)
@@ -480,27 +496,61 @@ namespace LibCC
 						for(std::vector<std::wstring>::iterator it = pThis->m_fileNames.begin(); it != pThis->m_fileNames.end(); ++ it)
 						{
 							std::wstring& fileName = *it;
-							HANDLE h = CreateFileW(fileName.c_str(), GENERIC_WRITE, FILE_SHARE_READ, 0, OPEN_ALWAYS, 0, 0);
+
+							if(pThis->m_enableRotate)
+							{
+								if(pThis->FileNeedsRotate(fileName))
+								{
+									pThis->RotateFile(fileName);
+								}
+							}
+
+							HANDLE h = CreateFileW(fileName.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, 0, OPEN_ALWAYS, 0, 0);
 							if(h && h != INVALID_HANDLE_VALUE)
 							{
-								DWORD br;
+								DWORD bw;
 								if(pThis->m_unicodeFileFormat)
 								{
-									DWORD oldptr = SetFilePointer(h, 0, 0, FILE_END);
-									if(oldptr == 0)
+									DWORD fileSize = GetFileSize(h, NULL);
+									if(fileSize == 0)
 									{
-										// the file is new. write the Unicode BOM if necessary.
-										WORD bom = 0xfeff;// doing it like this is compatible with other byte-order
-										DWORD bw;
-										WriteFile(h, &bom, 2, &bw, 0);
+										// the file is new. write out in UTF-8
+										std::string a;
+										StringConvert(file, a, 0, CP_UTF8);
+										WriteFile(h, a.c_str(), (DWORD)a.size(), &bw, 0);
 									}
-									WriteFile(h, file.c_str(), (DWORD)(sizeof(wchar_t) * file.size()), &br, 0);
+									else
+									{
+										// file is old, is it UTF-16?
+
+										// After an arbitrary yet reasonable amount of time, this check should probably be removed
+										// as it only matters to not corrupt existing UTF16 log files as of r237 - 2011-01-20
+
+										SetFilePointer(h, 0, NULL, FILE_BEGIN);
+										WORD bom = 0;
+										DWORD br;
+										ReadFile(h, &bom, 2, &br, NULL);
+										SetFilePointer(h, 0, NULL, FILE_END);
+
+										if(bom == 0xFEFF) // UTF-16 Byte Order Mark
+										{
+											// UTF-16 file
+											WriteFile(h, file.c_str(), (DWORD)(sizeof(wchar_t) * file.size()), &br, 0);
+										}
+										else
+										{
+											// Write UTF8
+											std::string a;
+											StringConvert(file, a, 0, CP_UTF8);
+											WriteFile(h, a.c_str(), (DWORD)a.size(), &bw, 0);
+										}
+									}
 								}
 								else
 								{
 									std::string a;
 									StringConvert(file, a);
-									WriteFile(h, a.c_str(), (DWORD)a.size(), &br, 0);
+									WriteFile(h, a.c_str(), (DWORD)a.size(), &bw, 0);
 								}
 								CloseHandle(h);
 							}
@@ -707,6 +757,47 @@ namespace LibCC
 			return ret;
     }
 
+	void RotateFile( const std::wstring& fileName ) 
+	{
+		const wchar_t *fn = fileName.c_str();
+		const wchar_t* ext = PathFindExtensionW(fn);
+		
+		std::wstring fileNameBase = fileName.substr(0, ext - fn);
+		std::wstring fileNameExt = ext;
+
+		for(int i = m_rotateKeepCount; i >= 0; --i)
+		{
+			std::wstring fromFile;
+			if(i == 0)
+			{
+				fromFile = fileName;
+			}
+			else
+			{
+				fromFile = LibCC::FormatW(L"%.%%")(fileNameBase).i(i - 1)(fileNameExt).Str();
+			}
+			std::wstring toFile = LibCC::FormatW(L"%.%%")(fileNameBase).i(i)(fileNameExt).Str();
+
+			if(i == m_rotateKeepCount)
+			{
+				// Delete the oldest file
+				DeleteFileW(fromFile.c_str());
+			}
+			else
+			{
+				// Move each old file to next position
+				MoveFileW(fromFile.c_str(), toFile.c_str());
+			}
+		}
+	}
+
+	bool FileNeedsRotate( const std::wstring& fileName ) 
+	{
+		WIN32_FILE_ATTRIBUTE_DATA fad = {};
+		GetFileAttributesExW(fileName.c_str(), GetFileExInfoStandard, &fad);
+		return fad.nFileSizeLow > m_rotateByteSize;
+	}
+
     struct MessageInfo
     {
       _String s1;
@@ -726,7 +817,7 @@ namespace LibCC
 
     HINSTANCE m_hInstance;
 		std::vector<std::wstring> m_fileNames;
-  };
+	};
 
 	extern Log* g_pLog;
 

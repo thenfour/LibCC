@@ -449,14 +449,14 @@ bool StringTest()
 	}
 	
 	{ // XStringContains
-		TestAssert(StringContains("aoeu", L'a'));
-		TestAssert(!StringContains("aoeu", L'x'));
-		TestAssert(!StringContains("aoeU", L'u'));
-		TestAssert(StringContains("aoeU", L'U'));
-		TestAssert(!StringContains("", L'a'));
-		TestAssert(!StringContains("aoeu", (char)0));
-		TestAssert(!StringContains("aoeu", (DWORD)0));
-		TestAssert(!StringContains("", (DWORD)0));
+		TestAssert(StringContainsChar("aoeu", L'a'));
+		TestAssert(!StringContainsChar("aoeu", L'x'));
+		TestAssert(!StringContainsChar("aoeU", L'u'));
+		TestAssert(StringContainsChar("aoeU", L'U'));
+		TestAssert(!StringContainsChar("", L'a'));
+		TestAssert(!StringContainsChar("aoeu", (char)0));
+		TestAssert(!StringContainsChar("aoeu", (DWORD)0));
+		TestAssert(!StringContainsChar("", (DWORD)0));
 	}
 	
 	{ // XStringFindFirstOf

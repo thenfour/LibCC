@@ -175,25 +175,25 @@ bool StringCompilationTest()
 		StringFindFirstOf(x1, w1);
 		StringFindFirstOf(x1, x1);
 
-		StringContains(a1.c_str(), a1[0]);
-		StringContains(a1.c_str(), w1[0]);
-		StringContains(a1.c_str(), x1[0]);
-		StringContains(w1.c_str(), a1[0]);
-		StringContains(w1.c_str(), w1[0]);
-		StringContains(w1.c_str(), x1[0]);
-		StringContains(x1.c_str(), a1[0]);
-		StringContains(x1.c_str(), w1[0]);
-		StringContains(x1.c_str(), x1[0]);
+		StringContainsChar(a1.c_str(), a1[0]);
+		StringContainsChar(a1.c_str(), w1[0]);
+		StringContainsChar(a1.c_str(), x1[0]);
+		StringContainsChar(w1.c_str(), a1[0]);
+		StringContainsChar(w1.c_str(), w1[0]);
+		StringContainsChar(w1.c_str(), x1[0]);
+		StringContainsChar(x1.c_str(), a1[0]);
+		StringContainsChar(x1.c_str(), w1[0]);
+		StringContainsChar(x1.c_str(), x1[0]);
 
-		StringContains(a1, a1[0]);
-		StringContains(a1, w1[0]);
-		StringContains(a1, x1[0]);
-		StringContains(w1, a1[0]);
-		StringContains(w1, w1[0]);
-		StringContains(w1, x1[0]);
-		StringContains(x1, a1[0]);
-		StringContains(x1, w1[0]);
-		StringContains(x1, x1[0]);
+		StringContainsChar(a1, a1[0]);
+		StringContainsChar(a1, w1[0]);
+		StringContainsChar(a1, x1[0]);
+		StringContainsChar(w1, a1[0]);
+		StringContainsChar(w1, w1[0]);
+		StringContainsChar(w1, x1[0]);
+		StringContainsChar(x1, a1[0]);
+		StringContainsChar(x1, w1[0]);
+		StringContainsChar(x1, x1[0]);
 
 		std::vector<std::string> va;
 		std::vector<std::wstring> vw;

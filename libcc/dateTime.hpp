@@ -1,6 +1,4 @@
 /*
-  Last updated May 27, 2005 carlc
-
   (c) 2004-2005 Carl Corcoran, carl@ript.net
   http://carl.ript.net/stringformat/
   http://carl.ript.net/wp
@@ -28,7 +26,11 @@
 */
 /*
   ticks 
-  A date and time expressed in 100-nanosecond units. 
+  A date and time expressed in 100-nanosecond units.
+
+	TODO: this should be refactored to be immutable like .NET DateTime / TimeSpan classes.
+
+	TODO: negative values in constructors don't work properly.
 */
 
 #pragma once
@@ -129,11 +131,46 @@ namespace LibCC
 			return m_ticks != rhs.m_ticks;
 		}
 
+		TimeSpan operator -() const
+		{
+			return TimeSpan(-m_ticks);
+		}
+
+		TimeSpan& operator +=(const TimeSpan& rhs)
+		{
+			m_ticks += rhs.m_ticks;
+			return *this;
+		}
+
+		TimeSpan operator /(int n) const
+		{
+			return TimeSpan(m_ticks / n);
+		}
+
+		TimeSpan operator *(int n) const
+		{
+			return TimeSpan(m_ticks * n);
+		}
+
 		TimeSpan operator +(const TimeSpan& rhs) const
 		{
 			return TimeSpan(m_ticks + rhs.m_ticks);
 		}
 
+		TimeSpan operator -(const TimeSpan& rhs) const
+		{
+			return TimeSpan(m_ticks - rhs.m_ticks);
+		}
+
+		TimeSpan operator %(const TimeSpan& rhs) const
+		{
+			return TimeSpan(m_ticks % rhs.m_ticks);
+		}
+
+		TimeSpan Mod_(const TimeSpan& rhs) const// named like this because it's inconsistent with other mutable functions
+		{
+			return TimeSpan(m_ticks % rhs.m_ticks);
+		}
 
 		static TimeSpan FromMilliseconds(__int64 dw)
 		{
@@ -153,6 +190,12 @@ namespace LibCC
 	  void Negate()
 		{
 			m_ticks = -m_ticks;
+		}
+
+		void Abs()
+		{
+			if(m_ticks < 0)
+				m_ticks = -m_ticks;
 		}
 
 	  void Subtract(const TimeSpan& r)
@@ -245,6 +288,8 @@ namespace LibCC
 			return (double)m_ticks / HoursToTicks(1ULL);
 		}
 
+		bool IsNegative() const { return m_ticks < 0; }
+
 		// gets the MS part of HH:MM:SS:MS
 		long GetMillisecondsComponent() const
 		{
@@ -274,31 +319,31 @@ namespace LibCC
 		template<typename T>
 	  static __int64 MillisecondsToTicks(T s)
 		{
-		  return s * 10000;
+		  return 10000LL * s;
 		}
 
 		template<typename T>
 	  static __int64 SecondsToTicks(T s)
 		{
-			return MillisecondsToTicks(s * 1000);
+			return MillisecondsToTicks(1000LL * s);
 		}
 
 		template<typename T>
 	  static __int64 MinutesToTicks(T s)
 		{
-			return SecondsToTicks(s * 60);
+			return SecondsToTicks(60LL * s);
 		}
 
 		template<typename T>
 	  static __int64 HoursToTicks(T s)
 		{
-			return MinutesToTicks(s * 60);
+			return MinutesToTicks(60LL * s);
 		}
 
 		template<typename T>
 	  static __int64 DaysToTicks(T s)
 		{
-			return HoursToTicks(s * 24);
+			return HoursToTicks(24LL * s);
 		}
 
   private:
@@ -308,6 +353,7 @@ namespace LibCC
 
   class DateTime
   {
+		static const unsigned __int64 TicksPerDay = 0xc92a69c000ULL;
   public:
 	  DateTime() :
 			m_ticks(0),
@@ -351,6 +397,34 @@ namespace LibCC
 			__FromCachedSystemTime();
 		}
 
+		// using this, you can specify like "3rd sunday in november, 2009"
+		// written specifically for tilt breaker to be able to calculate whether a date is inside daylight savings time.
+	  DateTime(long year, Month month, int ordinal, Weekday day, DateTimeKind kind = DateTimeKind_Unspecified) :
+			m_kind(kind),
+			m_stDirty(false)
+		{
+			__ClearCachedSystemTime();
+			m_st.wYear = static_cast<WORD>(year);
+			m_st.wMonth = static_cast<WORD>(month);
+			m_st.wDay = 1;
+			__FromCachedSystemTime();
+
+			if(ordinal < 1)
+				return;// odd but whatever.
+
+			// now get the day of week of the 1st of the month
+			int firstWeekday = (int)GetDayOfWeek();
+			int desiredWeekday = (int)day;
+			int daysToFirstCorrectWeekday = desiredWeekday - firstWeekday;
+			if(daysToFirstCorrectWeekday >= 0)// because ordinal is 1-based, make the '0'th day negative.
+				daysToFirstCorrectWeekday -= 7;
+
+			int daysUntilDesired = daysToFirstCorrectWeekday + (7 * ordinal);
+
+			m_ticks += TicksPerDay * daysUntilDesired;
+			m_stDirty = true;
+		}
+
 	  DateTime(long year, Month month, long day, long hour, long minute, long second, DateTimeKind kind = DateTimeKind_Unspecified) :
 			m_kind(kind),
 			m_stDirty(false)
@@ -380,6 +454,10 @@ namespace LibCC
 			__FromCachedSystemTime();
 		}
 
+		static DateTime& Max(DateTime& l, DateTime& r)
+		{
+			return l > r ? l : r;
+		}
 
 	  void Assign(unsigned __int64 ticks, DateTimeKind kind)
 		{
@@ -405,6 +483,18 @@ namespace LibCC
 			return TimeSpan(m_ticks - r.m_ticks);
 		}
 
+		TimeSpan Distance(const DateTime& r) const
+		{
+			TimeSpan ret(m_ticks - r.m_ticks);
+			ret.Abs();
+			return ret;
+		}
+
+		Weekday GetDayOfWeek() const
+		{
+			return (Weekday)((((m_ticks / TicksPerDay) + 1) % 7) + 1);
+		}
+
 		// these are difficult because of time zone / daylight savings / carryover
 		//void AddDays(__int16 d)
 	  //void AddMonths(__int16 d);
@@ -428,6 +518,12 @@ namespace LibCC
 		}
 
 	  void AddSeconds(DWORD64 v)
+		{
+			m_stDirty = true;
+			m_ticks += TimeSpan::SecondsToTicks(v);
+		}
+
+	  void AddSeconds(int v)
 		{
 			m_stDirty = true;
 			m_ticks += TimeSpan::SecondsToTicks(v);
@@ -470,6 +566,25 @@ namespace LibCC
 		{
 			return m_ticks < rhs.m_ticks;
 		}
+
+		TimeSpan operator - (const DateTime& rhs) const
+		{
+			return this->Subtract(rhs);
+		}
+		DateTime operator - (const TimeSpan& rhs) const
+		{
+			DateTime ret(*this);
+			ret.Subtract(rhs);
+			return ret;
+		}
+
+		DateTime operator + (const TimeSpan& rhs) const
+		{
+			DateTime ret(*this);
+			ret.Add(rhs);
+			return ret;
+		}
+
 		bool operator <= (const DateTime& rhs) const
 		{
 			return m_ticks <= rhs.m_ticks;
@@ -505,8 +620,54 @@ namespace LibCC
 
 	  //double ToOADate();
 	  //DateTime ToLocal();// adjust for daylight savings and time zone
-	  //DateTime ToUTC();// adjust for daylight savings and time zone
-	  //std::string ToString();
+
+		// note that this uses CURRENT timezone settings to convert. so if you are CURRENTLY in daylight savings, then the time will be adjusted
+		// assuming daylight savings, even if the date specified is NOT in daylight savings.
+	  DateTime ToUTC() const
+		{
+			FILETIME ft = ToFileTime();
+			FILETIME utc;
+			LocalFileTimeToFileTime(&ft, &utc);
+			return CreateFromFileTime(utc);
+		}
+
+	  std::wstring ToStringW() const
+		{
+			return LibCC::FormatW(L"%-%-% %:%:%")
+				.i<10,4>(GetYear())
+				.i<10,2>(GetMonth())
+				.i<10,2>(GetDay())
+				.i<10,2>(GetHour())
+				.i<10,2>(GetMinute())
+				.i<10,2>(GetSecond())
+				.Str();
+		}
+
+	  std::wstring ToISO8601StringW() const
+		{
+			// todo : be sensitive to whether it's local / utc / whatever
+			return LibCC::FormatW(L"%-%-%T%:%:%Z")
+				.i<10,4>(GetYear())
+				.i<10,2>(GetMonth())
+				.i<10,2>(GetDay())
+				.i<10,2>(GetHour())
+				.i<10,2>(GetMinute())
+				.i<10,2>(GetSecond())
+				.Str();
+		}
+
+	  std::string ToISO8601StringA() const
+		{
+			// todo : be sensitive to whether it's local / utc / whatever
+			return LibCC::FormatA("%-%-%T%:%:%Z")
+				.i<10,4>(GetYear())
+				.i<10,2>(GetMonth())
+				.i<10,2>(GetDay())
+				.i<10,2>(GetHour())
+				.i<10,2>(GetMinute())
+				.i<10,2>(GetSecond())
+				.Str();
+		}
 
     void FromUnixTime(time_t t)
 		{
@@ -530,6 +691,11 @@ namespace LibCC
 			m_stDirty = true;
 			m_ticks = (static_cast<unsigned __int64>(ft.dwHighDateTime) << 32) | ft.dwLowDateTime;
 		}
+	  static DateTime CreateFromFileTime(const FILETIME& ft)
+		{
+			DateTime ret((static_cast<unsigned __int64>(ft.dwHighDateTime) << 32) | ft.dwLowDateTime, DateTimeKind_Unspecified);
+			return ret;
+		}
 
 	  FILETIME ToFileTime() const
 		{
@@ -546,7 +712,7 @@ namespace LibCC
 			__FromCachedSystemTime();
 		}
 
-	  SYSTEMTIME ToSystemTime()
+	  SYSTEMTIME ToSystemTime() const
 		{
 			return __GetCachedSystemTime();
 		}

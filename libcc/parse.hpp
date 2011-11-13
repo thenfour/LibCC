@@ -49,6 +49,9 @@
 #	define LIBCC_PARSE_TRACE_ENABLED 0
 #endif
 
+#undef max// WinDef.h can go to hell.
+#undef min// WinDef.h can go to hell.
+
 #pragma warning(disable:4503)// warning C4503: ...' : decorated name length exceeded, name was truncated
 
 namespace LibCC
@@ -171,7 +174,7 @@ namespace LibCC
 			{
 				for(std::vector<std::pair<int, int> >::iterator it = m_measurements.begin(); it != m_measurements.end(); ++ it)
 				{
-					it->second = max(it->second, m_cursor.pos);
+					it->second = std::max(it->second, m_cursor.pos);
 				}
 			}
 
@@ -232,10 +235,10 @@ namespace LibCC
 		{
 			const int amount = 6;
 			const std::wstring& script(input.GetRawInput());
-			int nleft = min(cur.pos, amount);
+			int nleft = std::min(cur.pos, amount);
 			std::wstring left = script.substr(cur.pos - nleft, nleft);
 			int nright = (int)script.size() - cur.pos;
-			nright = min(nright, amount);
+			nright = std::min(nright, amount);
 			std::wstring right = script.substr(cur.pos, nright);
 			left = _DebugSanitize(left);
 			right = _DebugSanitize(right);
@@ -1576,31 +1579,62 @@ namespace LibCC
 		}
 
 		// Some basic utility parsers ///////////////////////////////////////////////////////////////////////////////////////
-		// this class used to end on line 711
 		template<bool TCaseSensitive, typename Toutput>
 		struct CharT :
 			public ParserBase<CharT<TCaseSensitive, Toutput> >
 		{
-			wchar_t match;
+			wchar_t match;// if 0, ignored.
+			wchar_t dontMatch;// if 0, ignored.
 			Toutput output;
 
-			CharT(const Toutput& output_, wchar_t match_) :
+			CharT(const Toutput& output_, wchar_t match_, wchar_t dontMatch_) :
 				match(match_),
-				output(output_)
+				output(output_),
+				dontMatch(dontMatch_)
 			{
+				if(!TCaseSensitive)
+				{
+					if(match != 0)
+						match = LibCC::CharToLower(match);
+					if(dontMatch != 0)
+						dontMatch = LibCC::CharToLower(dontMatch);
+				}
 			}
 
 			CharT(const Toutput& output_) :
 				match(0),
+				dontMatch(0),
 				output(output_)
 			{
 			}
 
 			virtual std::wstring GetParserName() const
 			{
-				return LibCC::FormatW(L"Char%('%')")
+				if(match == 0)
+				{
+					if(dontMatch == 0)
+					{
+						return L"AnyChar";
+					}
+
+					return LibCC::FormatW(L"NotChar%('%')")
+						.s(TCaseSensitive ? L"" : L"I")
+						.c(dontMatch)
+						.Str();
+				}
+
+				if(dontMatch == 0)
+				{
+					return LibCC::FormatW(L"Char%('%')")
+						.s(TCaseSensitive ? L"" : L"I")
+						.c(match)
+						.Str();
+				}
+
+				return LibCC::FormatW(L"Char%(match='%', dontmatch='%')")
 					.s(TCaseSensitive ? L"" : L"I")
-					.c(match == 0 ? L'0' : match)
+					.c(match)
+					.c(dontMatch)
 					.Str();
 			}
 
@@ -1617,32 +1651,33 @@ namespace LibCC
 				}
 
 				parsed = input.CurrentChar();
+				if(!TCaseSensitive)
+				{
+					parsed = LibCC::CharToLower(parsed);
+				}
+
+				if(match != 0)
+				{
+					if(parsed != match)
+						return false;
+				}
+				if(dontMatch != 0)
+				{
+					if(parsed == dontMatch)
+						return false;
+				}
+
 				BackupOutput(input);
 				output.Save(input, parsed);
 				input.Advance();
-
-				if(match == 0)
-				{
-					return true;
-				}
-
-				if(match == parsed)
-					return true;
-
-				if(!TCaseSensitive)
-				{
-					if(LibCC::CharToLower(parsed) == LibCC::CharToLower(match))
-						return true;
-				}
-				//result.Message(L"Unexpected character");
-				return false;
+				return true;
 			}
 		};
 
 		template<typename Toutput>
 		inline CharT<true, Toutput> Char(wchar_t ch, const Toutput& output_)
 		{
-			return CharT<true, Toutput>(output_, ch);
+			return CharT<true, Toutput>(output_, ch, 0);
 		}
 
 		template<typename Toutput>
@@ -1653,29 +1688,29 @@ namespace LibCC
 
 		inline CharT<true, NullOutput<wchar_t> > Char()
 		{
-			return CharT<true, NullOutput<wchar_t> >(NullOutput<wchar_t>(), 0);
+			return CharT<true, NullOutput<wchar_t> >(NullOutput<wchar_t>(), 0, 0);
 		}
 
 		inline CharT<true, NullOutput<wchar_t> > Char(wchar_t ch)
 		{
-			return CharT<true, NullOutput<wchar_t> >(NullOutput<wchar_t>(), ch);
+			return CharT<true, NullOutput<wchar_t> >(NullOutput<wchar_t>(), ch, 0);
 		}
 
 		inline CharT<true, RefOutputT<wchar_t> > Char(wchar_t ch, wchar_t& out)
 		{
-			return CharT<true, RefOutputT<wchar_t> >(RefOutput(out), ch);
+			return CharT<true, RefOutputT<wchar_t> >(RefOutput(out), ch, 0);
 		}
 
 		inline CharT<true, InserterOutputT<wchar_t, std::back_insert_iterator<std::wstring>, std::wstring> > Char(wchar_t ch, std::wstring& out)
 		{
-			return CharT<true, InserterOutputT<wchar_t, std::back_insert_iterator<std::wstring>, std::wstring> > (CharToStringOutput(out), ch);
+			return CharT<true, InserterOutputT<wchar_t, std::back_insert_iterator<std::wstring>, std::wstring> > (CharToStringOutput(out), ch, 0);
 		}
 
 
 		template<typename Toutput>
 		inline CharT<false, Toutput> CharI(wchar_t ch, const Toutput& output_)
 		{
-			return CharT<false, Toutput>(output_, ch);
+			return CharT<false, Toutput>(output_, ch, 0);
 		}
 
 		template<typename Toutput>
@@ -1686,24 +1721,30 @@ namespace LibCC
 
 		inline CharT<false, NullOutput<wchar_t> > CharI()// redundant to Char() i admit. but why not.
 		{
-			return CharT<false, NullOutput<wchar_t> >(NullOutput<wchar_t>(), 0);
+			return CharT<false, NullOutput<wchar_t> >(NullOutput<wchar_t>(), 0, 0);
 		}
 
 		inline CharT<false, NullOutput<wchar_t> > CharI(wchar_t ch)
 		{
-			return CharT<false, NullOutput<wchar_t> >(NullOutput<wchar_t>(), ch);
+			return CharT<false, NullOutput<wchar_t> >(NullOutput<wchar_t>(), ch, 0);
 		}
 
 		inline CharT<false, RefOutputT<wchar_t> > CharI(wchar_t ch, wchar_t& out)
 		{
-			return CharT<false, RefOutputT<wchar_t> >(RefOutput(out), ch);
+			return CharT<false, RefOutputT<wchar_t> >(RefOutput(out), ch, 0);
 		}
 
 		inline CharT<false, InserterOutputT<wchar_t, std::back_insert_iterator<std::wstring>, std::wstring> > CharI(wchar_t ch, std::wstring& out)
 		{
-			return CharT<false, InserterOutputT<wchar_t, std::back_insert_iterator<std::wstring>, std::wstring> > (CharToStringOutput(out), ch);
+			return CharT<false, InserterOutputT<wchar_t, std::back_insert_iterator<std::wstring>, std::wstring> > (CharToStringOutput(out), ch, 0);
 		}
 
+		// NOT char...
+		template<typename Toutput>
+		inline CharT<true, Toutput> CharExcept(wchar_t ch, const Toutput& output_)
+		{
+			return CharT<true, Toutput>(output_, 0, ch);
+		}
 
 		template<bool TCaseSensitive, typename Toutput>
 		struct StrT : public ParserBase<StrT<TCaseSensitive, Toutput> >
@@ -2802,7 +2843,7 @@ namespace LibCC
 			{
 				for(std::vector<std::pair<int, int> >::iterator it = m_measurements.begin(); it != m_measurements.end(); ++ it)
 				{
-					it->second = max(it->second, m_cursor.pos);
+					it->second = std::max(it->second, m_cursor.pos);
 				}
 			}
 
