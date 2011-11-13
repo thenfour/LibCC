@@ -129,6 +129,11 @@ namespace LibCC
 			return m_ticks != rhs.m_ticks;
 		}
 
+		TimeSpan operator +(const TimeSpan& rhs) const
+		{
+			return TimeSpan(m_ticks + rhs.m_ticks);
+		}
+
 
 		static TimeSpan FromMilliseconds(__int64 dw)
 		{

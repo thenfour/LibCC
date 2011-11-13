@@ -2241,7 +2241,7 @@ namespace LibCC
 		template<typename IntT, typename Toutput>
 		UnsignedIntegerParserT<IntT, Toutput> UnsignedIntegerParser(const Toutput& output)
 		{
-			return UnsignedIntegerParserT<IntT, Toutput>(output);
+			return UnsignedIntegerParserT<IntT, Toutput>(10, output);
 		}
 
 		// UIntegerHexT (signed 16-bit integer parser with prefix of 0x)
