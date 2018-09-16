@@ -23,6 +23,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="libcc\format.hpp" />
+    <ClInclude Include="libcc\log.hpp" />
+    <ClInclude Include="libcc\profiler.hpp" />
     <ClInclude Include="libcc\winutils.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

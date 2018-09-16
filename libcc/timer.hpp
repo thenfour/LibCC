@@ -1,31 +1,4 @@
-/*
-  LibCC
-  Timer Module
-  (c) 2004-2007 Carl Corcoran, carlco@gmail.com
-  Documentation: http://wiki.winprog.org/wiki/LibCC
-	Official source code: http://svn.winprog.org/personal/carl/LibCC
-
-	== License:
-
-  All software on this site is provided 'as-is', without any express or
-  implied warranty, by its respective authors and owners. In no event will
-  the authors be held liable for any damages arising from the use of this
-  software.
-
-  Permission is granted to anyone to use this software for any purpose,
-  including commercial applications, and to alter it and redistribute it
-  freely, subject to the following restrictions:
-
-  1. The origin of this software must not be misrepresented; you must not
-  claim that you wrote the original software. If you use this software in
-  a product, an acknowledgment in the product documentation would be
-  appreciated but is not required.
-
-  2. Altered source versions must be plainly marked as such, and must not
-  be misrepresented as being the original software.
-
-  3. This notice may not be removed or altered from any source distribution.
-*/
+// LibCC ~ Carl Corcoran, https://github.com/thenfour/LibCC
 
 #pragma once
 
@@ -114,50 +87,102 @@ namespace LibCC
 
 
 
-  class Timer
+  struct Timer
   {
-  public:
-    Timer() :
-      m_lasttick(0),
-      m_lasttick2(0)
-    {
+    static double TicksToSeconds(uint64_t n) {
       LARGE_INTEGER lifreq;
       QueryPerformanceFrequency(&lifreq);
-      m_freq = (double)lifreq.QuadPart;
-    }
-
-    // call this to "tick" the timer... the time between the previous tick and this one is now stored.
-    inline void Tick()
-    {
-      LARGE_INTEGER li;
-      QueryPerformanceCounter(&li);
-      m_lasttick2 = m_lasttick;
-      m_lasttick = li.QuadPart;
-      m_delta = m_lasttick - m_lasttick2;
-    }
-
-    inline double GetLastDelta() const
-    {
-      return TicksToSeconds(m_delta);
-    }
-
-    inline double GetTimeSinceLastTick() const
-    {
-      LARGE_INTEGER li;
-      QueryPerformanceCounter(&li);
-      return TicksToSeconds(li.QuadPart - m_lasttick);
-    }
-
-  private:
-
-    inline double TicksToSeconds(LONGLONG n) const
-    {
+      auto m_freq = (double)lifreq.QuadPart;
       return (double)n / m_freq;
     }
+    static uint64_t SecondsToTicks(double n) {
+      LARGE_INTEGER lifreq;
+      QueryPerformanceFrequency(&lifreq);
+      return (uint64_t)(lifreq.QuadPart * n);
+    }
+    static LONGLONG GetCurrentTick() {
+      LARGE_INTEGER li;
+      QueryPerformanceCounter(&li);
+      return li.QuadPart;
+    }
 
-    double m_freq;// units per second
-    LONGLONG m_lasttick;// 1 tick ago
-    LONGLONG m_lasttick2;// 2 ticks ago
-    LONGLONG m_delta;// diff between lasttick and lasttick2
+    void Start() {
+      ++m_isRunning;
+      if (m_isRunning == 1) {
+        m_whenStarted = GetCurrentTick();
+      }
+    }
+    void Stop() {
+      if (m_isRunning == 0) {
+        return;// hard error.
+      }
+      m_isRunning--;
+      if (m_isRunning == 0) {
+        m_accum += GetCurrentTick() - m_whenStarted;
+      }
+    }
+    void Reset() {
+      m_isRunning = 0;
+      m_whenStarted = 0;
+      m_accum = 0;
+    }
+    LONGLONG GetElapsedTicks() const {
+      if (m_isRunning == 0) {
+        return m_accum;
+      }
+      return m_accum + GetCurrentTick() - m_whenStarted;
+    }
+    double GetElapsedSeconds() const {
+      return TicksToSeconds(GetElapsedTicks());
+    }
+  private:
+    int m_isRunning = 0; // Start() ++, Stop() --.
+    LONGLONG m_whenStarted = 0;
+    LONGLONG m_accum = 0;
   };
+
+
+
+  struct ThreadCycleTimer
+  {
+    static uint64_t GetCurrentCycleCount() {
+      uint64_t ret;
+      QueryThreadCycleTime(GetCurrentThread(), &ret);
+      return ret;
+    }
+
+    void Start() {
+      ++m_isRunning;
+      if (m_isRunning == 1) {
+        m_whenStarted = GetCurrentCycleCount();
+      }
+    }
+    void Stop() {
+      if (m_isRunning == 0) {
+        return;// hard error.
+      }
+      m_isRunning--;
+      if (m_isRunning == 0) {
+        m_accum += GetCurrentCycleCount() - m_whenStarted;
+      }
+    }
+    void Reset() {
+      m_isRunning = 0;
+      m_whenStarted = 0;
+      m_accum = 0;
+    }
+    uint64_t GetElapsedCycles() const {
+      if (m_isRunning == 0) {
+        return m_accum;
+      }
+      return m_accum + GetCurrentCycleCount() - m_whenStarted;
+    }
+  private:
+    int m_isRunning = 0; // Start() ++, Stop() --.
+    uint64_t m_whenStarted = 0;
+    uint64_t m_accum = 0;
+  }; 
+
+
 }
+

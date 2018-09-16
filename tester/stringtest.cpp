@@ -1,4 +1,5 @@
 
+#define WIN32_LEAN_AND_MEAN
 
 #include "test.h"
 #include "libcc\stringutil.hpp"
@@ -17,11 +18,11 @@ bool IsValidCharacter(UINT codepage, wchar_t unicodeChar)
 		return false;
 	}
 
-	BOOL usedDefaultChar = FALSE;
+	//BOOL usedDefaultChar = FALSE;
 	int length = WideCharToMultiByte(codepage, 0, &unicodeChar, 1, 0, 0, 0, 0);
 
-	Blob<BYTE> b(length);
-	WideCharToMultiByte(codepage, 0, &unicodeChar, 1, (LPSTR)b.GetBuffer(), length, 0, 0);
+	std::vector<BYTE> b(length);
+	WideCharToMultiByte(codepage, 0, &unicodeChar, 1, (LPSTR)b.data(), length, 0, 0);
 
 	if(length == 1 && b[0] == cpinfo.DefaultChar[0] && unicodeChar != cpinfo.DefaultChar[0]) return false;
 	return length > 0;
@@ -324,21 +325,21 @@ bool StringTest()
 		std::basic_string<DWORD> correctX;
 		StringConvert(correctW, correctX);
 		
-		a1 = StringToUpper("ABCDE123!@#abcdefghijklmúáéóï");
-		TestAssert(a1 == correctA);
-		
-		w1 = StringToUpper(L"ABCDE123!@#abcdefghijklmúáéóï");
-		TestAssert(w1 == correctW);
+		//a1 = StringToUpper("ABCDE123!@#abcdefghijklmúáéóï");
+		//TestAssert(a1 == correctA);
+		//
+		//w1 = StringToUpper(L"ABCDE123!@#abcdefghijklmúáéóï");
+		//TestAssert(w1 == correctW);
 
-		w1 = StringToUpper(srcW);
-		TestAssert(w1 == correctW);
-		
-		a1 = StringToUpper(srcA);
-		TestAssert(w1 == correctW);
-		
-		std::basic_string<DWORD> x1;
-		x1 = StringToUpper(srcX);
-		TestAssert(x1 == correctX);
+		//w1 = StringToUpper(srcW);
+		//TestAssert(w1 == correctW);
+		//
+		//a1 = StringToUpper(srcA);
+		//TestAssert(w1 == correctW);
+		//
+		//std::basic_string<DWORD> x1;
+		//x1 = StringToUpper(srcX);
+		//TestAssert(x1 == correctX);
 	}
 	
 	{	// **** StringToLower
@@ -355,21 +356,21 @@ bool StringTest()
 		std::basic_string<DWORD> correctX;
 		StringConvert(correctW, correctX);
 		
-		a1 = StringToLower("aeousnt234@#$//ÁÈÔÏçAEXL>I<TTT");
-		TestAssert(a1 == correctA);
-		
-		w1 = StringToLower(L"aeousnt234@#$//ÁÈÔÏçAEXL>I<TTT");
-		TestAssert(w1 == correctW);
+		//a1 = StringToLower("aeousnt234@#$//ÁÈÔÏçAEXL>I<TTT");
+		//TestAssert(a1 == correctA);
+		//
+		//w1 = StringToLower(L"aeousnt234@#$//ÁÈÔÏçAEXL>I<TTT");
+		//TestAssert(w1 == correctW);
 
-		w1 = StringToLower(srcW);
-		TestAssert(w1 == correctW);
-		
-		a1 = StringToLower(srcA);
-		TestAssert(w1 == correctW);
-		
-		std::basic_string<DWORD> x1;
-		x1 = StringToLower(srcX);
-		TestAssert(x1 == correctX);
+		//w1 = StringToLower(srcW);
+		//TestAssert(w1 == correctW);
+		//
+		//a1 = StringToLower(srcA);
+		//TestAssert(w1 == correctW);
+		//
+		//std::basic_string<DWORD> x1;
+		//x1 = StringToLower(srcX);
+		//TestAssert(x1 == correctX);
 	}
 
 	{ // StringEquals
@@ -498,8 +499,8 @@ bool StringTest()
 		//EnumSystemCodePagesW(EnumCodePagesProc, CP_INSTALLED);
 		// now check code scenarios.
 
-		Blob<BYTE> b;
-		Blob<BYTE> b2;
+		//Blob<BYTE> b;
+		//Blob<BYTE> b2;
 		std::string a;
 		std::string a2;
 		std::wstring w;

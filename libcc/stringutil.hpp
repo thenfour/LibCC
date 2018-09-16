@@ -1,104 +1,18 @@
-/*
-  LibCC
-  StringUtil Module
-  (c) 2004-2008 Carl Corcoran, carlco@gmail.com
-  Documentation: http://wiki.winprog.org/wiki/LibCC_Format
-	Official source code: http://svn.winprog.org/personal/carl/LibCC
-
-	Original version: Nov 15, 2004
-
-	== License:
-
-  All software on this site is provided 'as-is', without any express or
-  implied warranty, by its respective authors and owners. In no event will
-  the authors be held liable for any damages arising from the use of this
-  software.
-
-  Permission is granted to anyone to use this software for any purpose,
-  including commercial applications, and to alter it and redistribute it
-  freely, subject to the following restrictions:
-
-  1. The origin of this software must not be misrepresented; you must not
-  claim that you wrote the original software. If you use this software in
-  a product, an acknowledgment in the product documentation would be
-  appreciated but is not required.
-
-  2. Altered source versions must be plainly marked as such, and must not
-  be misrepresented as being the original software.
-
-  3. This notice may not be removed or altered from any source distribution.
-*/
-
-
-/*
-	THE GOALS of the string API:
-	1) operate on either std::basic_string<xchar> or xchar* types freely
-	2) will do automatic conversions to the largest string type (prefer wchar_t over char, no matter which order they were passed into the API)
-	3) NO conversion if the strings have the same character types
-	4) no unnecessary intermediate conversions to std::basic_strings<>
-
-	... within reason. there are cases when it's impossible to follow all these rules.
-
-	If you pass in a string<__int32> and a string<wchar_t> in the same function, conversion will happen to __int32.
-
-	NOTE: ansi codepages are only supported in conversion functions. shit like StringEquals i'm not going to bother writing support for
-	      converting ANSI codepages. Do it yourself dammit. In those cases, CP_ACP is assumed.
-
-	NOTE: some linguistic features outlined by Unicode is just not supported. for example
-	      - some characters are considered linguistically equal, but StringEquals() will still consider them different.
-				- StringToUpper / StringToLower are probably not correct for all scripts
-
-	TODO:
-		Audit remaining APIs that don't follow the rules above. this includes:
-		- StringReplace
-		- StringToUpper
-		- StringToLower
-
-
-	API SUMMARY CONTAINED IN THIS FILE:
-	
-	DigitToChar
-	StringBegin
-	StringIsEnd
-	CharConvert
-	CharToLower
-	CharToUpper
-	XLastDitchStringCopy
-	StringLength
-	StringConvert
-	ToUTF16
-	ToANSI
-	ToUTF8
-	StringContains
-	StringFindFirstOf
-	StringFindLastOf
-	StringSplitByString
-	StringJoin
-	StringTrim
-	StringReplace
-	StringToLower
-	StringToUpper
-	StringEquals
-	StringEqualsI
-
-*/
+// LibCC ~ Carl Corcoran, https://github.com/thenfour/LibCC
 
 #pragma once
-
 
 #include <string>
 #include <tchar.h>
 #include <malloc.h>// for alloca()
 #include <math.h>// for fmod()
+#include <algorithm>
 #include <vector>
-
-#include "blob.hpp"
 #include "float.hpp"
 
 #ifdef WIN32
 # include <windows.h>// for GetLastError() / LoadStrin / FormatMessage...
 #endif
-
 #undef max// WinDef.h can go to hell.
 
 #pragma warning(push)
@@ -108,26 +22,14 @@
   on integral template params, which are by design constant.  This is a lame
   warning.
 */
-#pragma warning(disable:4127)
-#pragma warning(disable:4312)// CharUpper() and CharLower() require me to cast some char -> PWSTR, which gives this error.
-#pragma warning(disable:4311)// CharUpper() and CharLower() require me to cast some char -> PWSTR, which gives this error.
-#pragma warning(disable:4996)// warning C4996: 'wcscpy' was declared deprecated  -- uh, i know how to use this function just fine, thanks.
-
+//#pragma warning(disable:4127)
+//#pragma warning(disable:4312)// CharUpper() and CharLower() require me to cast some char -> PWSTR, which gives this error.
+//#pragma warning(disable:4311)// CharUpper() and CharLower() require me to cast some char -> PWSTR, which gives this error.
+//#pragma warning(disable:4996)// warning C4996: 'wcscpy' was declared deprecated
+#define LIBCC_UNICODENEWLINES 0
 #ifndef CCSTR_OPTION_AUTOCAST
 #  define CCSTR_OPTION_AUTOCAST 0// set this to 1 and class Format can auto-cast into std::string
 #endif
-
-// Set up inline option
-#ifdef _MSC_VER
-# if (LIBCC_OPTION_INLINE == 1)// set this option
-#   define LIBCC_INLINE __declspec(noinline)
-# else
-#   define LIBCC_INLINE inline
-# endif
-#else
-# define LIBCC_INLINE inline
-#endif
-
 
 namespace LibCC
 {
@@ -197,40 +99,53 @@ namespace LibCC
 
 	// CharToLower. --------------------------------------------------------------------------------------
 	// TODO: um, 
-	inline wchar_t CharToLower(wchar_t c)
-	{
-		return (wchar_t)CharLowerW((PWSTR)c);
-	}
+	//inline wchar_t CharToLower(wchar_t c)
+	//{
+	//	return (wchar_t)CharLowerW((PWSTR)c);
+	//}
 
-	inline char CharToLower(char c)
-	{
-		return (char)CharLowerA((PSTR)c);
-	}
+	//inline char CharToLower(char c)
+	//{
+	//	return (char)CharLowerA((PSTR)c);
+	//}
 
-	template<typename Char>
-	inline Char CharToLower(Char c)
-	{
-		return (Char)CharToLower((wchar_t)c);// TODO: make this work for 32-bit unicode scalars
-	}
+	//template<typename Char>
+	//inline Char CharToLower(Char c)
+	//{
+	//	return (Char)CharToLower((wchar_t)c);// TODO: make this work for 32-bit unicode scalars
+	//}
 
 
 	// CharToLower. --------------------------------------------------------------------------------------
 	// TODO: um, 
-	inline wchar_t CharToUpper(wchar_t c)
-	{
-		return (wchar_t)CharUpperW((PWSTR)c);
-	}
+	//inline wchar_t CharToUpper(wchar_t c)
+	//{
+	//	return (wchar_t)CharUpperW((PWSTR)c);
+	//}
 
-	inline char CharToUpper(char c)
-	{
-		return (char)CharUpperA((PSTR)c);
-	}
+	//inline char CharToUpper(char c)
+	//{
+	//	return (char)CharUpperA((PSTR)c);
+	//}
 
-	template<typename Char>
-	inline Char CharToUpper(Char c)
-	{
-		return (Char)CharToUpper((wchar_t)c);// TODO: make this work for 32-bit unicode scalars
-	}
+	//template<typename Char>
+	//inline Char CharToUpper(Char c)
+	//{
+	//	return (Char)CharToUpper((wchar_t)c);// TODO: make this work for 32-bit unicode scalars
+	//}
+
+  // Naive string upper / lower functions --------------------------------------------------------------------------------------
+  template<typename Char>
+  void NaiveCharToLower(Char& c) {
+    if (c >= 'A' && c <= 'Z')
+      c += 'a' - 'A';
+  }
+  template<typename Char>
+  void NaiveStringToLower(std::basic_string<Char>& s) {
+    for (auto& ch : s) {
+      NaiveCharToLower(ch);
+    }
+  }
 
 
 	// LastDitch functions --------------------------------------------------------------------------------------
@@ -302,19 +217,19 @@ namespace LibCC
 #ifdef WIN32
 
 	// TODO: http://www.unicode.org/Public/PROGRAMS/CVTUTF/ConvertUTF.c
-	inline HRESULT UTF16ToUTF32(const wchar_t*, size_t, Blob<__int32>&)
-	{
-		return E_NOTIMPL;
-	}
+	//inline HRESULT UTF16ToUTF32(const wchar_t*, size_t, Blob<__int32>&)
+	//{
+	//	return E_NOTIMPL;
+	//}
 
-	inline HRESULT UTF32ToUTF16(const wchar_t*, size_t, Blob<__int32>&)
-	{
-		return E_NOTIMPL;
-	}
+	//inline HRESULT UTF32ToUTF16(const wchar_t*, size_t, Blob<__int32>&)
+	//{
+	//	return E_NOTIMPL;
+	//}
 
 	// http://www.themssforum.com/MFC/WideCharToMultiByte-works/
 	// converts from UTF-16 (true UTF-16 according to MS) to ANSI
-	inline HRESULT ToANSI(const wchar_t* in, size_t inLength, Blob<BYTE>& out, UINT codepage = CP_ACP)
+	inline HRESULT ToANSI(const wchar_t* in, size_t inLength, std::vector<BYTE>& out, UINT codepage = CP_ACP)
 	{
 		DWORD flags;
 	 
@@ -352,9 +267,9 @@ namespace LibCC
 		if (length == 0)
 			return E_FAIL;
 
-		out.Alloc(length);// it is important to make sure the return Blob has the correct size here. so do not add +1 to this.
+		out.resize((size_t)length);// it is important to make sure the return Blob has the correct size here. so do not add +1 to this.
 
-		WideCharToMultiByte(codepage, flags, in, (int)inLength, (LPSTR)out.GetBuffer(), length,
+		WideCharToMultiByte(codepage, flags, in, (int)inLength, (LPSTR)out.data(), length,
 			(flags & WC_NO_BEST_FIT_CHARS) ? (const CHAR*)cpinfo.DefaultChar : 0,
 			(flags & WC_NO_BEST_FIT_CHARS) ? &usedDefaultChar : 0);
 
@@ -367,13 +282,10 @@ namespace LibCC
 		int length = MultiByteToWideChar(codepage, 0, (PCSTR)multistr, (int)sourceLength, NULL, 0);
 		if (length == 0)
 			return E_FAIL;
-		Blob<WCHAR> buf;
-		if(!buf.Alloc(length))
-		{
-			return E_OUTOFMEMORY;
-		}
-		MultiByteToWideChar(codepage, 0, (PCSTR)multistr, (int)sourceLength, buf.GetBuffer(), (int)length);
-		widestr.assign(buf.GetBuffer(), buf.Size());
+		std::vector<WCHAR> buf;
+    buf.resize(length);
+		MultiByteToWideChar(codepage, 0, (PCSTR)multistr, (int)sourceLength, buf.data(), (int)length);
+		widestr.assign(buf.data(), buf.size());
  
 		return S_OK;
 	}
@@ -425,10 +337,10 @@ namespace LibCC
 	// case #5:
 	inline HRESULT StringConvert(const std::wstring& in, std::string& out, UINT = CP_ACP, UINT tocodepage = CP_ACP)
 	{
-		Blob<BYTE> b;
+		std::vector<BYTE> b;
 		HRESULT hr = ToANSI(in.c_str(), in.length(), b, tocodepage);
 		if(FAILED(hr)) return hr;
-		out.assign((const char*)b.GetBuffer(), b.Size());
+		out.assign((const char*)b.data(), b.size());
 		return hr;
 	}
 	// case #1, #2, #3, #6:
@@ -460,10 +372,10 @@ namespace LibCC
 	// case #5:
 	inline HRESULT StringConvert(const wchar_t* in, std::string& out, UINT = CP_ACP, UINT tocodepage = CP_ACP)
 	{
-		Blob<BYTE> b;
+		std::vector<BYTE> b;
 		HRESULT hr = ToANSI(in, StringLength(in), b, tocodepage);
 		if(FAILED(hr)) return hr;
-		out.assign((const char*)b.GetBuffer(), b.Size());
+		out.assign((const char*)b.data(), b.size());
 		return hr;
 	}
 	// case #1, #2, #3, #6:
@@ -701,7 +613,7 @@ namespace LibCC
   template<typename CharL, typename CharR>
   inline bool StringContainsChar(const CharL* source, CharR x, int codepageLeft = CP_ACP)
   {
-		if(sizeof(CharL) > sizeof(CharR))
+		if (sizeof(CharL) > sizeof(CharR))
 		{
 			return StringContainsChar(source, CharConvert<CharL>(x));
 		}
@@ -716,7 +628,7 @@ namespace LibCC
 	template<typename CharL, typename CharR>
 	inline bool StringContainsChar(const std::basic_string<CharL>& source, CharR x, int codepageLeft = CP_ACP)
   {
-		if(sizeof(CharL) > sizeof(CharR))
+		if (sizeof(CharL) > sizeof(CharR))
 		{
 			return StringContainsChar(source, CharConvert<CharL>(x));
 		}
@@ -765,11 +677,11 @@ namespace LibCC
   }
 
 	// StringContains(case-insensitive). --------------------------------------------------------------------------------------
-	template<typename Char>
-	inline bool StringContainsStringI(const std::basic_string<Char>& source, const std::basic_string<Char>& x)
-  {
-		return StringContainsString(StringToLower(source), StringToLower(x));
-  }
+	//template<typename Char>
+	//inline bool StringContainsStringI(const std::basic_string<Char>& source, const std::basic_string<Char>& x)
+ // {
+	//	return StringContainsString(StringToLower(source), StringToLower(x));
+ // }
 
 	// StringFindFirstOf, returning index --------------------------------------------------------------------------------------
 
@@ -1232,85 +1144,85 @@ namespace LibCC
 
 	// StringToUpper --------------------------------------------------------------------------------------
 	// NOTE: the stdlib toupper functions do not handle unicode very well, so this will have to do.
-	inline std::wstring StringToUpper(const std::wstring& s)
-	{
-		Blob<wchar_t> buf(s.length() + 1);
-		wcscpy(buf.GetBuffer(), s.c_str());
-		CharUpperBuffW(buf.GetBuffer(), (DWORD)s.length());
-		return std::wstring(buf.GetBuffer());
-	}
-	inline std::string StringToUpper(const std::string& s)
-	{
-		Blob<char> buf(s.length() + 1);
-		strcpy(buf.GetBuffer(), s.c_str());
-		CharUpperBuffA(buf.GetBuffer(), (DWORD)s.length());
-		return std::string(buf.GetBuffer());
-	}
-	template<typename Char>
-	inline std::basic_string<Char> StringToUpper(const std::basic_string<Char>& s)// last-ditch for alternative char types
-	{
-    std::basic_string<Char> r;
-    r.reserve(s.size());
-    std::basic_string<Char>::const_iterator it;
-    for(it = s.begin(); it != s.end(); ++ it)
-    {
-			if(*it < 0x8000)
-			{
-				r.push_back((Char)CharUpperW((PWSTR)*it));
-      }
-      else
-      {
-				r.push_back(*it);
-      }
-    }
-    return r;
-	}
-  template<typename Char>
-  inline std::basic_string<Char> StringToUpper(const Char* s)
-  {
-		return StringToUpper(std::basic_string<Char>(s));
-  }
+	//inline std::wstring StringToUpper(const std::wstring& s)
+	//{
+	//	std::vector<wchar_t> buf(s.length() + 1);
+	//	wcscpy(buf.data(), s.c_str());
+	//	CharUpperBuffW(buf.data(), (DWORD)s.length());
+	//	return std::wstring(buf.data());
+	//}
+	//inline std::string StringToUpper(const std::string& s)
+	//{
+ //   std::vector<char> buf(s.length() + 1);
+	//	strcpy(buf.data(), s.c_str());
+	//	CharUpperBuffA(buf.data(), (DWORD)s.length());
+	//	return std::string(buf.data());
+	//}
+	//template<typename Char>
+	//inline std::basic_string<Char> StringToUpper(const std::basic_string<Char>& s)// last-ditch for alternative char types
+	//{
+ //   std::basic_string<Char> r;
+ //   r.reserve(s.size());
+ //   std::basic_string<Char>::const_iterator it;
+ //   for(it = s.begin(); it != s.end(); ++ it)
+ //   {
+	//		if(*it < 0x8000)
+	//		{
+	//			r.push_back((Char)CharUpperW((PWSTR)*it));
+ //     }
+ //     else
+ //     {
+	//			r.push_back(*it);
+ //     }
+ //   }
+ //   return r;
+	//}
+ // template<typename Char>
+ // inline std::basic_string<Char> StringToUpper(const Char* s)
+ // {
+	//	return StringToUpper(std::basic_string<Char>(s));
+ // }
 
 
-	// StringToLower --------------------------------------------------------------------------------------
-	inline std::wstring StringToLower(const std::wstring& s)
-	{
-		Blob<wchar_t> buf(s.length() + 1);
-		wcscpy(buf.GetBuffer(), s.c_str());
-		CharLowerBuffW(buf.GetBuffer(), (DWORD)s.length());
-		return std::wstring(buf.GetBuffer());
-	}
-	inline std::string StringToLower(const std::string& s)
-	{
-		Blob<char> buf(s.length() + 1);
-		strcpy(buf.GetBuffer(), s.c_str());
-		CharLowerBuffA(buf.GetBuffer(), (DWORD)s.length());
-		return std::string(buf.GetBuffer());
-	}
-	template<typename Char>
-	inline std::basic_string<Char> StringToLower(const std::basic_string<Char>& s)// last-ditch for alternative char types
-	{
-    std::basic_string<Char> r;
-    r.reserve(s.size());
-    std::basic_string<Char>::const_iterator it;
-    for(it = s.begin(); it != s.end(); ++ it)
-    {
-			if(*it < 0x8000)
-			{
-				r.push_back((Char)CharLowerW((PWSTR)*it));
-      }
-      else
-      {
-				r.push_back(*it);
-      }
-    }
-    return r;
-	}
-  template<typename Char>
-  inline std::basic_string<Char> StringToLower(const Char* s)
-  {
-		return StringToLower(std::basic_string<Char>(s));
-  }
+	//// StringToLower --------------------------------------------------------------------------------------
+	//inline std::wstring StringToLower(const std::wstring& s)
+	//{
+	//	Blob<wchar_t> buf(s.length() + 1);
+	//	wcscpy(buf.GetBuffer(), s.c_str());
+	//	CharLowerBuffW(buf.GetBuffer(), (DWORD)s.length());
+	//	return std::wstring(buf.GetBuffer());
+	//}
+	//inline std::string StringToLower(const std::string& s)
+	//{
+	//	Blob<char> buf(s.length() + 1);
+	//	strcpy(buf.GetBuffer(), s.c_str());
+	//	CharLowerBuffA(buf.GetBuffer(), (DWORD)s.length());
+	//	return std::string(buf.GetBuffer());
+	//}
+	//template<typename Char>
+	//inline std::basic_string<Char> StringToLower(const std::basic_string<Char>& s)// last-ditch for alternative char types
+	//{
+ //   std::basic_string<Char> r;
+ //   r.reserve(s.size());
+ //   std::basic_string<Char>::const_iterator it;
+ //   for(it = s.begin(); it != s.end(); ++ it)
+ //   {
+	//		if(*it < 0x8000)
+	//		{
+	//			r.push_back((Char)CharLowerW((PWSTR)*it));
+ //     }
+ //     else
+ //     {
+	//			r.push_back(*it);
+ //     }
+ //   }
+ //   return r;
+	//}
+ // template<typename Char>
+ // inline std::basic_string<Char> StringToLower(const Char* s)
+ // {
+	//	return StringToLower(std::basic_string<Char>(s));
+ // }
 
 
 
@@ -1397,84 +1309,84 @@ namespace LibCC
 
 
 	// StringEqualsI --------------------------------------------------------------------------------------
-	template<typename TiterL, typename TiterR, typename TstrL, typename TstrR>
-	inline bool InternalStringEqualsI1(TstrL lhs, TstrR rhs)
-  {
-		TiterL itl = StringBegin(lhs);
-		TiterR itr = StringBegin(rhs);
-		while(true)
-		{
-			bool lend = StringIsEnd(itl, lhs);
-			bool rend = StringIsEnd(itr, rhs);
-			if(lend)
-				return rend;
-			if(rend)
-				return lend;
-			if(CharToLower(*itl) != CharToLower(*itr))
-				return false;
-			++ itl;
-			++ itr;
-		}
-		return true;
-  }
-	// no-conversion cases
-	template<typename Char>
-  inline bool StringEqualsI(const Char* lhs, const Char* rhs)
-	{
-		return InternalStringEqualsI1<const Char*, const Char*>(lhs, rhs);
-	}
-	template<typename Char>
-	inline bool StringEqualsI(const Char* lhs, const std::basic_string<Char>& rhs)
-	{
-		return InternalStringEqualsI1<const Char*, std::basic_string<Char>::const_iterator>(lhs, rhs);
-	}
-	template<typename Char>
-  inline bool StringEqualsI(const std::basic_string<Char>& lhs, const Char* rhs)
-	{
-		return InternalStringEqualsI1<std::basic_string<Char>::const_iterator, const Char*>(lhs, rhs);
-	}
-	template<typename Char>
-	inline bool StringEqualsI(const std::basic_string<Char>& lhs, const std::basic_string<Char>& rhs)
-	{
-		return InternalStringEqualsI1<std::basic_string<Char>::const_iterator, std::basic_string<Char>::const_iterator>(lhs, rhs);
-	}
-	// conversion cases
-  template<typename CharL, typename CharR, typename Tleft, typename Tright>
-	inline bool InternalStringEqualsI2(Tleft lhs, Tright rhs)
-  {
-		if(sizeof(CharL) > sizeof(CharR))
-		{
-			std::basic_string<CharL> temp;
-			StringConvert(rhs, temp);
-			return StringEqualsI(lhs, temp);
-		}
-		else
-		{
-			std::basic_string<CharR> temp;
-			StringConvert(lhs, temp);
-			return StringEqualsI(temp, rhs);
-		}
-  }
-  template<typename CharL, typename CharR>
-	inline bool StringEqualsI(const CharL* lhs, const CharR* rhs)
-  {
-		return InternalStringEqualsI2<CharL, CharR>(lhs, rhs);
-  }
-  template<typename CharL, typename CharR>
-	inline bool StringEqualsI(const CharL* lhs, const std::basic_string<CharR>& rhs)
-  {
-		return InternalStringEqualsI2<CharL, CharR>(lhs, rhs);
-  }
-  template<typename CharL, typename CharR>
-	inline bool StringEqualsI(const std::basic_string<CharL>& lhs, const CharR* rhs)
-  {
-		return InternalStringEqualsI2<CharL, CharR>(lhs, rhs);
-  }
-  template<typename CharL, typename CharR>
-	inline bool StringEqualsI(const std::basic_string<CharL>& lhs, const std::basic_string<CharR>& rhs)
-  {
-		return InternalStringEqualsI2<CharL, CharR>(lhs, rhs);
-  }
+	//template<typename TiterL, typename TiterR, typename TstrL, typename TstrR>
+	//inline bool InternalStringEqualsI1(TstrL lhs, TstrR rhs)
+ // {
+	//	TiterL itl = StringBegin(lhs);
+	//	TiterR itr = StringBegin(rhs);
+	//	while(true)
+	//	{
+	//		bool lend = StringIsEnd(itl, lhs);
+	//		bool rend = StringIsEnd(itr, rhs);
+	//		if(lend)
+	//			return rend;
+	//		if(rend)
+	//			return lend;
+	//		if(CharToLower(*itl) != CharToLower(*itr))
+	//			return false;
+	//		++ itl;
+	//		++ itr;
+	//	}
+	//	return true;
+ // }
+	//// no-conversion cases
+	//template<typename Char>
+ // inline bool StringEqualsI(const Char* lhs, const Char* rhs)
+	//{
+	//	return InternalStringEqualsI1<const Char*, const Char*>(lhs, rhs);
+	//}
+	//template<typename Char>
+	//inline bool StringEqualsI(const Char* lhs, const std::basic_string<Char>& rhs)
+	//{
+	//	return InternalStringEqualsI1<const Char*, std::basic_string<Char>::const_iterator>(lhs, rhs);
+	//}
+	//template<typename Char>
+ // inline bool StringEqualsI(const std::basic_string<Char>& lhs, const Char* rhs)
+	//{
+	//	return InternalStringEqualsI1<std::basic_string<Char>::const_iterator, const Char*>(lhs, rhs);
+	//}
+	//template<typename Char>
+	//inline bool StringEqualsI(const std::basic_string<Char>& lhs, const std::basic_string<Char>& rhs)
+	//{
+	//	return InternalStringEqualsI1<std::basic_string<Char>::const_iterator, std::basic_string<Char>::const_iterator>(lhs, rhs);
+	//}
+	//// conversion cases
+ // template<typename CharL, typename CharR, typename Tleft, typename Tright>
+	//inline bool InternalStringEqualsI2(Tleft lhs, Tright rhs)
+ // {
+	//	if(sizeof(CharL) > sizeof(CharR))
+	//	{
+	//		std::basic_string<CharL> temp;
+	//		StringConvert(rhs, temp);
+	//		return StringEqualsI(lhs, temp);
+	//	}
+	//	else
+	//	{
+	//		std::basic_string<CharR> temp;
+	//		StringConvert(lhs, temp);
+	//		return StringEqualsI(temp, rhs);
+	//	}
+ // }
+ // template<typename CharL, typename CharR>
+	//inline bool StringEqualsI(const CharL* lhs, const CharR* rhs)
+ // {
+	//	return InternalStringEqualsI2<CharL, CharR>(lhs, rhs);
+ // }
+ // template<typename CharL, typename CharR>
+	//inline bool StringEqualsI(const CharL* lhs, const std::basic_string<CharR>& rhs)
+ // {
+	//	return InternalStringEqualsI2<CharL, CharR>(lhs, rhs);
+ // }
+ // template<typename CharL, typename CharR>
+	//inline bool StringEqualsI(const std::basic_string<CharL>& lhs, const CharR* rhs)
+ // {
+	//	return InternalStringEqualsI2<CharL, CharR>(lhs, rhs);
+ // }
+ // template<typename CharL, typename CharR>
+	//inline bool StringEqualsI(const std::basic_string<CharL>& lhs, const std::basic_string<CharR>& rhs)
+ // {
+	//	return InternalStringEqualsI2<CharL, CharR>(lhs, rhs);
+ // }
 
 	// StringStartsWith (unfinished) --------------------------------------------------------------------------------------
 	template<typename CharL, typename CharR>
@@ -1989,7 +1901,7 @@ namespace LibCC
 	}
 
     template<typename _Char>
-		inline void _RuntimeAppendZeroFloat(size_t DecimalWidthMax, size_t DecimalWidthMin, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, QuickString<_Char>& output)
+		inline void _RuntimeAppendZeroFloat(size_t DecimalWidthMax, size_t DecimalWidthMin, size_t IntegralWidthMin, _Char PaddingChar, bool /*ForceSign*/, QuickString<_Char>& output)
 		{
 			// zero.
 			// pre-decimal part.
@@ -2118,20 +2030,20 @@ namespace LibCC
 					FloatType::This val(_f);
 					val.AbsoluteValue();
 					// remove integer part.
-					FloatType::This integerPart(val);
-					integerPart.RemoveDecimal();
-					val.m_BasicVal -= integerPart.m_BasicVal;
+					FloatType::This integerPart2(val);
+          integerPart2.RemoveDecimal();
+					val.m_BasicVal -= integerPart2.m_BasicVal;
 					do
 					{
 						DecimalWidthLeft --;
 						DecimalUsed ++;
 						val.m_BasicVal *= Base;
 						// isolate the integral part
-						integerPart.m_BasicVal = val.m_BasicVal;
-						integerPart.RemoveDecimal();
-						*(++ sDecPart) = DigitToChar(static_cast<unsigned char>(fmod(integerPart.m_BasicVal, fBase)));
+            integerPart2.m_BasicVal = val.m_BasicVal;
+            integerPart2.RemoveDecimal();
+						*(++ sDecPart) = DigitToChar(static_cast<unsigned char>(fmod(integerPart2.m_BasicVal, fBase)));
 						// use the integral part to leave only the decimal part.
-						val.m_BasicVal -= integerPart.m_BasicVal;
+						val.m_BasicVal -= integerPart2.m_BasicVal;
 					}
 					while(((val.m_BasicVal > 0) || (DecimalUsed < DecimalWidthMin)) && DecimalWidthLeft);
 				}
@@ -2397,14 +2309,14 @@ namespace LibCC
     static const _Char EscapeChar = '^';
     static const _Char NewlineChar = '|';
 
-		inline static bool IsUnicode()
+		static bool IsUnicode()
 		{
 			return sizeof(_Char) == sizeof(wchar_t);
 		}
 
 		// notepad, winword, ultraedit do not support these characters
 		// but wordpad & devenv do. not really enough support to justify using these ever, considering anything that supports them will also support \r\n
-		inline static void AppendNewLine(_String& s)
+		static void AppendNewLine(_String& s)
 		{
 #if LIBCC_UNICODENEWLINES == 1
 			if(IsUnicode())
@@ -2422,7 +2334,7 @@ namespace LibCC
 #endif
 		}
 
-		inline static void AppendNewParagraph(_String& s)
+		static void AppendNewParagraph(_String& s)
 		{
 #if LIBCC_UNICODENEWLINES == 1
 			if(IsUnicode())
@@ -2441,7 +2353,7 @@ namespace LibCC
 		}
 
     // Construction / Assignment
-		LIBCC_INLINE FormatX() :
+		FormatX() :
 			m_isRendered(false),
 			m_argumentCharSize(0)
 		{
@@ -2449,7 +2361,7 @@ namespace LibCC
 
     // Construction / Assignment
 
-		//LIBCC_INLINE FormatX(const _This& rhs) :
+		//FormatX(const _This& rhs) :
 		//	m_isRendered(rhs.m_isRendered),
 		//	m_Format(rhs.m_Format),
 		//	m_rendered(rhs.m_rendered),
@@ -2468,46 +2380,47 @@ namespace LibCC
 		//	return *this;
 		//}
 
-		explicit LIBCC_INLINE FormatX(const _String& s) :
+		explicit FormatX(const _String& s) :
 			m_Format(s),
 			m_isRendered(false),
 			m_argumentCharSize(0)
 		{
 		}
 
-    explicit LIBCC_INLINE FormatX(const _Char* s) :
+    explicit FormatX(const _Char* s) :
 			m_Format(s),
 			m_isRendered(false),
 			m_argumentCharSize(0)
 		{
 		}
 
-    template<typename CharX>
-    explicit inline FormatX(const CharX* s) :
-			m_isRendered(false),
-			m_argumentCharSize(0)
-		{
-			StringConvert(s, m_Format);
-		}
+      // there's no good reason to allow this. Use the appropriate FormatA/FormatW/etc.
+  //  template<typename CharX>
+  //  explicit inline FormatX(const CharX* s) :
+		//	m_isRendered(false),
+		//	m_argumentCharSize(0)
+		//{
+		//	StringConvert(s, m_Format);
+		//}
 
-		template<typename CharX>
-		explicit LIBCC_INLINE FormatX(const std::basic_string<CharX>& s) :
-			m_isRendered(false),
-			m_argumentCharSize(0)
-		{
-			StringConvert(s, m_Format);
-		}
+		//template<typename CharX>
+		//explicit FormatX(const std::basic_string<CharX>& s) :
+		//	m_isRendered(false),
+		//	m_argumentCharSize(0)
+		//{
+		//	StringConvert(s, m_Format);
+		//}
 
 #ifdef WIN32
     // construct from stringtable resource
-    LIBCC_INLINE FormatX(HINSTANCE hModule, UINT stringID) :
+    FormatX(HINSTANCE hModule, UINT stringID) :
 			m_isRendered(false),
 			m_argumentCharSize(0)
 		{
 			LoadStringX(hModule, stringID, m_Format);
 		}
 
-    LIBCC_INLINE FormatX(UINT stringID) :
+    FormatX(UINT stringID) :
 			m_isRendered(false),
 			m_argumentCharSize(0)
 		{
@@ -2515,7 +2428,7 @@ namespace LibCC
 		}
 #endif
 
-		LIBCC_INLINE void Clear()
+		void Clear()
 		{
 			m_argumentCharSize = 0;
 			m_isRendered = false;
@@ -2524,22 +2437,22 @@ namespace LibCC
 			m_Format.clear();
 		}
 
-    template<typename CharX>
-    LIBCC_INLINE void SetFormat(const CharX* s)
-		{
-			Clear();
-			if(!s)
-				return;
-			StringConvert(s, m_Format);
-		}
+  //  template<typename CharX>
+  //  void SetFormat(const CharX* s)
+		//{
+		//	Clear();
+		//	if(!s)
+		//		return;
+		//	StringConvert(s, m_Format);
+		//}
 
-    LIBCC_INLINE void SetFormat(const _String& s)
+    void SetFormat(const _String& s)
 		{
 			Clear();
 			m_Format = s;
 		}
 
-    LIBCC_INLINE void SetFormat(const _Char* s)
+    void SetFormat(const _Char* s)
 		{
 			Clear();
 			if(s == 0)
@@ -2547,22 +2460,22 @@ namespace LibCC
 			m_Format = s;
 		}
 
-    template<typename CharX>
-		LIBCC_INLINE void SetFormat(const std::basic_string<CharX>& s)
-		{
-			Clear();
-			StringConvert(s, m_Format);
-		}
+  //  template<typename CharX>
+		//void SetFormat(const std::basic_string<CharX>& s)
+		//{
+		//	Clear();
+		//	StringConvert(s, m_Format);
+		//}
 
 #ifdef WIN32
     // assign from stringtable resource
-    LIBCC_INLINE void SetFormat(HINSTANCE hModule, UINT stringID)
+    void SetFormat(HINSTANCE hModule, UINT stringID)
 		{
 			Clear();
 			LoadStringX(hModule, stringID, m_Format);
 		}
 
-		LIBCC_INLINE void SetFormat(UINT stringID)
+		void SetFormat(UINT stringID)
 		{
 			Clear();
 			LoadStringX(GetModuleHandle(NULL), stringID, m_Format);
@@ -2570,23 +2483,23 @@ namespace LibCC
 #endif
 
 		// "GET" methods
-    LIBCC_INLINE const _String& Str() const
+    const _String& Str() const
 		{
 			Render();
 			return m_rendered;
 		}
-    LIBCC_INLINE const _Char* CStr() const
+    const _Char* CStr() const
 		{
 			Render();
 			return m_rendered.c_str();
 		}
-#if CCSTR_OPTION_AUTOCAST == 1
-		LIBCC_INLINE operator _String() const
+		operator _String() const
 		{
 			Render();
 			return m_rendered;
 		}
-    LIBCC_INLINE operator const _Char*() const
+#if CCSTR_OPTION_AUTOCAST == 1
+    operator const _Char*() const
 		{
 			Render();
 			return m_rendered.c_str();
@@ -2595,7 +2508,7 @@ namespace LibCC
 
     // POINTER -----------------------------
     template<typename T>
-    LIBCC_INLINE _This& p(const T* v)
+    _This& p(const T* v)
 		{
 			static const int Digits = (sizeof(uintptr_t) * 2);// number of digits (32-bit == 4 bytes == 8 digits)
 			_Char arg[Digits + 3] = { '0', 'x' };// +2 for prefix, +1 for null term.
@@ -2604,7 +2517,7 @@ namespace LibCC
 			return s(arg);
 		}
 
-		LIBCC_INLINE _This& p(const void* v)
+		_This& p(const void* v)
 		{
 			static const int Digits = (sizeof(uintptr_t) * 2);// number of digits (32-bit == 4 bytes == 8 digits)
 			_Char arg[Digits + 3] = { '0', 'x' };// +2 for prefix, +1 for null term.
@@ -2615,14 +2528,14 @@ namespace LibCC
 
     // CHARACTER (count) -----------------------------
     template<typename T>
-    LIBCC_INLINE _This& c(T v)
+    _This& c(T v)
 		{
 			AddArg(static_cast<_Char>(v), 1);
 			return *this;
 		}
 
     template<typename T>
-    LIBCC_INLINE _This& c(T v, size_t count)
+    _This& c(T v, size_t count)
 		{
 			AddArg(static_cast<_Char>(v), count);
 			return *this;
@@ -2630,38 +2543,38 @@ namespace LibCC
 
     // STRING (maxlen) -----------------------------
     template<size_t MaxLen>
-		LIBCC_INLINE _This& s(const _Char* s)
+		_This& s(const _Char* s)
 		{
 			AddArg(s, MaxLen);
 			return *this;
 		}
 
-    LIBCC_INLINE _This& s(const _Char* s, size_t MaxLen)
+    _This& s(const _Char* s, size_t MaxLen)
 		{
 			AddArg(s, (int)MaxLen);
 			return *this;
 		}
 
-    LIBCC_INLINE _This& s(const _Char* s)
+    _This& s(const _Char* s)
 		{
 			AddArg(s);
 			return *this;
 		}
 
     template<size_t MaxLen>
-		LIBCC_INLINE _This& s(const _String& s)
+		_This& s(const _String& s)
 		{
 			AddArg(s.c_str(), (int)MaxLen);
 			return *this;
 		}
 
-    LIBCC_INLINE _This& s(const _String& s, size_t MaxLen)
+    _This& s(const _String& s, size_t MaxLen)
 		{
 			AddArg(s.c_str(), (int)MaxLen);
 			return *this;
 		}
 
-    LIBCC_INLINE _This& s(const _String& s)
+    _This& s(const _String& s)
 		{
 			AddArg(s.c_str());
 			return *this;
@@ -2669,7 +2582,7 @@ namespace LibCC
 
 		// now all that but in foreign char types
     template<typename aChar>
-    LIBCC_INLINE _This& s(const aChar* foreign)
+    _This& s(const aChar* foreign)
 		{
 			if(foreign)
 			{
@@ -2681,7 +2594,7 @@ namespace LibCC
 		}
 
     template<typename fChar, typename fTraits, typename fAlloc>
-		LIBCC_INLINE _This& s(const LibCC::FormatX<fChar, fTraits, fAlloc>& str)
+		_This& s(const LibCC::FormatX<fChar, fTraits, fAlloc>& str)
 		{
 			return s(str.Str());
 		}
@@ -2693,7 +2606,7 @@ namespace LibCC
 			should go for accuracy.
 		*/
     template<size_t MaxLen, typename aChar>
-    LIBCC_INLINE _This& s(const aChar* foreign)
+    _This& s(const aChar* foreign)
 		{
 			if(foreign)
 			{
@@ -2705,7 +2618,7 @@ namespace LibCC
 		}
 
     template<typename aChar>
-    LIBCC_INLINE _This& s(const aChar* foreign, size_t MaxLen)
+    _This& s(const aChar* foreign, size_t MaxLen)
 		{
 			if(foreign)
 			{
@@ -2717,7 +2630,7 @@ namespace LibCC
 		}
     
 		template<typename aChar, typename aTraits, typename aAlloc>
-    LIBCC_INLINE _This& s(const std::basic_string<aChar, aTraits, aAlloc>& x)
+    _This& s(const std::basic_string<aChar, aTraits, aAlloc>& x)
 		{
 			_String native;
 			StringConvert(x, native);
@@ -2725,7 +2638,7 @@ namespace LibCC
 		}
     
 		template<size_t MaxLen, typename aChar, typename aTraits, typename aAlloc>
-    LIBCC_INLINE _This& s(const std::basic_string<aChar, aTraits, aAlloc>& x)
+    _This& s(const std::basic_string<aChar, aTraits, aAlloc>& x)
 		{
 			_String native;
 			StringConvert(x, native);
@@ -2733,20 +2646,20 @@ namespace LibCC
 		}
     
 		template<typename aChar, typename aTraits, typename aAlloc>
-    LIBCC_INLINE _This& s(const std::basic_string<aChar, aTraits, aAlloc>& x, size_t MaxLen)
+    _This& s(const std::basic_string<aChar, aTraits, aAlloc>& x, size_t MaxLen)
 		{
 			_String native;
 			StringConvert(x, native);
 			return s(native, MaxLen);
 		}
 		
-		LIBCC_INLINE _This& NewLine()
+		_This& NewLine()
 		{
 			AppendNewLine(m_Composite);
 			return *this;
 		}
 		
-		LIBCC_INLINE _This& NewParagraph()
+		_This& NewParagraph()
 		{
 			AppendNewParagraph(m_Composite);
 			return *this;
@@ -2754,38 +2667,38 @@ namespace LibCC
 
     // QUOTED STRINGS (maxlen)
     template<size_t MaxLen>
-    LIBCC_INLINE _This& qs(const _Char* s)
+    _This& qs(const _Char* s)
 		{
 			AddArg(s, MaxLen, OpenQuote, CloseQuote);
 			return *this;
 		}
 
-    LIBCC_INLINE _This& qs(const _Char* s, size_t MaxLen)
+    _This& qs(const _Char* s, size_t MaxLen)
 		{
 			AddArg(s, (int)MaxLen, OpenQuote, CloseQuote);
 			return *this;
 		}
 
-    LIBCC_INLINE _This& qs(const _Char* s)
+    _This& qs(const _Char* s)
 		{
 			AddArg(s, OpenQuote, CloseQuote);
 			return *this;
 		}
 
 		template<size_t MaxLen>
-    LIBCC_INLINE _This& qs(const _String& s)
+    _This& qs(const _String& s)
 		{
 			AddArg(s.c_str(), (int)MaxLen, OpenQuote, CloseQuote);
 			return *this;
 		}
 
-    LIBCC_INLINE _This& qs(const _String& s, size_t MaxLen)
+    _This& qs(const _String& s, size_t MaxLen)
 		{
 			AddArg(s.c_str(), (int)MaxLen, OpenQuote, CloseQuote);
 			return *this;
 		}
 
-    LIBCC_INLINE _This& qs(const _String& s)
+    _This& qs(const _String& s)
 		{
 			AddArg(s.c_str(), OpenQuote, CloseQuote);
 			return *this;
@@ -2793,7 +2706,7 @@ namespace LibCC
 
 		// (now the same stuff but with foreign characters)
     template<typename aChar>
-    LIBCC_INLINE _This& qs(const aChar* foreign)
+    _This& qs(const aChar* foreign)
 		{
 			if(foreign)
 			{
@@ -2805,7 +2718,7 @@ namespace LibCC
 		}
 
     template<size_t MaxLen, typename aChar>
-    LIBCC_INLINE _This& qs(const aChar* foreign)
+    _This& qs(const aChar* foreign)
 		{
 			if(foreign)
 			{
@@ -2817,7 +2730,7 @@ namespace LibCC
 		}
 
     template<typename aChar>
-    LIBCC_INLINE _This& qs(const aChar* foreign, size_t MaxLen)
+    _This& qs(const aChar* foreign, size_t MaxLen)
 		{
 			if(foreign)
 			{
@@ -2829,7 +2742,7 @@ namespace LibCC
 		}
 
     template<typename aChar, typename aTraits, typename aAlloc>
-    LIBCC_INLINE _This& qs(const std::basic_string<aChar, aTraits, aAlloc>& x)
+    _This& qs(const std::basic_string<aChar, aTraits, aAlloc>& x)
 		{
 			_String native;
 			StringConvert(x, native);
@@ -2837,7 +2750,7 @@ namespace LibCC
 		}
 
     template<size_t MaxLen, typename aChar, typename aTraits, typename aAlloc>
-    LIBCC_INLINE _This& qs(const std::basic_string<aChar, aTraits, aAlloc>& x)
+    _This& qs(const std::basic_string<aChar, aTraits, aAlloc>& x)
 		{
 			_String native;
 			StringConvert(x, native);
@@ -2845,7 +2758,7 @@ namespace LibCC
 		}
 
     template<typename aChar, typename aTraits, typename aAlloc>
-    LIBCC_INLINE _This& qs(const std::basic_string<aChar, aTraits, aAlloc>& x, size_t MaxLen)
+    _This& qs(const std::basic_string<aChar, aTraits, aAlloc>& x, size_t MaxLen)
 		{
 			_String native;
 			StringConvert(x, native);
@@ -2854,7 +2767,7 @@ namespace LibCC
 
     // UNSIGNED LONG -----------------------------
     template<size_t Base, size_t Width, _Char PadChar>
-    LIBCC_INLINE _This& ul(unsigned long n)
+    _This& ul(unsigned long n)
 		{
 			const size_t BufferSize = _BufferSizeNeededInteger<Width, unsigned long>::Value;
 			_Char buf[BufferSize];
@@ -2864,23 +2777,23 @@ namespace LibCC
 		}
 
     template<size_t Base, size_t Width>
-    LIBCC_INLINE _This& ul(unsigned long n)
+    _This& ul(unsigned long n)
 		{
 			return ul<Base, Width, '0'>(n);
 		}
     
 		template<size_t Base>
-    LIBCC_INLINE _This& ul(unsigned long n)
+    _This& ul(unsigned long n)
 		{
 			return ul<Base, 0, '0'>(n);
 		}
 
-    LIBCC_INLINE _This& ul(unsigned long n)
+    _This& ul(unsigned long n)
 		{
 			return ul<10, 0, '0'>(n);
 		}
 
-    LIBCC_INLINE _This& ul(unsigned long n, size_t Base, size_t Width = 0, _Char PadChar = '0')
+    _This& ul(unsigned long n, size_t Base, size_t Width = 0, _Char PadChar = '0')
 		{
 			const size_t BufferSize = _RuntimeBufferSizeNeededInteger<unsigned long>(Width);
 			_Char* buf = (_Char*)_alloca(BufferSize * sizeof(_Char));
@@ -2891,7 +2804,7 @@ namespace LibCC
 
     // SIGNED LONG -----------------------------
     template<size_t Base, size_t Width, _Char PadChar, bool ForceShowSign>
-    LIBCC_INLINE _This& l(signed long n)
+    _This& l(signed long n)
 		{
 			const size_t BufferSize = _BufferSizeNeededInteger<Width, signed long>::Value;
 			_Char buf[BufferSize];
@@ -2901,29 +2814,29 @@ namespace LibCC
 		}
 
     template<size_t Base, size_t Width, _Char PadChar>
-    LIBCC_INLINE _This& l(signed long n)
+    _This& l(signed long n)
 		{
 			return l<Base, Width, PadChar, false>(n);
 		}
 
     template<size_t Base, size_t Width>
-    LIBCC_INLINE _This& l(signed long n)
+    _This& l(signed long n)
 		{
 			return l<Base, Width, '0', false>(n);
 		}
 
     template<size_t Base>
-    LIBCC_INLINE _This& l(signed long n)
+    _This& l(signed long n)
 		{
 			return l<Base, 0, '0', false>(n);
 		}
 
-    LIBCC_INLINE _This& l(signed long n)
+    _This& l(signed long n)
 		{
 			return l<10, 0, '0', false>(n);
 		}
 
-    LIBCC_INLINE _This& l(signed long n, size_t Base, size_t Width = 0, _Char PadChar = '0', bool ForceShowSign = false)
+    _This& l(signed long n, size_t Base, size_t Width = 0, _Char PadChar = '0', bool ForceShowSign = false)
 		{
 			const size_t BufferSize = _RuntimeBufferSizeNeededInteger<unsigned long>(Width);
 			_Char* buf = (_Char*)_alloca(BufferSize * sizeof(_Char));
@@ -2990,7 +2903,7 @@ namespace LibCC
     // FLOAT ----------------------------- 3.14   [intwidth].[decwidth]
     // integralwidth is the MINIMUM digits.  Decimalwidth is the MAXIMUM digits.
     template<size_t DecimalWidthMax, size_t DecimalWidthMin, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, size_t Base>
-    LIBCC_INLINE _This& f(float val)
+    _This& f(float val)
 		{
 			QuickString<_Char> back = AddArg();
 	    _AppendFloat<_Char, SinglePrecisionFloat, Base, DecimalWidthMax, DecimalWidthMin, IntegralWidthMin, PaddingChar, ForceSign>(val, back);
@@ -2999,35 +2912,35 @@ namespace LibCC
 		}
 
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign>
-    LIBCC_INLINE _This& f(float val)
+    _This& f(float val)
 		{
 	    return f<DecimalWidthMax, 1, IntegralWidthMin, PaddingChar, ForceSign, 10>(val);
 		}
 
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar>
-    LIBCC_INLINE _This& f(float val)
+    _This& f(float val)
 		{
 	    return f<DecimalWidthMax, 1, IntegralWidthMin, PaddingChar, false, 10>(val);
 		}
 
     template<size_t DecimalWidthMax, size_t IntegralWidthMin>
-    LIBCC_INLINE _This& f(float val)
+    _This& f(float val)
 		{
 	    return f<DecimalWidthMax, 1, IntegralWidthMin, '0', false, 10>(val);
 		}
 
     template<size_t DecimalWidthMax>
-    LIBCC_INLINE _This& f(float val)
+    _This& f(float val)
 		{
 	    return f<DecimalWidthMax, 1, 1, '0', false, 10>(val);
 		}
 
-    LIBCC_INLINE _This& f(float val)
+    _This& f(float val)
 		{
 	    return f<2, 1, 1, '0', false, 10>(val);
 		}
 
-    LIBCC_INLINE _This& f(float val, size_t DecimalWidthMax, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
+    _This& f(float val, size_t DecimalWidthMax, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
 		{
 			QuickString<_Char> back = AddArg();
 			_RuntimeAppendFloat<SinglePrecisionFloat>(val, Base, DecimalWidthMax, 1, IntegralWidthMin, PaddingChar, ForceSign, back);
@@ -3037,7 +2950,7 @@ namespace LibCC
 
     // DOUBLE -----------------------------
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign, size_t Base>
-    LIBCC_INLINE _This& d(double val)
+    _This& d(double val)
 		{
 			QuickString<_Char> back = AddArg();
 	    _AppendFloat<_Char, DoublePrecisionFloat, Base, DecimalWidthMax, 1, IntegralWidthMin, PaddingChar, ForceSign>(val, back);
@@ -3046,35 +2959,35 @@ namespace LibCC
 		}
 
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar, bool ForceSign>
-    LIBCC_INLINE _This& d(double val)
+    _This& d(double val)
 		{
 	    return d<DecimalWidthMax, IntegralWidthMin, PaddingChar, ForceSign, 10>(val);
 		}
 
     template<size_t DecimalWidthMax, size_t IntegralWidthMin, _Char PaddingChar>
-    LIBCC_INLINE _This& d(double val)
+    _This& d(double val)
 		{
 	    return d<DecimalWidthMax, IntegralWidthMin, PaddingChar, false, 10>(val);
 		}
 
     template<size_t DecimalWidthMax, size_t IntegralWidthMin>
-    LIBCC_INLINE _This& d(double val)
+    _This& d(double val)
 		{
 	    return d<DecimalWidthMax, IntegralWidthMin, '0', false, 10>(val);
 		}
 
     template<size_t DecimalWidthMax>
-    LIBCC_INLINE _This& d(double val)
+    _This& d(double val)
 		{
 	    return d<DecimalWidthMax, 1, '0', false, 10>(val);
 		}
 
-    LIBCC_INLINE _This& d(double val)
+    _This& d(double val)
 		{
 			return d<3, 1, '0', false, 10>(val);
 		}
 
-    LIBCC_INLINE _This& d(double val, size_t DecimalWidthMax, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
+    _This& d(double val, size_t DecimalWidthMax, size_t IntegralWidthMin = 1, _Char PaddingChar = '0', bool ForceSign = false, size_t Base = 10)
 		{
 			QuickString<_Char> n = AddArg();
 	    _RuntimeAppendFloat<DoublePrecisionFloat, _Char>(val, Base, DecimalWidthMax, 1, IntegralWidthMin, PaddingChar, ForceSign, n);
@@ -3084,7 +2997,7 @@ namespace LibCC
 
     // UNSIGNED INT 64 -----------------------------
     template<size_t Base, size_t Width, _Char PadChar>
-    LIBCC_INLINE _This& ui64(unsigned __int64 n)
+    _This& ui64(unsigned __int64 n)
 		{
 			const size_t BufferSize = _BufferSizeNeededInteger<Width, unsigned __int64>::Value;
 			_Char buf[BufferSize];
@@ -3094,23 +3007,23 @@ namespace LibCC
 		}
 
     template<size_t Base, size_t Width>
-    LIBCC_INLINE _This& ui64(unsigned __int64 n)
+    _This& ui64(unsigned __int64 n)
 		{
 	    return ui64<Base, Width, '0'>(n);
 		}
 
     template<size_t Base> 
-    LIBCC_INLINE _This& ui64(unsigned __int64 n)
+    _This& ui64(unsigned __int64 n)
 		{
 	    return ui64<Base, 0, 0>(n);
 		}
 
-    LIBCC_INLINE _This& ui64(unsigned __int64 n)
+    _This& ui64(unsigned __int64 n)
 		{
 	    return ui64<10, 0, 0>(n);
 		}
 
-    LIBCC_INLINE _This& ui64(unsigned __int64 n, size_t Base, size_t Width = 0, _Char PadChar = '0')
+    _This& ui64(unsigned __int64 n, size_t Base, size_t Width = 0, _Char PadChar = '0')
 		{
 			const size_t BufferSize = _RuntimeBufferSizeNeededInteger<unsigned __int64>(Width);
 			_Char* buf = (_Char*)_alloca(BufferSize * sizeof(_Char));
@@ -3121,7 +3034,7 @@ namespace LibCC
 
     // SIGNED INT 64 -----------------------------
     template<size_t Base, size_t Width, _Char PadChar, bool ForceShowSign>
-    LIBCC_INLINE _This& i64(signed __int64 n)
+    _This& i64(signed __int64 n)
 		{
 			const size_t BufferSize = _BufferSizeNeededInteger<Width, unsigned __int64>::Value;
 			_Char buf[BufferSize];
@@ -3131,29 +3044,29 @@ namespace LibCC
 		}
 
     template<size_t Base, size_t Width, _Char PadChar>
-    LIBCC_INLINE _This& i64(__int64 n)
+    _This& i64(__int64 n)
 		{
 	    return i64<Base, Width, PadChar, false>(n);
 		}
 
     template<size_t Base, size_t Width>
-    LIBCC_INLINE _This& i64(__int64 n)
+    _This& i64(__int64 n)
 		{
 	    return i64<Base, Width, '0', false>(n);
 		}
 
     template<size_t Base>
-    LIBCC_INLINE _This& i64(__int64 n)
+    _This& i64(__int64 n)
 		{
 	    return i64<Base, 0, 0, false>(n);
 		}
 
-    LIBCC_INLINE _This& i64(__int64 n)
+    _This& i64(__int64 n)
 		{
 	    return i64<10, 0, 0, false>(n);
 		}
 
-    LIBCC_INLINE _This& i64(signed __int64 n, size_t Base = 10, size_t Width = 0, _Char PadChar = '0', bool ForceShowSign = false)
+    _This& i64(signed __int64 n, size_t Base = 10, size_t Width = 0, _Char PadChar = '0', bool ForceShowSign = false)
 		{
 			const size_t BufferSize = _RuntimeBufferSizeNeededInteger<unsigned __int64>(Width);
 			_Char* buf = (_Char*)_alloca(BufferSize * sizeof(_Char));
@@ -3164,14 +3077,14 @@ namespace LibCC
 
     // GETLASTERROR() -----------------------------
 #ifdef WIN32
-    LIBCC_INLINE _This& gle(int code)
+    _This& gle(int code)
 		{
 			_String str;
 			FormatMessageGLE(str, code);
 			return s(str);
 		}
 
-    LIBCC_INLINE _This& gle()
+    _This& gle()
 		{
 	    return gle(GetLastError());
 		}
@@ -3227,7 +3140,7 @@ namespace LibCC
 
   private:
 
-		LIBCC_INLINE void Render() const
+		void Render() const
 		{
 			if(m_isRendered)
 				return;
@@ -3377,7 +3290,7 @@ namespace LibCC
 # ifdef WIN32
 		// a couple functions here are copied from winapi for local use.
 		template<typename Traits, typename Alloc>
-		LIBCC_INLINE static void FormatMessageGLE(std::basic_string<wchar_t, Traits, Alloc>& out, int code)
+		static void FormatMessageGLE(std::basic_string<wchar_t, Traits, Alloc>& out, int code)
 		{
 			wchar_t* lpMsgBuf(0);
 			FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -3397,7 +3310,7 @@ namespace LibCC
 		}
 
 		template<typename Char, typename Traits, typename Alloc>
-		inline static void FormatMessageGLE(std::basic_string<Char, Traits, Alloc>& out, int code)
+		static void FormatMessageGLE(std::basic_string<Char, Traits, Alloc>& out, int code)
 		{
 			std::wstring s;
 			FormatMessageGLE(s, code);
@@ -3407,7 +3320,7 @@ namespace LibCC
 		}
 
 		template<typename Traits, typename Alloc>
-		LIBCC_INLINE static bool LoadStringX(HINSTANCE hInstance, UINT stringID, std::basic_string<wchar_t, Traits, Alloc>& out)
+		static bool LoadStringX(HINSTANCE hInstance, UINT stringID, std::basic_string<wchar_t, Traits, Alloc>& out)
 		{
 			static const int StaticBufferSize = 1024;
 			static const int MaximumAllocSize = 5242880;// don't attempt loading strings larger than 10 megs

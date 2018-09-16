@@ -1,28 +1,22 @@
 
 
 #include "test.h"
-#include "libcc\parse.hpp"
-using namespace LibCC::Parse;
-
+//#include "libcc\parse.hpp"
+//using namespace LibCC::Parse;
 
 extern bool RegistryTest();
-extern bool StatusTest();
-extern bool StreamTest();
+//extern bool StatusTest();
+//extern bool StreamTest();
 extern bool StringTest();
-extern bool PathMatchSpecTest();
+//extern bool PathMatchSpecTest();
 extern bool FormatTest();
 extern bool FormatBenchmark();
-extern bool ParseBenchmark();
+//extern bool ParseBenchmark();
 extern void LogTest();
-extern bool BlobTest();
-extern bool AllocationTrackerTest();
+//extern bool BlobTest();
+//extern bool AllocationTrackerTest();
 extern bool StringCompilationTest();
-extern bool ParseTest();
-
-LONG WINAPI CCUnhandledExceptionFilter(_EXCEPTION_POINTERS* ExceptionInfo)
-{
-  return EXCEPTION_EXECUTE_HANDLER;
-}
+//extern bool ParseTest();
 
 int g_indent = 0;
 std::list<TestState> g_runningTests;
@@ -32,7 +26,7 @@ bool RunTest__(Fn f, const char* sz)
 {
   bool r = false;
 	g_indent ++;
-  std::string indent("  ", g_indent);
+  std::string indent("                         ", g_indent * 2);
   g_runningTests.push_back(TestState());
   TestState& state = g_runningTests.back();
 
@@ -73,11 +67,11 @@ void TestCollection()
 {
 	//RunTest(BlobTest);
 
-	RunTest(ParseTest);
+	//RunTest(ParseTest);
 	//RunTest(ParseBenchmark);
 
 	//RunTest(LogTest);
-	RunTest(AllocationTrackerTest);
+	//RunTest(AllocationTrackerTest);
 
 	RunTest(StringTest);
 	RunTest(StringCompilationTest);
@@ -86,13 +80,13 @@ void TestCollection()
 
 	//RunTest(RegistryTest); // careful with this of course.
 	//RunTest(StatusTest);
-	RunTest(PathMatchSpecTest);
+	//RunTest(PathMatchSpecTest);
 }
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	_CrtSetBreakAlloc(133546);
-  SetUnhandledExceptionFilter(CCUnhandledExceptionFilter);
+  //_CrtSetBreakAlloc(113);
+  //SetUnhandledExceptionFilter(CCUnhandledExceptionFilter);
 	RunTest(TestCollection);
 	_CrtDumpMemoryLeaks();
 	return 0;

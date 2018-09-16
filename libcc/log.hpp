@@ -1,32 +1,4 @@
-/*
-  LibCC
-  Log Module
-  (c) 2004-2007 Carl Corcoran, carlco@gmail.com
-  Documentation: http://wiki.winprog.org/wiki/LibCC
-	Official source code: http://svn.winprog.org/personal/carl/LibCC
-
-	== License:
-
-  All software on this site is provided 'as-is', without any express or
-  implied warranty, by its respective authors and owners. In no event will
-  the authors be held liable for any damages arising from the use of this
-  software.
-
-  Permission is granted to anyone to use this software for any purpose,
-  including commercial applications, and to alter it and redistribute it
-  freely, subject to the following restrictions:
-
-  1. The origin of this software must not be misrepresented; you must not
-  claim that you wrote the original software. If you use this software in
-  a product, an acknowledgment in the product documentation would be
-  appreciated but is not required.
-
-  2. Altered source versions must be plainly marked as such, and must not
-  be misrepresented as being the original software.
-
-  3. This notice may not be removed or altered from any source distribution.
-*/
-
+// LibCC ~ Carl Corcoran, https://github.com/thenfour/LibCC
 
 #pragma once
 
@@ -470,7 +442,7 @@ namespace LibCC
 					std::wstring file;
 					if(pThis->DebugEnabled() || pThis->FileEnabled())
 					{
-						file = LibCC::FormatW("[%-%-%;%:%:%][%] %%%|")
+						file = LibCC::FormatW(L"[%-%-%;%:%:%][%] %%%|")
 							.ul<10,4>(st.wYear)
 							.ul<10,2>(st.wMonth)
 							.ul<10,2>(st.wDay)
@@ -560,7 +532,7 @@ namespace LibCC
 					// do gui
 					if(pThis->WindowEnabled() || pThis->StdOutEnabled())
 					{
-						std::wstring gui(LibCC::FormatW("%%%|").s(indent).s(mi.s1).s(mi.s2).Str());
+						std::wstring gui(LibCC::FormatW(L"%%%|").s(indent).s(mi.s1).s(mi.s2).Str());
 
 						if(pThis->WindowEnabled())
 						{
@@ -778,7 +750,7 @@ namespace LibCC
 			}
 			std::wstring toFile = LibCC::FormatW(L"%.%%")(fileNameBase).i(i)(fileNameExt).Str();
 
-			if(i == m_rotateKeepCount)
+			if(i == (int)m_rotateKeepCount)
 			{
 				// Delete the oldest file
 				DeleteFileW(fromFile.c_str());
@@ -937,8 +909,7 @@ namespace LibCC
       if(m_pLog)
       {
         m_pLog->Outdent();
-				t.Tick();
-				m_pLog->Message(LibCC::FormatA("} (% seconds)").d<4>(t.GetLastDelta()));
+				m_pLog->Message(LibCC::FormatA("} (% seconds)").d<4>(t.GetElapsedSeconds()));
       }
     }
 

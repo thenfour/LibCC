@@ -15,5 +15,11 @@
     <ClInclude Include="libcc\format.hpp">
       <Filter>libcc</Filter>
     </ClInclude>
+    <ClInclude Include="libcc\profiler.hpp">
+      <Filter>libcc</Filter>
+    </ClInclude>
+    <ClInclude Include="libcc\log.hpp">
+      <Filter>libcc</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

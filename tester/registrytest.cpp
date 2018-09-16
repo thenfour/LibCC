@@ -44,7 +44,7 @@ bool RegistryTest()
   TestAssert(dw == 0x80000000);
 
   // binary
-  Blob<DWORD> buf;
+  std::vector<DWORD> buf;
   TestAssert(x.GetValue(L"dw", buf));
   TestAssert(buf[0] == 0x80000000);
 

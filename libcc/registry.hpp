@@ -1,42 +1,9 @@
-/*
-  LibCC
-  Registry Module
-  (c) 2004-2007 Carl Corcoran, carlco@gmail.com
-  Documentation: http://wiki.winprog.org/wiki/LibCC
-	Official source code: http://svn.winprog.org/personal/carl/LibCC
-
-	== License:
-
-  All software on this site is provided 'as-is', without any express or
-  implied warranty, by its respective authors and owners. In no event will
-  the authors be held liable for any damages arising from the use of this
-  software.
-
-  Permission is granted to anyone to use this software for any purpose,
-  including commercial applications, and to alter it and redistribute it
-  freely, subject to the following restrictions:
-
-  1. The origin of this software must not be misrepresented; you must not
-  claim that you wrote the original software. If you use this software in
-  a product, an acknowledgment in the product documentation would be
-  appreciated but is not required.
-
-  2. Altered source versions must be plainly marked as such, and must not
-  be misrepresented as being the original software.
-
-  3. This notice may not be removed or altered from any source distribution.
-*/
-
-/*
-  Last updated March 8, 2007 carl corcoran
-  Created Oct 2004
-*/
+// LibCC ~ Carl Corcoran, https://github.com/thenfour/LibCC
 
 #pragma once
 
 #ifdef WIN32
 
-#include "blob.hpp"
 #include "Winapi.hpp"
 #include <vector>
 
@@ -69,7 +36,7 @@ namespace LibCC
         therest = s.substr(nSep + 1);// BUG: could potentially go past the end of the str.
     }
 
-    sKey = StringToLower(sKey);
+    NaiveStringToLower(sKey);
 
     if(StringEquals(sKey, "hklm") || StringEquals(sKey, "hkey_local_machine"))
     {
@@ -324,10 +291,10 @@ namespace LibCC
       bool SetValue(const void* Buffer, DWORD Length) { return m_key.SetValue(m_name, Buffer, Length); }
       bool GetValueEx(void* buf, IN OUT DWORD& size) { return m_key.GetValueEx(m_name, buf, size); }
       bool GetValue(void* buf, IN DWORD size) { return m_key.GetValue(m_name, buf, size); }
-	    template<typename BlobEl, typename BlobTraits>
-	    bool GetValue(Blob<BlobEl, BlobTraits>& buf, DWORD& size) { return m_key.GetValue(m_name, buf, size); }
-	    template<typename BlobEl, typename BlobTraits>
-	    bool GetValue(Blob<BlobEl, BlobTraits>& buf) { return m_key.GetValue(m_name, buf); }
+	    template<typename BlobEl>
+	    bool GetValue(std::vector<BlobEl>& buf, DWORD& size) { return m_key.GetValue(m_name, buf, size); }
+	    template<typename BlobEl>
+	    bool GetValue(std::vector<BlobEl>& buf) { return m_key.GetValue(m_name, buf); }
 
       _String m_name;
       _RegistryKey& m_key;
@@ -450,24 +417,24 @@ namespace LibCC
     {
 	    return GetValueEx(name, buf, size);
     }
-	  template<typename BlobEl, typename BlobTraits>
-	  bool GetValue(const _String& name, Blob<BlobEl, BlobTraits>& buf, DWORD& size)
+	  template<typename BlobEl>
+	  bool GetValue(const _String& name, std::vector<BlobEl>& buf, DWORD& size)
 	  {
 		  bool r = false;
       if(!__Open()) return false;
 		  // get the size
 		  if(ERROR_SUCCESS == RegQueryValueExX(m_hKey, name.length() ? name.c_str() : 0, 0, 0, &size))
 		  {
-			  buf.Alloc(size + 1);
-			  if(ERROR_SUCCESS == RegQueryValueExX(m_hKey, name.length() ? name.c_str() : 0, 0, reinterpret_cast<BYTE*>(buf.GetBuffer()), &size))
+			  buf.resize(size + 1);
+			  if(ERROR_SUCCESS == RegQueryValueExX(m_hKey, name.length() ? name.c_str() : 0, 0, reinterpret_cast<BYTE*>(buf.data()), &size))
 			  {
 				  r = true;
 			  }
 		  }
 		  return r;
 	  }
-	  template<typename BlobEl, typename BlobTraits>
-	  bool GetValue(const _String& name, Blob<BlobEl, BlobTraits>& buf)
+	  template<typename BlobEl>
+	  bool GetValue(const _String& name, std::vector<BlobEl>& buf)
 	  {
       DWORD size;
 	    return GetValue(name, buf, size);

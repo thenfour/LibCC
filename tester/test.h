@@ -1,8 +1,8 @@
 
 #pragma once
 
+#define WIN32_LEAN_AND_MEAN
 #define _SECURE_SCL 0
-#define LIBCC_PARSE_TRACE_ENABLED 0
 
 #include <windows.h>
 #include <iostream>
@@ -23,16 +23,15 @@ extern std::list<TestState> g_runningTests;
 
 
 // stolen from varargs.h
-#define cc_va_start(ap) ap = (va_list)&va_alist
-#define cc_va_end(ap) ap = (va_list)0
+//#define cc_va_start(ap) ap = (va_list)&va_alist
+//#define cc_va_end(ap) ap = (va_list)0
 
 
 
 template<typename T>
 void DoNotOptimize(const T& arg)
 {
-  TCHAR x[2];
-  wsprintf(x, _T(""), arg);
+  MulDiv((int)&arg, 2, 2);
 }
 
 
@@ -50,6 +49,7 @@ inline bool TestAssert__(bool b, const char* sz, const char* file, int line)
     OutputDebugString("FAILED: ");
     OutputDebugString(sz);
     OutputDebugString("\r\n");
+    DebugBreak();
   }
   else
   {
@@ -67,6 +67,11 @@ inline bool TestAssert__(bool b, const char* sz, const char* file, int line)
   return b;
 }
 
+template<typename Ta, typename Tb>
+inline bool TestAssert_Eq__(const Ta& a, const Tb& b, const char* sz, const char* file, int line) {
+  return TestAssert__(a == b, sz, file, line);
+}
+
 template<typename Char>
 inline void TestMessage(const std::basic_string<Char>& msg)
 {
@@ -81,3 +86,5 @@ inline void TestMessage(const std::basic_string<Char>& msg)
 }
 
 #define TestAssert(x) TestAssert__((x), #x, __FILE__, __LINE__)
+#define TestAssert_Eq(x, y) TestAssert_Eq__((x), (y), #x, __FILE__, __LINE__)
+

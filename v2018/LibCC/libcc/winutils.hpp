@@ -20,7 +20,7 @@ namespace cc {
     size_t len;
     while (true) {
       len = (size_t)::GetModuleFileNameW((HMODULE)aModule,
-        (PWSTR)ret.data(), ret.size());
+        (PWSTR)ret.data(), (DWORD)ret.size());
       if (len == 0) {
         return L"";
       }
@@ -93,6 +93,55 @@ namespace cc {
     return r;
   }
 
+  struct qptimer {
+    int64_t mSegmentStarted;
+    bool mIsRunning;
+    uint64_t mElapsedTicks;
+
+    qptimer(bool startRunning = true) :
+      mIsRunning(false),
+      mElapsedTicks(0)
+    {
+      if (startRunning)
+        start();
+    }
+    void start() {
+      if (mIsRunning)
+        return;
+      LARGE_INTEGER p;
+      QueryPerformanceCounter(&p);
+      mSegmentStarted = p.QuadPart;
+      mIsRunning = true;
+    }
+    void pause() {
+      LARGE_INTEGER p;
+      QueryPerformanceCounter(&p);
+      mElapsedTicks += (p.QuadPart - mSegmentStarted);
+      mIsRunning = false;
+    }
+    void reset(bool restart = false) {
+      mIsRunning = false;
+      mElapsedTicks = 0;
+    }
+    uint64_t elapsedTicks() const {
+      uint64_t upToDateElapsed = mElapsedTicks;
+      if (mIsRunning) {
+        LARGE_INTEGER p;
+        QueryPerformanceCounter(&p);
+        upToDateElapsed += (p.QuadPart - mSegmentStarted);
+      }
+      return upToDateElapsed;
+    }
+    double elapsedSeconds() const
+    {
+      LARGE_INTEGER p;
+      QueryPerformanceFrequency(&p);
+      return (double)elapsedTicks() / p.QuadPart;
+    }
+    uint64_t elapsedMilliseconds() const {
+      return (uint64_t)(elapsedSeconds() * 1000.);
+    }
+  };
 }
 
 #endif // LIBCC_WINUTIL_H

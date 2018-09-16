@@ -3,9 +3,7 @@
 #include "test.h"
 #include "libcc\Log.hpp"
 #include "libcc\stringutil.hpp"
-#include "resource.h"
 using namespace LibCC;
-#include "libcc\AllocationTracker.hpp"
 
 void FormatTestA(FormatA a)
 {
@@ -80,24 +78,24 @@ bool FormatTest()
 		TestAssert(d.Str() == "hi carl");
 
 		// XChar* constructor
-		FormatA e(L"hi %");
-		e("carl");
-		TestAssert(e.Str() == "hi carl");
+		//FormatA e(L"hi %");
+		//e("carl");
+		//TestAssert(e.Str() == "hi carl");
 
-		// Xstring constructor
-		std::wstring ws(L"hi %");
-		FormatA f(ws);
-		f("carl");
-		TestAssert(f.Str() == "hi carl");
+		//// Xstring constructor
+		//std::wstring ws(L"hi %");
+		//FormatA f(ws);
+		//f("carl");
+		//TestAssert(f.Str() == "hi carl");
 
 		// HINSTANCE constructor
-		FormatW g(GetModuleHandle(0), IDS_HI);
-		g(L"carl");
-		TestAssert(g.Str() == L"hi carl");
+		//FormatW g(GetModuleHandle(0), IDS_HI);
+		//g(L"carl");
+		//TestAssert(g.Str() == L"hi carl");
 
-		FormatA h(IDS_HI);
-		h(L"carl");
-		TestAssert(h.Str() == "hi carl");
+		//FormatA h(IDS_HI);
+		//h(L"carl");
+		//TestAssert(h.Str() == "hi carl");
 	}
 
 	// code scenarios of passing into other functions. the point of this is mostly to make sure that there are no compiler warnings / errors for doing typical stuff.
@@ -135,32 +133,32 @@ bool FormatTest()
 		a("carl");
 		TestAssert(a.Str() == "carl");
 
-		a.SetFormat((wchar_t*)0);
-		a("carl");
-		TestAssert(a.Str() == "carl");
+		//a.SetFormat((wchar_t*)0);
+		//a("carl");
+		//TestAssert(a.Str() == "carl");
 
-		a.SetFormat(L"bye %");
-		a("jake");
-		TestAssert(a.Str() == "bye jake");
+		//a.SetFormat(L"bye %");
+		//a("jake");
+		//TestAssert(a.Str() == "bye jake");
 
 		std::string sa = "hi %";
 		a.SetFormat(sa);
 		a("carl");
 		TestAssert(a.Str() == "hi carl");
 
-		std::wstring sw = L"bye %";
-		a.SetFormat(sw);
-		a("jake");
-		TestAssert(a.Str() == "bye jake");
+		//std::wstring sw = L"bye %";
+		//a.SetFormat(sw);
+		//a("jake");
+		//TestAssert(a.Str() == "bye jake");
 
-		a.SetFormat(GetModuleHandle(0), IDS_HI);
-		a("carl");
-		TestAssert(a.Str() == "hi carl");
+		//a.SetFormat(GetModuleHandle(0), IDS_HI);
+		//a("carl");
+		//TestAssert(a.Str() == "hi carl");
 
-		a.SetFormat("clear...");
-		a.SetFormat(IDS_HI);
-		a("carl");
-		TestAssert(a.Str() == "hi carl");
+		//a.SetFormat("clear...");
+		//a.SetFormat(IDS_HI);
+		//a("carl");
+		//TestAssert(a.Str() == "hi carl");
 
 		// escapes and other chars
 		a.SetFormat("a|b");
@@ -243,27 +241,27 @@ bool FormatTest()
 	{
 		FormatW w;
 
-		w.SetFormat("yo ");
+		w.SetFormat(L"yo ");
 		w.c((char)'a', 15);
 		TestAssert(w.Str() == L"yo aaaaaaaaaaaaaaa");
 
-		w.SetFormat("yo ");
+		w.SetFormat(L"yo ");
 		w.c((char)'a', 1);
 		TestAssert(w.Str() == L"yo a");
 
-		w.SetFormat("yo ");
+		w.SetFormat(L"yo ");
 		w.c((char)'a', 0);
 		TestAssert(w.Str() == L"yo ");
 
-		w.SetFormat("yo ");
+		w.SetFormat(L"yo ");
 		w.c((wchar_t)'a', 15);
 		TestAssert(w.Str() == L"yo aaaaaaaaaaaaaaa");
 
-		w.SetFormat("yo ");
+		w.SetFormat(L"yo ");
 		w.c((wchar_t)'a', 1);
 		TestAssert(w.Str() == L"yo a");
 
-		w.SetFormat("yo ");
+		w.SetFormat(L"yo ");
 		w.c((wchar_t)'a', 0);
 		TestAssert(w.Str() == L"yo ");
 	}
@@ -708,6 +706,25 @@ bool FormatTest()
 		}
 		TestAssert(w.Str() == shouldBe);
 	}
+
+  // (arg)
+  {
+    TestAssert_Eq(FormatW(L"-%-")(0).Str(), L"-0-");
+    TestAssert_Eq(FormatW(L"-%-")(1).Str(), L"-1-");
+    TestAssert_Eq(FormatW(L"-%-")(-1).Str(), L"--1-");
+    TestAssert_Eq(FormatW(L"-%-")(0xffffffff).Str(), L"-4294967295-");
+    TestAssert_Eq(FormatW(L"-%-")(0xffffffffffff).Str(), L"-281474976710655-");
+    TestAssert_Eq(FormatW(L"-%-")(-0xffffffffffff).Str(), L"--281474976710655-");
+    TestAssert_Eq(FormatW(L"-%-")(3.14).Str(), L"-3.14-");
+    TestAssert_Eq(FormatW(L"-%-")("lol").Str(), L"-lol-");
+    TestAssert_Eq(FormatW(L"-%-")(L"wtf").Str(), L"-wtf-");
+    void *p = (void*)0x1345;
+    TestAssert_Eq(FormatW(L"-%-")(p).Str(), L"-0x00001345-");
+    std::string s = "omg";
+    TestAssert_Eq(FormatW(L"-%-")(s).Str(), L"-omg-");
+    std::wstring ws = L"omg";
+    TestAssert_Eq(FormatW(L"-%-")(ws).Str(), L"-omg-");
+  }
 
 	return true;
 }

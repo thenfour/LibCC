@@ -1,31 +1,4 @@
-/*
-  LibCC
-  Winapi Module
-  (c) 2004-2007 Carl Corcoran, carlco@gmail.com
-  Documentation: http://wiki.winprog.org/wiki/LibCC
-	Official source code: http://svn.winprog.org/personal/carl/LibCC
-
-	== License:
-
-  All software on this site is provided 'as-is', without any express or
-  implied warranty, by its respective authors and owners. In no event will
-  the authors be held liable for any damages arising from the use of this
-  software.
-
-  Permission is granted to anyone to use this software for any purpose,
-  including commercial applications, and to alter it and redistribute it
-  freely, subject to the following restrictions:
-
-  1. The origin of this software must not be misrepresented; you must not
-  claim that you wrote the original software. If you use this software in
-  a product, an acknowledgment in the product documentation would be
-  appreciated but is not required.
-
-  2. Altered source versions must be plainly marked as such, and must not
-  be misrepresented as being the original software.
-
-  3. This notice may not be removed or altered from any source distribution.
-*/
+// LibCC ~ Carl Corcoran, https://github.com/thenfour/LibCC
 
 #pragma once
 
@@ -33,8 +6,6 @@
 
 #include <string>
 #include "StringUtil.hpp"
-#include "blob.hpp"
-
 
 #include <windows.h>// for windows types
 #include <shlwapi.h>// for Path* functions
@@ -148,12 +119,11 @@ namespace LibCC
     {
       if(type == REG_SZ)
       {
-        Blob<BYTE> buf;
-        buf.Alloc(size + sizeof(wchar_t));
-        size = (DWORD)buf.Size();
-        if(ERROR_SUCCESS == (r = RegQueryValueExW(hKey, lpValueName, 0, 0, buf.GetBuffer(), &size)))
+        std::vector<BYTE> buf(size + sizeof(wchar_t));
+        size = (DWORD)buf.size();
+        if(ERROR_SUCCESS == (r = RegQueryValueExW(hKey, lpValueName, 0, 0, buf.data(), &size)))
         {
-          str = (const wchar_t*)buf.GetBuffer();
+          str = (const wchar_t*)buf.data();
         }
       }
     }
@@ -212,7 +182,7 @@ namespace LibCC
   {
     FILETIME temp;
     LONG ret;
-    Blob<wchar_t> buf;
+    std::vector<wchar_t> buf;
     DWORD size;
 
     outName.clear();
@@ -227,18 +197,14 @@ namespace LibCC
       maxNameSize += 2;// for safety
     }
 
-    // allocate the memory
-    if(!buf.Alloc(maxNameSize))
-    {
-      return ERROR_OUTOFMEMORY;
-    }
+    buf.resize(maxNameSize);
 
     // make the call
-    size = static_cast<DWORD>(buf.Size());
-    ret = RegEnumKeyExW(hKey, dwIndex, buf.GetBuffer(), &size, 0, 0, 0, &temp);
+    size = static_cast<DWORD>(buf.size());
+    ret = RegEnumKeyExW(hKey, dwIndex, buf.data(), &size, 0, 0, 0, &temp);
     if(ret == ERROR_SUCCESS)
     {
-      outName = buf.GetBuffer();
+      outName = buf.data();
     }
 
     return ret;
@@ -419,10 +385,10 @@ namespace LibCC
 
 	inline std::wstring PathAppendX(IN const std::wstring& lhs, const std::wstring& rhs)
   {
-		Blob<wchar_t> b(lhs.size() + rhs.size() + 4);// +2 for null term + a backslash if necessary.
-		XLastDitchStringCopy(lhs.c_str(), b.GetBuffer());
-		PathAppendW(b.GetBuffer(), rhs.c_str());
-		return std::wstring(b.GetBuffer());
+		std::vector<wchar_t> b(lhs.size() + rhs.size() + 4);// +2 for null term + a backslash if necessary.
+		XLastDitchStringCopy(lhs.c_str(), b.data());
+		PathAppendW(b.data(), rhs.c_str());
+		return std::wstring(b.data());
   }
 
   template<typename Char>

@@ -1,27 +1,23 @@
 
 
 #include "test.h"
-#include "stringutil-711.hpp"
 #include "libcc\timer.hpp"
-//using namespace LibCC;
-
 #include <sstream>
 #pragma warning(disable:4996)// warning C4996: 'wcscpy' was declared deprecated  -- uh, i know how to use this function just fine, thanks.
 
 namespace Test
 {
-
 }
 
 void StartBenchmark(LibCC::Timer& t)
 {
-	t.Tick();
+	t.Reset();
+  t.Start();
 }
 void ReportBenchmark(LibCC::Timer& t, const std::string& name)
 {
 	const int nameColumn = 50;
-	t.Tick();
-	std::cout << LibCC::FormatA("%%: %\r\n").s<nameColumn>(name).c('.', nameColumn - name.size()).d<3>(t.GetLastDelta()).Str();
+  std::cout << LibCC::FormatA("%%: %\r\n").s<nameColumn>(name).c('.', nameColumn - name.size()).d<3>(t.GetElapsedSeconds()).Str();
 }
 
 bool FormatBenchmark()
@@ -120,23 +116,9 @@ bool FormatBenchmark()
 	StartBenchmark(t);
   for(int n = 0; n < MaxNum; n ++)
   {
-		DoNotOptimize(LibCC_711::Format().ul<16>(n));
-  }
-	ReportBenchmark(t, "Format711(templated)");
-
-	StartBenchmark(t);
-  for(int n = 0; n < MaxNum; n ++)
-  {
 		DoNotOptimize(LibCC::Format().ul<16>(n));
   }
 	ReportBenchmark(t, "Format(templated)");
-
-	StartBenchmark(t);
-  for(int n = 0; n < MaxNum; n ++)
-  {
-    DoNotOptimize(LibCC_711::Format().ul(n, 16));
-  }
-	ReportBenchmark(t, "Format711(runtime)");
 
 	StartBenchmark(t);
   for(int n = 0; n < MaxNum; n ++)
@@ -177,23 +159,9 @@ bool FormatBenchmark()
 	StartBenchmark(t);
 	for(double n = 0.0; n < MaxNum; n += 0.98)
 	{
-		DoNotOptimize(LibCC_711::Format().d<7,7,'0',false, 10>(n));
-	}
-	ReportBenchmark(t, "Format711(templated)");
-
-	StartBenchmark(t);
-	for(double n = 0.0; n < MaxNum; n += 0.98)
-	{
 		DoNotOptimize(LibCC::Format().d<7,7,'0',false, 10>(n));
 	}
 	ReportBenchmark(t, "Format(templated)");
-
-	StartBenchmark(t);
-	for(double n = 0.0; n < MaxNum; n += 0.98)
-	{
-		DoNotOptimize(LibCC_711::Format().d(n, 7, 7, '0', false, 10));
-	}
-	ReportBenchmark(t, "Format711(runtime)");
 
 	StartBenchmark(t);
 	for(double n = 0.0; n < MaxNum; n += 0.98)
@@ -262,19 +230,6 @@ bool FormatBenchmark()
 	ReportBenchmark(t, "stringstream");
 
 
-	StartBenchmark(t);
-  for(int n = 0; n < MaxNum; n ++)
-	{
-		right[5] = left[0] = '0' + ((n / 1) % 10);
-		right[4] = left[1] = '0' + ((n / 10) % 10);
-		right[3] = left[2] = '0' + ((n / 100) % 10);
-		right[2] = left[3] = '0' + ((n / 1000) % 10);
-		right[1] = left[4] = '0' + ((n / 10000) % 10);
-		right[0] = left[5] = '0' + ((n / 100000) % 10);
-		right[6] = left[6] = 0;
-		DoNotOptimize(LibCC_711::FormatA()(left)(right));
-	}
-	ReportBenchmark(t, "Format711");
 
 	StartBenchmark(t);
   for(int n = 0; n < MaxNum; n ++)
