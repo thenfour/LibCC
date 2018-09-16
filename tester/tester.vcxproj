@@ -108,6 +108,7 @@
     <ClCompile Include="registrytest.cpp" />
     <ClCompile Include="stringcompilationtest.cpp" />
     <ClCompile Include="stringtest.cpp" />
+    <ClCompile Include="WinapiTest.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\libcc\float.hpp" />

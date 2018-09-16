@@ -17,6 +17,7 @@ extern void LogTest();
 //extern bool AllocationTrackerTest();
 extern bool StringCompilationTest();
 //extern bool ParseTest();
+extern bool WinapiTest();
 
 int g_indent = 0;
 std::list<TestState> g_runningTests;
@@ -81,6 +82,7 @@ void TestCollection()
 	//RunTest(RegistryTest); // careful with this of course.
 	//RunTest(StatusTest);
 	//RunTest(PathMatchSpecTest);
+  RunTest(WinapiTest);
 }
 
 int _tmain(int argc, _TCHAR* argv[])

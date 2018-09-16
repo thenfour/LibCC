@@ -10,31 +10,20 @@
 #include <windows.h>// for windows types
 #include <shlwapi.h>// for Path* functions
 #include <shlobj.h>// for SHGetFolderPath
-
-// Set up inline option
-#ifdef _MSC_VER
-# if (LIBCC_OPTION_INLINE == 1)// set this option
-#   define LIBCC_INLINE __declspec(noinline)
-# else
-#   define LIBCC_INLINE inline
-# endif
-#else
-# define LIBCC_INLINE inline
-#endif
-
+#pragma comment(lib, "version.lib")
 
 namespace LibCC
 {
   // Win32 Wrappers Declaration -----------------------------------------------------------------------------------
   template<typename Traits, typename Alloc>
-  LIBCC_INLINE void FormatMessageGLE(std::basic_string<wchar_t, Traits, Alloc>& out, int code);
+  void FormatMessageGLE(std::basic_string<wchar_t, Traits, Alloc>& out, int code);
   template<typename Char, typename Traits, typename Alloc>
-  LIBCC_INLINE void FormatMessageGLE(std::basic_string<Char, Traits, Alloc>& out, int code);
+  void FormatMessageGLE(std::basic_string<Char, Traits, Alloc>& out, int code);
 
   template<typename Traits, typename Alloc>
-  LIBCC_INLINE bool LoadStringX(HINSTANCE hInstance, UINT stringID, std::basic_string<wchar_t, Traits, Alloc>& out);
+  bool LoadStringX(HINSTANCE hInstance, UINT stringID, std::basic_string<wchar_t, Traits, Alloc>& out);
   template<typename Char, typename Traits, typename Alloc>
-  LIBCC_INLINE bool LoadStringX(HINSTANCE hInstance, UINT stringID, std::basic_string<Char, Traits, Alloc>& out);
+  bool LoadStringX(HINSTANCE hInstance, UINT stringID, std::basic_string<Char, Traits, Alloc>& out);
 
   // RegCreateKeyEx
   template<typename Char>
@@ -430,33 +419,60 @@ namespace LibCC
 		return hr;
   }
 
-  template<typename Char, typename HandleType>// handle can be either HINSTANCE or HMODULE
-	inline std::basic_string<Char> GetModuleFilenameX(HandleType h)
-	{
-		if(h == 0)
-			h = GetModuleHandle(0);
-		wchar_t ret[MAX_PATH+1];
-		ret[0] = 0;
-		::GetModuleFileNameW((HMODULE)h, ret, MAX_PATH);
-		return ret;
-	}
-
-  template<typename Char>
-	inline std::basic_string<Char> GetModuleFilenameX()
-	{
-		return GetModuleFilenameX<Char, HMODULE>(0);
-	}
+ // template<typename Char, typename HandleType>// handle can be either HINSTANCE or HMODULE
+	//inline std::basic_string<Char> GetModuleFilenameX(HandleType h)
+	//{
+	//	if(h == 0)
+	//		h = GetModuleHandle(0);
+	//	wchar_t ret[MAX_PATH+1];
+	//	ret[0] = 0;
+	//	::GetModuleFileNameW((HMODULE)h, ret, MAX_PATH);
+	//	return ret;
+	//}
 
   template<typename HandleType>// handle can be either HINSTANCE or HMODULE
-	inline std::wstring GetModuleFilenameW(HandleType h)
-	{
-		return GetModuleFilenameX<wchar_t>(h);
-	}
+  inline std::wstring GetModuleFilenameW(HandleType aModule)
+  {
+    std::wstring ret(MAX_PATH, '\0');
+    size_t len;
+    while (true) {
+      len = (size_t)::GetModuleFileNameW((HMODULE)aModule,
+        (PWSTR)ret.data(), (DWORD)ret.size());
+      if (len == 0) {
+        return L"";
+      }
+      if (len == ret.size() && ::GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+        ret.resize(ret.size() * 2);
+      }
+      else {
+        break;
+      }
+    }
+    ret.resize(len);
+    return ret;
+  }
+  inline std::wstring GetModuleFilenameW()
+  {
+    return GetModuleFilenameW(0);
+  }
 
-	inline std::wstring GetModuleFilenameW()
-	{
-		return GetModuleFilenameX<wchar_t>((HMODULE)0);
-	}
+  template<typename Char, typename HandleType>
+  inline std::basic_string<Char> GetModuleFilenameX(HandleType aModule)
+  {
+    return StringConvert<Char>(GetModuleFilenameW<HandleType>(aModule));
+  }
+  template<typename Char>
+  inline std::basic_string<Char> GetModuleFilenameX()
+  {
+    return GetModuleFilenameX<Char, HMODULE>(0);
+  }
+
+ // template<typename HandleType>// handle can be either HINSTANCE or HMODULE
+	//inline std::wstring GetModuleFilenameW(HandleType h)
+	//{
+	//	return GetModuleFilenameX<wchar_t>(h);
+	//}
+
 }
 
 
@@ -479,7 +495,7 @@ namespace LibCC
 {
   // Win32 wrappers Implementation  -----------------------------------------------------------------------------------
   template<typename Traits, typename Alloc>
-  LIBCC_INLINE void FormatMessageGLE(std::basic_string<wchar_t, Traits, Alloc>& out, int code)
+  void FormatMessageGLE(std::basic_string<wchar_t, Traits, Alloc>& out, int code)
   {
     wchar_t* lpMsgBuf(0);
     FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -499,7 +515,7 @@ namespace LibCC
   }
 
   template<typename Char, typename Traits, typename Alloc>
-  LIBCC_INLINE void FormatMessageGLE(std::basic_string<Char, Traits, Alloc>& out, int code)
+  void FormatMessageGLE(std::basic_string<Char, Traits, Alloc>& out, int code)
   {
     std::wstring s;
     FormatMessageGLE(s, code);
@@ -508,7 +524,7 @@ namespace LibCC
   }
 
   template<typename Traits, typename Alloc>
-  LIBCC_INLINE bool LoadStringX(HINSTANCE hInstance, UINT stringID, std::basic_string<wchar_t, Traits, Alloc>& out)
+  bool LoadStringX(HINSTANCE hInstance, UINT stringID, std::basic_string<wchar_t, Traits, Alloc>& out)
   {
     static const int StaticBufferSize = 1024;
     static const int MaximumAllocSize = 5242880;// don't attempt loading strings larger than 10 megs
@@ -596,8 +612,6 @@ namespace LibCC
 	}
 
 
-#ifdef LIBCC_INCLUDE_VERSION
-#pragma comment(lib, "version.lib")
 	class Version
 	{
 	public:
@@ -626,15 +640,14 @@ namespace LibCC
 			if(!size)
 				return;
 
-			if(!data.Alloc(size+1))// why +1 ?  just for fun i guess.... no good reason.
-				return;
-			if(!GetFileVersionInfoW(pathW.c_str(), 0, size, data.GetBuffer()))
+      data.resize(size);
+			if(!GetFileVersionInfoW(pathW.c_str(), 0, size, data.data()))
 				return;
 
 			// fixed info (main shit)
 			VS_FIXEDFILEINFO* ffi = 0;
 			UINT ffilen = 0;
-			if(!VerQueryValueW(data.GetBuffer(), L"\\", (void**)&ffi, &ffilen))
+			if(!VerQueryValueW(data.data(), L"\\", (void**)&ffi, &ffilen))
 				return;
 			m_a = HIWORD(ffi->dwFileVersionMS);
 			m_b = LOWORD(ffi->dwFileVersionMS);
@@ -643,7 +656,7 @@ namespace LibCC
 
 			// Read the list of languages and code pages.
 			LANGANDCODEPAGE* lpTranslate;
-			VerQueryValueW(data.GetBuffer(), L"\\VarFileInfo\\Translation", (LPVOID*)&lpTranslate, &ffilen);
+			VerQueryValueW(data.data(), L"\\VarFileInfo\\Translation", (LPVOID*)&lpTranslate, &ffilen);
 
 			for(unsigned i = 0; i < (ffilen / sizeof(LANGANDCODEPAGE)); i++)
 			{
@@ -658,17 +671,17 @@ namespace LibCC
 
 		std::wstring GetRegisteredTo(WORD lang, WORD codepage)
 		{
-			return GetString(LibCC::Format(L"\\StringFileInfo\\%%\\RegisteredTo").ul<16,4>(lang).ul<16,4>(codepage).Str());
+			return GetString(LibCC::FormatW(L"\\StringFileInfo\\%%\\RegisteredTo").ul<16,4>(lang).ul<16,4>(codepage).Str());
 		}
 
 		std::wstring GetLegalCopyright(WORD lang, WORD codepage)
 		{
-			return GetString(LibCC::Format(L"\\StringFileInfo\\%%\\LegalCopyright").ul<16,4>(lang).ul<16,4>(codepage).Str());
+			return GetString(LibCC::FormatW(L"\\StringFileInfo\\%%\\LegalCopyright").ul<16,4>(lang).ul<16,4>(codepage).Str());
 		}
 
 		std::wstring GetFileDescription(WORD lang, WORD codepage)
 		{
-			return GetString(LibCC::Format(L"\\StringFileInfo\\%%\\FileDescription").ul<16,4>(lang).ul<16,4>(codepage).Str());
+			return GetString(LibCC::FormatW(L"\\StringFileInfo\\%%\\FileDescription").ul<16,4>(lang).ul<16,4>(codepage).Str());
 		}
 		
 		std::vector<LANGANDCODEPAGE> Translations;
@@ -679,19 +692,18 @@ namespace LibCC
 		{
 			PCWSTR pStr;
 			UINT ffilen = 0;
-			if(!VerQueryValueW(data.GetBuffer(), name.c_str(), (void**)&pStr, &ffilen))
+			if(!VerQueryValueW(data.data(), name.c_str(), (void**)&pStr, &ffilen))
 				return L"";
 			return pStr;
 		}
 
-		LibCC::Blob<BYTE> data;
+		std::vector<BYTE> data;
 
 		WORD m_a;
 		WORD m_b;
 		WORD m_c;
 		WORD m_d;
 	};
-#endif
 
 }
 
